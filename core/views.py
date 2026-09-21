@@ -1083,39 +1083,40 @@ def generar_respaldo_manual_view(request):
 
         archivos_generados = []
 
-        # 1. Respaldo universal JSON mediante dumpdata
+        # 1. Respaldo universal JSON mediante dumpdata (optimizado)
         json_file = os.path.join(backup_dir, f'respaldo_sia_{timestamp}.json')
         with open(json_file, 'w', encoding='utf-8') as f:
-            call_command('dumpdata', '--natural-foreign', '--natural-primary', exclude=['contenttypes', 'auth.permission'], stdout=f)
+            call_command('dumpdata', exclude=['contenttypes', 'auth.permission'], stdout=f)
         archivos_generados.append(os.path.basename(json_file))
 
-        # 2. Respaldo nativo PostgreSQL con pg_dump
-        db_conf = settings.DATABASES.get('default', {})
-        if 'postgresql' in db_conf.get('ENGINE', ''):
-            pg_file = os.path.join(backup_dir, f'pg_dump_sia_{timestamp}.dump')
-            env = os.environ.copy()
-            if db_conf.get('PASSWORD'):
-                env['PGPASSWORD'] = str(db_conf['PASSWORD'])
-            cmd = [
-                'pg_dump',
-                '-h', str(db_conf.get('HOST') or '127.0.0.1'),
-                '-p', str(db_conf.get('PORT') or '5432'),
-                '-U', str(db_conf.get('USER') or 'postgres'),
-                '-d', str(db_conf.get('NAME') or 'inventario'),
-                '-F', 'c',
-                '-f', pg_file
-            ]
-            try:
-                import subprocess
-                res = subprocess.run(cmd, env=env, capture_output=True, timeout=25)
-                if res.returncode == 0 and os.path.exists(pg_file) and os.path.getsize(pg_file) > 0:
-                    archivos_generados.append(os.path.basename(pg_file))
-            except Exception:
-                pass
+        # 2. Respaldo nativo PostgreSQL con pg_dump (solo si pg_dump está instalado en el sistema)
+        if shutil.which('pg_dump'):
+            db_conf = settings.DATABASES.get('default', {})
+            if 'postgresql' in db_conf.get('ENGINE', ''):
+                pg_file = os.path.join(backup_dir, f'pg_dump_sia_{timestamp}.dump')
+                env = os.environ.copy()
+                if db_conf.get('PASSWORD'):
+                    env['PGPASSWORD'] = str(db_conf['PASSWORD'])
+                cmd = [
+                    'pg_dump',
+                    '-h', str(db_conf.get('HOST') or '127.0.0.1'),
+                    '-p', str(db_conf.get('PORT') or '5432'),
+                    '-U', str(db_conf.get('USER') or 'postgres'),
+                    '-d', str(db_conf.get('NAME') or 'inventario'),
+                    '-F', 'c',
+                    '-f', pg_file
+                ]
+                try:
+                    import subprocess
+                    res = subprocess.run(cmd, env=env, capture_output=True, timeout=15)
+                    if res.returncode == 0 and os.path.exists(pg_file) and os.path.getsize(pg_file) > 0:
+                        archivos_generados.append(os.path.basename(pg_file))
+                except Exception:
+                    pass
 
         # 3. Respaldo SQLite si la base de datos es SQLite
         sqlite_file = os.path.join(settings.BASE_DIR, 'db.sqlite3')
-        if os.path.exists(sqlite_file) and 'sqlite' in db_conf.get('ENGINE', ''):
+        if os.path.exists(sqlite_file) and 'sqlite' in settings.DATABASES.get('default', {}).get('ENGINE', ''):
             sqlite_copy = os.path.join(backup_dir, f'db_copy_{timestamp}.sqlite3')
             shutil.copy2(sqlite_file, sqlite_copy)
             archivos_generados.append(os.path.basename(sqlite_copy))

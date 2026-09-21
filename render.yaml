@@ -5,7 +5,7 @@ services:
     plan: free
     region: oregon
     buildCommand: "pip install -r requirements.txt && python manage.py collectstatic --noinput && python manage.py migrate"
-    startCommand: "gunicorn core.wsgi:application"
+    startCommand: "gunicorn core.wsgi:application --workers 2 --timeout 300"
     envVars:
       - key: PYTHON_VERSION
         value: 3.12.8

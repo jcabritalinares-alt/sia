@@ -160,7 +160,7 @@ def ejecutar_respaldo_automatico_si_aplica(request=None):
             timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
             json_file = os.path.join(backup_dir, f'respaldo_auto_{timestamp}.json')
             with open(json_file, 'w', encoding='utf-8') as f:
-                call_command('dumpdata', '--natural-foreign', '--natural-primary', exclude=['contenttypes', 'auth.permission'], stdout=f)
+                call_command('dumpdata', exclude=['contenttypes', 'auth.permission'], stdout=f)
                 
             sqlite_file = os.path.join(settings.BASE_DIR, 'db.sqlite3')
             if os.path.exists(sqlite_file):
