@@ -409,25 +409,82 @@ def vista_usuarios_conectados(request):
 def api_usuarios_conectados(request):
     if not (request.user.is_superuser or (hasattr(request.user, 'perfil') and request.user.perfil.tiene_permiso('usuarios'))):
         return JsonResponse({'error': 'No autorizado'}, status=403)
-    usuarios = User.objects.filter(is_active=True)
+        
+    ahora = timezone.now()
+    
+    # Asegurar que el usuario que consulta se marque activo de inmediato en la base de datos
+    if request.user.is_authenticated:
+        cache.set(f'last_seen_{request.user.id}', ahora, 900)
+
+    usuarios = User.objects.filter(is_active=True).order_by('username')
     conectados = []
+    
+    # Obtener IDs de usuarios con sesiones activas en BD como respaldo
+    active_session_user_ids = set()
+    try:
+        from django.contrib.sessions.models import Session
+        for s in Session.objects.filter(expire_date__gte=ahora):
+            data = s.get_decoded()
+            uid = data.get('_auth_user_id')
+            if uid:
+                active_session_user_ids.add(str(uid))
+    except Exception:
+        pass
     
     for u in usuarios:
         cache_key = f'last_seen_{u.id}'
         last_seen = cache.get(cache_key)
         
-        # Consideramos conectado si tuvo actividad en los últimos 15 minutos (900 seg)
-        if last_seen and (timezone.now() - last_seen).total_seconds() < 900:
-            rol_nombre = u.perfil.rol if hasattr(u, 'perfil') else ('Administrador' if u.is_superuser else 'Usuario')
-            conectados.append({
-                'id': u.id,
-                'username': u.username,
-                'nombre_completo': u.get_full_name() or u.username,
-                'rol': rol_nombre,
-                'is_superuser': u.is_superuser,
-                'ultima_actividad': last_seen.strftime('%d/%m/%Y %H:%M:%S'),
-                'hace_minutos': int((timezone.now() - last_seen).total_seconds() // 60)
-            })
+        is_online = False
+        hace_minutos = None
+        
+        if last_seen:
+            diff_segundos = (ahora - last_seen).total_seconds()
+            if diff_segundos < 900:  # 15 minutos
+                is_online = True
+                hace_minutos = int(diff_segundos // 60)
+        elif str(u.id) in active_session_user_ids:
+            is_online = True
+            last_seen = u.last_login or ahora
+            diff_segundos = (ahora - last_seen).total_seconds() if u.last_login else 0
+            hace_minutos = int(diff_segundos // 60)
+
+        # El usuario que realiza la consulta está activo en este instante
+        if u.id == request.user.id:
+            is_online = True
+            last_seen = ahora
+            hace_minutos = 0
+
+        rol_nombre = u.perfil.rol if hasattr(u, 'perfil') else ('Administrador' if u.is_superuser else 'Usuario')
+        
+        if is_online:
+            if hace_minutos == 0:
+                texto_tiempo = "En línea ahora"
+            elif hace_minutos == 1:
+                texto_tiempo = "Hace 1 minuto"
+            else:
+                texto_tiempo = f"Hace {hace_minutos} minutos"
+        elif last_seen:
+            texto_tiempo = last_seen.strftime('%d/%m/%Y %H:%M')
+        elif u.last_login:
+            texto_tiempo = u.last_login.strftime('%d/%m/%Y %H:%M')
+        else:
+            texto_tiempo = "Sin actividad reciente"
+
+        conectados.append({
+            'id': u.id,
+            'username': u.username,
+            'nombre_completo': u.get_full_name() or u.username,
+            'rol': rol_nombre,
+            'is_superuser': u.is_superuser,
+            'is_online': is_online,
+            'last_seen': texto_tiempo,
+            'ultima_actividad': texto_tiempo,
+            'hace_minutos': hace_minutos if hace_minutos is not None else 9999
+        })
+        
+    # Ordenar: primero los conectados en línea, luego alfabéticamente
+    conectados.sort(key=lambda x: (not x['is_online'], x['username'].lower()))
             
     return JsonResponse({'usuarios': conectados})
 

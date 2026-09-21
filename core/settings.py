@@ -208,7 +208,9 @@ LOGIN_URL = 'login'
 
 CACHES = {
     'default': {
-        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+        'BACKEND': 'django.core.cache.backends.db.DatabaseCache',
+        'LOCATION': 'sia_cache_table',
+        'TIMEOUT': 900,
     }
 }
 

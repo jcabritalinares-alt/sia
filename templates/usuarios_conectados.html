@@ -21,14 +21,18 @@
             <table class="table table-hover align-middle mb-0">
                 <thead class="bg-light text-secondary small text-uppercase">
                     <tr>
-                        <th>Nombre de Usuario</th>
-                        <th>Último Acceso Registrado</th>
-                        <th class="text-center" style="width: 150px;">Estado Actual</th>
+                        <th>Usuario</th>
+                        <th>Rol Asignado</th>
+                        <th>Última Actividad</th>
+                        <th class="text-center" style="width: 160px;">Estado</th>
                     </tr>
                 </thead>
                 <tbody id="listaUsuariosConectadosForm">
                     <tr>
-                        <td colspan="3" class="text-center text-muted py-4">Cargando información...</td>
+                        <td colspan="4" class="text-center text-muted py-4">
+                            <div class="spinner-border spinner-border-sm text-primary me-2" role="status"></div>
+                            Consultando usuarios en tiempo real...
+                        </td>
                     </tr>
                 </tbody>
             </table>
@@ -41,6 +45,8 @@
 <script>
     $(document).ready(function() {
         cargarUsuariosConectadosFormulario();
+        // Auto-actualizar cada 15 segundos en tiempo real
+        setInterval(cargarUsuariosConectadosFormulario, 15000);
     });
 
     function cargarUsuariosConectadosFormulario() {
@@ -54,23 +60,44 @@
                 if (response.usuarios && response.usuarios.length > 0) {
                     response.usuarios.forEach(user => {
                         let badgeEstado = user.is_online 
-                            ? '<span class="badge bg-success bg-opacity-15 text-success border border-success px-3 py-1.5 rounded-pill"><i class="bi bi-circle-fill me-1 small"></i> En línea</span>' 
-                            : '<span class="badge bg-secondary bg-opacity-10 text-secondary border px-3 py-1.5 rounded-pill"><i class="bi bi-circle me-1 small"></i> Desconectado</span>';
+                            ? '<span class="badge bg-success bg-opacity-15 text-success border border-success border-opacity-25 px-3 py-1.5 rounded-pill fw-semibold"><i class="bi bi-circle-fill me-1 small"></i> En línea</span>' 
+                            : '<span class="badge bg-secondary bg-opacity-10 text-muted border px-3 py-1.5 rounded-pill"><i class="bi bi-circle me-1 small"></i> Desconectado</span>';
                         
+                        let nombreMostrado = user.nombre_completo && user.nombre_completo !== user.username 
+                            ? `<span class="d-block small text-muted">${user.nombre_completo}</span>` 
+                            : '';
+
+                        let filaClase = user.is_online ? 'table-success bg-opacity-10' : '';
+
                         tbody.append(`
-                            <tr>
-                                <td class="fw-bold text-dark"><i class="bi bi-person-circle text-primary me-2"></i>${user.username}</td>
-                                <td><span class="text-muted small fw-semibold">${user.last_seen}</span></td>
+                            <tr class="${filaClase}">
+                                <td>
+                                    <div class="d-flex align-items-center gap-2">
+                                        <div class="rounded-circle d-flex align-items-center justify-content-center ${user.is_online ? 'bg-success text-white' : 'bg-light text-secondary border'}" style="width: 36px; height: 36px;">
+                                            <i class="bi bi-person-fill fs-5"></i>
+                                        </div>
+                                        <div>
+                                            <span class="fw-bold text-dark">${user.username}</span>
+                                            ${nombreMostrado}
+                                        </div>
+                                    </div>
+                                </td>
+                                <td>
+                                    <span class="badge bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25 rounded-pill px-2.5 py-1">
+                                        ${user.rol}
+                                    </span>
+                                </td>
+                                <td><span class="text-secondary small fw-semibold">${user.last_seen}</span></td>
                                 <td class="text-center">${badgeEstado}</td>
                             </tr>
                         `);
                     });
                 } else {
-                    tbody.append(`<tr><td colspan="3" class="text-center text-muted py-4">No hay usuarios registrados.</td></tr>`);
+                    tbody.append(`<tr><td colspan="4" class="text-center text-muted py-4">No hay usuarios registrados.</td></tr>`);
                 }
             },
             error: function() {
-                $('#listaUsuariosConectadosForm').html(`<tr><td colspan="3" class="text-center text-danger py-4">Error al obtener los datos del servidor.</td></tr>`);
+                $('#listaUsuariosConectadosForm').html(`<tr><td colspan="4" class="text-center text-danger py-4">Error al obtener los datos del servidor.</td></tr>`);
             }
         });
     }
