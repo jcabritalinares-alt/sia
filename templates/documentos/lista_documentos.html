@@ -1,0 +1,120 @@
+{% extends 'base.html' %}
+
+{% block contenido %}
+<div class="container-fluid px-0">
+
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-4 gap-3">
+        <div>
+            <h2 class="fw-extrabold text-dark mb-1 d-flex align-items-center gap-2">
+                <i class="bi bi-file-earmark-lock2-fill text-primary"></i> Gestión Documental y Firma Criptográfica (OFIPOL)
+            </h2>
+            <p class="text-muted small mb-0">Radicación de Correspondencia Oficial, Oficios, Memorandos, Puntos de Cuenta e Impronta Digital SHA-256</p>
+        </div>
+        <div class="d-flex flex-wrap gap-2">
+            <button class="btn btn-primary-custom fw-bold shadow-sm d-flex align-items-center gap-2" data-bs-toggle="modal" data-bs-target="#modalRadicarDocumento">
+                <i class="bi bi-plus-circle-fill"></i> Radicar Nuevo Documento
+            </button>
+        </div>
+    </div>
+
+    <!-- Tabla Documentos Oficiales -->
+    <div class="card border border-light rounded-4 shadow-sm p-4 mb-4 bg-white">
+        <h5 class="fw-bold text-dark mb-3 border-bottom pb-2 d-flex align-items-center gap-2">
+            <i class="bi bi-folder-symlink-fill text-primary"></i> Expediente de Correspondencia Oficial Radicada
+        </h5>
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="bg-light">
+                    <tr>
+                        <th>N° Radicado</th>
+                        <th>Tipo</th>
+                        <th>Asunto / Objeto</th>
+                        <th>Remitente</th>
+                        <th>Destinatario</th>
+                        <th>Impronta Firma SHA-256</th>
+                        <th class="text-center">Estado</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for d in documentos %}
+                    <tr>
+                        <td><span class="badge bg-dark font-monospace px-2.5 py-1.5 fs-6">{{ d.num_radicado }}</span></td>
+                        <td><span class="badge bg-primary bg-opacity-10 text-primary border px-2.5 py-1">{{ d.tipo }}</span></td>
+                        <td><strong class="text-dark d-block">{{ d.asunto }}</strong><small class="text-muted">{{ d.fecha_radicacion|date:"d/m/Y H:i" }}</small></td>
+                        <td class="small text-secondary">{{ d.remitente }}</td>
+                        <td class="small text-secondary">{{ d.destinatario }}</td>
+                        <td>
+                            <code class="small text-primary bg-light p-1 rounded font-monospace" style="font-size: 0.7rem;">{{ d.firma_digital_sha256|truncatechars:20 }}</code>
+                        </td>
+                        <td class="text-center">
+                            <span class="badge bg-success fw-bold px-3 py-1.5"><i class="bi bi-shield-check me-1"></i> {{ d.estatus }}</span>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="7" class="text-center py-4 text-muted">No hay documentos oficiales radicados.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</div>
+
+<!-- Modal Radicar Documento -->
+<div class="modal fade" id="modalRadicarDocumento" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content rounded-4 shadow-lg border-0 overflow-hidden">
+            <div class="modal-header bg-primary text-white py-3">
+                <h5 class="modal-title fw-bold d-flex align-items-center gap-2">
+                    <i class="bi bi-file-earmark-lock2-fill"></i> Radicar Documento Oficial con Firma Criptográfica
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST">
+                {% csrf_token %}
+                <div class="modal-body p-4">
+                    <div class="row g-3 mb-3">
+                        <div class="col-12 col-md-6">
+                            <label class="form-label fw-semibold text-dark">N° Radicado:</label>
+                            <input type="text" name="num_radicado" class="form-control font-monospace fw-bold border-primary" placeholder="OFI-2026-0045" required>
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <label class="form-label fw-semibold text-dark">Tipo de Documento:</label>
+                            <select name="tipo" class="form-select border-primary" required>
+                                <option value="Oficio">Oficio Externo</option>
+                                <option value="Memorando">Memorando Interno</option>
+                                <option value="PuntoDeCuenta">Punto de Cuenta al Alcalde/Director</option>
+                                <option value="Circular">Circular General</option>
+                            </select>
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <label class="form-label fw-semibold text-dark">Remitente / Emisor:</label>
+                            <input type="text" name="remitente" class="form-control" placeholder="Nombre / Dirección Emisora" required>
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <label class="form-label fw-semibold text-dark">Destinatario / Receptor:</label>
+                            <input type="text" name="destinatario" class="form-control" placeholder="Nombre / Ente Receptor" required>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label fw-semibold text-dark">Asunto / Objeto del Documento:</label>
+                            <input type="text" name="asunto" class="form-control" placeholder="Descripción resumida del asunto" required>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label fw-semibold text-dark">Cuerpo / Contenido Oficial:</label>
+                            <textarea name="contenido" class="form-control" rows="3" placeholder="Redactar el texto o referencia del documento..." required></textarea>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light py-2 justify-content-between">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary-custom fw-bold shadow-sm px-4">
+                        <i class="bi bi-shield-lock-fill me-1"></i> Radicar y Certificar SHA-256
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

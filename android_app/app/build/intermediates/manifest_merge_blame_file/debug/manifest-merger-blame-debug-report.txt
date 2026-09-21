@@ -1,0 +1,186 @@
+1<?xml version="1.0" encoding="utf-8"?>
+2<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+3    package="com.sia.inventario"
+4    android:versionCode="1"
+5    android:versionName="1.0.0" >
+6
+7    <uses-sdk
+8        android:minSdkVersion="24"
+9        android:targetSdkVersion="34" />
+10
+11    <!-- Permisos de red e Internet -->
+12    <uses-permission android:name="android.permission.INTERNET" />
+12-->D:\proyectos\inventario_nuevo\android_app\app\src\main\AndroidManifest.xml:6:5-67
+12-->D:\proyectos\inventario_nuevo\android_app\app\src\main\AndroidManifest.xml:6:22-64
+13    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+13-->D:\proyectos\inventario_nuevo\android_app\app\src\main\AndroidManifest.xml:7:5-79
+13-->D:\proyectos\inventario_nuevo\android_app\app\src\main\AndroidManifest.xml:7:22-76
+14
+15    <!-- Permisos de Hardware de Cámara y Fotos -->
+16    <uses-permission android:name="android.permission.CAMERA" />
+16-->D:\proyectos\inventario_nuevo\android_app\app\src\main\AndroidManifest.xml:10:5-65
+16-->D:\proyectos\inventario_nuevo\android_app\app\src\main\AndroidManifest.xml:10:22-62
+17    <uses-permission
+17-->D:\proyectos\inventario_nuevo\android_app\app\src\main\AndroidManifest.xml:11:5-107
+18        android:name="android.permission.READ_EXTERNAL_STORAGE"
+18-->D:\proyectos\inventario_nuevo\android_app\app\src\main\AndroidManifest.xml:11:22-77
+19        android:maxSdkVersion="32" />
+19-->D:\proyectos\inventario_nuevo\android_app\app\src\main\AndroidManifest.xml:11:78-104
+20    <uses-permission
+20-->D:\proyectos\inventario_nuevo\android_app\app\src\main\AndroidManifest.xml:12:5-137
+21        android:name="android.permission.WRITE_EXTERNAL_STORAGE"
+21-->D:\proyectos\inventario_nuevo\android_app\app\src\main\AndroidManifest.xml:12:22-78
+22        android:maxSdkVersion="28" />
+22-->D:\proyectos\inventario_nuevo\android_app\app\src\main\AndroidManifest.xml:12:79-105
+23    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
+23-->D:\proyectos\inventario_nuevo\android_app\app\src\main\AndroidManifest.xml:13:5-76
+23-->D:\proyectos\inventario_nuevo\android_app\app\src\main\AndroidManifest.xml:13:22-73
+24
+25    <uses-feature
+25-->D:\proyectos\inventario_nuevo\android_app\app\src\main\AndroidManifest.xml:15:5-85
+26        android:name="android.hardware.camera"
+26-->D:\proyectos\inventario_nuevo\android_app\app\src\main\AndroidManifest.xml:15:19-57
+27        android:required="false" />
+27-->D:\proyectos\inventario_nuevo\android_app\app\src\main\AndroidManifest.xml:15:58-82
+28
+29    <permission
+29-->[androidx.core:core:1.12.0] C:\Users\Jean\.gradle\caches\8.10.2\transforms\6d77ff9f9b44044f268df54e81d2636c\transformed\core-1.12.0\AndroidManifest.xml:22:5-24:47
+30        android:name="com.sia.inventario.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION"
+30-->[androidx.core:core:1.12.0] C:\Users\Jean\.gradle\caches\8.10.2\transforms\6d77ff9f9b44044f268df54e81d2636c\transformed\core-1.12.0\AndroidManifest.xml:23:9-81
+31        android:protectionLevel="signature" />
+31-->[androidx.core:core:1.12.0] C:\Users\Jean\.gradle\caches\8.10.2\transforms\6d77ff9f9b44044f268df54e81d2636c\transformed\core-1.12.0\AndroidManifest.xml:24:9-44
+32
+33    <uses-permission android:name="com.sia.inventario.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION" />
+33-->[androidx.core:core:1.12.0] C:\Users\Jean\.gradle\caches\8.10.2\transforms\6d77ff9f9b44044f268df54e81d2636c\transformed\core-1.12.0\AndroidManifest.xml:26:5-97
+33-->[androidx.core:core:1.12.0] C:\Users\Jean\.gradle\caches\8.10.2\transforms\6d77ff9f9b44044f268df54e81d2636c\transformed\core-1.12.0\AndroidManifest.xml:26:22-94
+34
+35    <application
+35-->D:\proyectos\inventario_nuevo\android_app\app\src\main\AndroidManifest.xml:17:5-50:19
+36        android:allowBackup="true"
+36-->D:\proyectos\inventario_nuevo\android_app\app\src\main\AndroidManifest.xml:18:9-35
+37        android:appComponentFactory="androidx.core.app.CoreComponentFactory"
+37-->[androidx.core:core:1.12.0] C:\Users\Jean\.gradle\caches\8.10.2\transforms\6d77ff9f9b44044f268df54e81d2636c\transformed\core-1.12.0\AndroidManifest.xml:28:18-86
+38        android:dataExtractionRules="@xml/data_extraction_rules"
+38-->D:\proyectos\inventario_nuevo\android_app\app\src\main\AndroidManifest.xml:19:9-65
+39        android:debuggable="true"
+40        android:extractNativeLibs="false"
+41        android:fullBackupContent="@xml/backup_rules"
+41-->D:\proyectos\inventario_nuevo\android_app\app\src\main\AndroidManifest.xml:20:9-54
+42        android:icon="@mipmap/ic_launcher"
+42-->D:\proyectos\inventario_nuevo\android_app\app\src\main\AndroidManifest.xml:21:9-43
+43        android:label="@string/app_name"
+43-->D:\proyectos\inventario_nuevo\android_app\app\src\main\AndroidManifest.xml:22:9-41
+44        android:roundIcon="@mipmap/ic_launcher_round"
+44-->D:\proyectos\inventario_nuevo\android_app\app\src\main\AndroidManifest.xml:23:9-54
+45        android:supportsRtl="true"
+45-->D:\proyectos\inventario_nuevo\android_app\app\src\main\AndroidManifest.xml:24:9-35
+46        android:theme="@style/Theme.SIA_Inventario"
+46-->D:\proyectos\inventario_nuevo\android_app\app\src\main\AndroidManifest.xml:25:9-52
+47        android:usesCleartextTraffic="true" >
+47-->D:\proyectos\inventario_nuevo\android_app\app\src\main\AndroidManifest.xml:26:9-44
+48        <activity
+48-->D:\proyectos\inventario_nuevo\android_app\app\src\main\AndroidManifest.xml:29:9-38:20
+49            android:name="com.sia.inventario.MainActivity"
+49-->D:\proyectos\inventario_nuevo\android_app\app\src\main\AndroidManifest.xml:30:13-41
+50            android:configChanges="orientation|screenSize|keyboardHidden"
+50-->D:\proyectos\inventario_nuevo\android_app\app\src\main\AndroidManifest.xml:32:13-74
+51            android:exported="true"
+51-->D:\proyectos\inventario_nuevo\android_app\app\src\main\AndroidManifest.xml:31:13-36
+52            android:theme="@style/Theme.SIA_Inventario" >
+52-->D:\proyectos\inventario_nuevo\android_app\app\src\main\AndroidManifest.xml:33:13-56
+53            <intent-filter>
+53-->D:\proyectos\inventario_nuevo\android_app\app\src\main\AndroidManifest.xml:34:13-37:29
+54                <action android:name="android.intent.action.MAIN" />
+54-->D:\proyectos\inventario_nuevo\android_app\app\src\main\AndroidManifest.xml:35:17-69
+54-->D:\proyectos\inventario_nuevo\android_app\app\src\main\AndroidManifest.xml:35:25-66
+55
+56                <category android:name="android.intent.category.LAUNCHER" />
+56-->D:\proyectos\inventario_nuevo\android_app\app\src\main\AndroidManifest.xml:36:17-77
+56-->D:\proyectos\inventario_nuevo\android_app\app\src\main\AndroidManifest.xml:36:27-74
+57            </intent-filter>
+58        </activity>
+59
+60        <provider
+61            android:name="androidx.core.content.FileProvider"
+61-->D:\proyectos\inventario_nuevo\android_app\app\src\main\AndroidManifest.xml:41:13-62
+62            android:authorities="com.sia.inventario.fileprovider"
+62-->D:\proyectos\inventario_nuevo\android_app\app\src\main\AndroidManifest.xml:42:13-64
+63            android:exported="false"
+63-->D:\proyectos\inventario_nuevo\android_app\app\src\main\AndroidManifest.xml:43:13-37
+64            android:grantUriPermissions="true" >
+64-->D:\proyectos\inventario_nuevo\android_app\app\src\main\AndroidManifest.xml:44:13-47
+65            <meta-data
+65-->D:\proyectos\inventario_nuevo\android_app\app\src\main\AndroidManifest.xml:45:13-47:54
+66                android:name="android.support.FILE_PROVIDER_PATHS"
+66-->D:\proyectos\inventario_nuevo\android_app\app\src\main\AndroidManifest.xml:46:17-67
+67                android:resource="@xml/file_paths" />
+67-->D:\proyectos\inventario_nuevo\android_app\app\src\main\AndroidManifest.xml:47:17-51
+68        </provider>
+69        <provider
+69-->[androidx.emoji2:emoji2:1.2.0] C:\Users\Jean\.gradle\caches\8.10.2\transforms\038ff6d74325af22fcb581c12f865018\transformed\emoji2-1.2.0\AndroidManifest.xml:24:9-32:20
+70            android:name="androidx.startup.InitializationProvider"
+70-->[androidx.emoji2:emoji2:1.2.0] C:\Users\Jean\.gradle\caches\8.10.2\transforms\038ff6d74325af22fcb581c12f865018\transformed\emoji2-1.2.0\AndroidManifest.xml:25:13-67
+71            android:authorities="com.sia.inventario.androidx-startup"
+71-->[androidx.emoji2:emoji2:1.2.0] C:\Users\Jean\.gradle\caches\8.10.2\transforms\038ff6d74325af22fcb581c12f865018\transformed\emoji2-1.2.0\AndroidManifest.xml:26:13-68
+72            android:exported="false" >
+72-->[androidx.emoji2:emoji2:1.2.0] C:\Users\Jean\.gradle\caches\8.10.2\transforms\038ff6d74325af22fcb581c12f865018\transformed\emoji2-1.2.0\AndroidManifest.xml:27:13-37
+73            <meta-data
+73-->[androidx.emoji2:emoji2:1.2.0] C:\Users\Jean\.gradle\caches\8.10.2\transforms\038ff6d74325af22fcb581c12f865018\transformed\emoji2-1.2.0\AndroidManifest.xml:29:13-31:52
+74                android:name="androidx.emoji2.text.EmojiCompatInitializer"
+74-->[androidx.emoji2:emoji2:1.2.0] C:\Users\Jean\.gradle\caches\8.10.2\transforms\038ff6d74325af22fcb581c12f865018\transformed\emoji2-1.2.0\AndroidManifest.xml:30:17-75
+75                android:value="androidx.startup" />
+75-->[androidx.emoji2:emoji2:1.2.0] C:\Users\Jean\.gradle\caches\8.10.2\transforms\038ff6d74325af22fcb581c12f865018\transformed\emoji2-1.2.0\AndroidManifest.xml:31:17-49
+76            <meta-data
+76-->[androidx.lifecycle:lifecycle-process:2.6.1] C:\Users\Jean\.gradle\caches\8.10.2\transforms\7ff7b857f9c4f3ba030a41f6d8719970\transformed\lifecycle-process-2.6.1\AndroidManifest.xml:29:13-31:52
+77                android:name="androidx.lifecycle.ProcessLifecycleInitializer"
+77-->[androidx.lifecycle:lifecycle-process:2.6.1] C:\Users\Jean\.gradle\caches\8.10.2\transforms\7ff7b857f9c4f3ba030a41f6d8719970\transformed\lifecycle-process-2.6.1\AndroidManifest.xml:30:17-78
+78                android:value="androidx.startup" />
+78-->[androidx.lifecycle:lifecycle-process:2.6.1] C:\Users\Jean\.gradle\caches\8.10.2\transforms\7ff7b857f9c4f3ba030a41f6d8719970\transformed\lifecycle-process-2.6.1\AndroidManifest.xml:31:17-49
+79            <meta-data
+79-->[androidx.profileinstaller:profileinstaller:1.3.0] C:\Users\Jean\.gradle\caches\8.10.2\transforms\64d2f222cf7b0fdfe77880e9d86eafee\transformed\profileinstaller-1.3.0\AndroidManifest.xml:29:13-31:52
+80                android:name="androidx.profileinstaller.ProfileInstallerInitializer"
+80-->[androidx.profileinstaller:profileinstaller:1.3.0] C:\Users\Jean\.gradle\caches\8.10.2\transforms\64d2f222cf7b0fdfe77880e9d86eafee\transformed\profileinstaller-1.3.0\AndroidManifest.xml:30:17-85
+81                android:value="androidx.startup" />
+81-->[androidx.profileinstaller:profileinstaller:1.3.0] C:\Users\Jean\.gradle\caches\8.10.2\transforms\64d2f222cf7b0fdfe77880e9d86eafee\transformed\profileinstaller-1.3.0\AndroidManifest.xml:31:17-49
+82        </provider>
+83
+84        <receiver
+84-->[androidx.profileinstaller:profileinstaller:1.3.0] C:\Users\Jean\.gradle\caches\8.10.2\transforms\64d2f222cf7b0fdfe77880e9d86eafee\transformed\profileinstaller-1.3.0\AndroidManifest.xml:34:9-52:20
+85            android:name="androidx.profileinstaller.ProfileInstallReceiver"
+85-->[androidx.profileinstaller:profileinstaller:1.3.0] C:\Users\Jean\.gradle\caches\8.10.2\transforms\64d2f222cf7b0fdfe77880e9d86eafee\transformed\profileinstaller-1.3.0\AndroidManifest.xml:35:13-76
+86            android:directBootAware="false"
+86-->[androidx.profileinstaller:profileinstaller:1.3.0] C:\Users\Jean\.gradle\caches\8.10.2\transforms\64d2f222cf7b0fdfe77880e9d86eafee\transformed\profileinstaller-1.3.0\AndroidManifest.xml:36:13-44
+87            android:enabled="true"
+87-->[androidx.profileinstaller:profileinstaller:1.3.0] C:\Users\Jean\.gradle\caches\8.10.2\transforms\64d2f222cf7b0fdfe77880e9d86eafee\transformed\profileinstaller-1.3.0\AndroidManifest.xml:37:13-35
+88            android:exported="true"
+88-->[androidx.profileinstaller:profileinstaller:1.3.0] C:\Users\Jean\.gradle\caches\8.10.2\transforms\64d2f222cf7b0fdfe77880e9d86eafee\transformed\profileinstaller-1.3.0\AndroidManifest.xml:38:13-36
+89            android:permission="android.permission.DUMP" >
+89-->[androidx.profileinstaller:profileinstaller:1.3.0] C:\Users\Jean\.gradle\caches\8.10.2\transforms\64d2f222cf7b0fdfe77880e9d86eafee\transformed\profileinstaller-1.3.0\AndroidManifest.xml:39:13-57
+90            <intent-filter>
+90-->[androidx.profileinstaller:profileinstaller:1.3.0] C:\Users\Jean\.gradle\caches\8.10.2\transforms\64d2f222cf7b0fdfe77880e9d86eafee\transformed\profileinstaller-1.3.0\AndroidManifest.xml:40:13-42:29
+91                <action android:name="androidx.profileinstaller.action.INSTALL_PROFILE" />
+91-->[androidx.profileinstaller:profileinstaller:1.3.0] C:\Users\Jean\.gradle\caches\8.10.2\transforms\64d2f222cf7b0fdfe77880e9d86eafee\transformed\profileinstaller-1.3.0\AndroidManifest.xml:41:17-91
+91-->[androidx.profileinstaller:profileinstaller:1.3.0] C:\Users\Jean\.gradle\caches\8.10.2\transforms\64d2f222cf7b0fdfe77880e9d86eafee\transformed\profileinstaller-1.3.0\AndroidManifest.xml:41:25-88
+92            </intent-filter>
+93            <intent-filter>
+93-->[androidx.profileinstaller:profileinstaller:1.3.0] C:\Users\Jean\.gradle\caches\8.10.2\transforms\64d2f222cf7b0fdfe77880e9d86eafee\transformed\profileinstaller-1.3.0\AndroidManifest.xml:43:13-45:29
+94                <action android:name="androidx.profileinstaller.action.SKIP_FILE" />
+94-->[androidx.profileinstaller:profileinstaller:1.3.0] C:\Users\Jean\.gradle\caches\8.10.2\transforms\64d2f222cf7b0fdfe77880e9d86eafee\transformed\profileinstaller-1.3.0\AndroidManifest.xml:44:17-85
+94-->[androidx.profileinstaller:profileinstaller:1.3.0] C:\Users\Jean\.gradle\caches\8.10.2\transforms\64d2f222cf7b0fdfe77880e9d86eafee\transformed\profileinstaller-1.3.0\AndroidManifest.xml:44:25-82
+95            </intent-filter>
+96            <intent-filter>
+96-->[androidx.profileinstaller:profileinstaller:1.3.0] C:\Users\Jean\.gradle\caches\8.10.2\transforms\64d2f222cf7b0fdfe77880e9d86eafee\transformed\profileinstaller-1.3.0\AndroidManifest.xml:46:13-48:29
+97                <action android:name="androidx.profileinstaller.action.SAVE_PROFILE" />
+97-->[androidx.profileinstaller:profileinstaller:1.3.0] C:\Users\Jean\.gradle\caches\8.10.2\transforms\64d2f222cf7b0fdfe77880e9d86eafee\transformed\profileinstaller-1.3.0\AndroidManifest.xml:47:17-88
+97-->[androidx.profileinstaller:profileinstaller:1.3.0] C:\Users\Jean\.gradle\caches\8.10.2\transforms\64d2f222cf7b0fdfe77880e9d86eafee\transformed\profileinstaller-1.3.0\AndroidManifest.xml:47:25-85
+98            </intent-filter>
+99            <intent-filter>
+99-->[androidx.profileinstaller:profileinstaller:1.3.0] C:\Users\Jean\.gradle\caches\8.10.2\transforms\64d2f222cf7b0fdfe77880e9d86eafee\transformed\profileinstaller-1.3.0\AndroidManifest.xml:49:13-51:29
+100                <action android:name="androidx.profileinstaller.action.BENCHMARK_OPERATION" />
+100-->[androidx.profileinstaller:profileinstaller:1.3.0] C:\Users\Jean\.gradle\caches\8.10.2\transforms\64d2f222cf7b0fdfe77880e9d86eafee\transformed\profileinstaller-1.3.0\AndroidManifest.xml:50:17-95
+100-->[androidx.profileinstaller:profileinstaller:1.3.0] C:\Users\Jean\.gradle\caches\8.10.2\transforms\64d2f222cf7b0fdfe77880e9d86eafee\transformed\profileinstaller-1.3.0\AndroidManifest.xml:50:25-92
+101            </intent-filter>
+102        </receiver>
+103    </application>
+104
+105</manifest>

@@ -1,0 +1,1443 @@
+{% extends 'base.html' %}
+
+{% block contenido %}
+<div class="container-fluid px-0">
+
+    <!-- Header y Breadcrumb -->
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4">
+        <div>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-1 small">
+                    <li class="breadcrumb-item"><a href="{% url 'dashboard' %}" class="text-decoration-none">Inicio</a></li>
+                    <li class="breadcrumb-item text-secondary">Atención Social</li>
+                    <li class="breadcrumb-item active fw-bold text-primary" aria-current="page">Beneficiarios</li>
+                </ol>
+            </nav>
+            <h2 class="fw-extrabold text-dark mb-0 d-flex align-items-center gap-2">
+                <i class="bi bi-person-vcard-fill text-primary"></i> Expediente y Consulta de Beneficiarios
+            </h2>
+            <p class="text-secondary small mb-0 mt-1">
+                Búsqueda en tiempo real por cédula con verificación en base de datos local y padrón electoral CNE (sistemaspnp.com).
+            </p>
+        </div>
+
+        <div class="d-flex align-items-center gap-2">
+            <button type="button" class="btn btn-success d-flex align-items-center gap-2 shadow-sm" data-bs-toggle="modal" data-bs-target="#modalWhatsAppMasivo" id="btnAbrirWhatsAppMasivo">
+                <i class="bi bi-whatsapp"></i>
+                <span>Mensajería Masiva</span>
+            </button>
+            <a href="{% url 'asignar_beneficio' %}" class="btn btn-primary-custom d-flex align-items-center gap-2 shadow-sm">
+                <i class="bi bi-gift-fill"></i>
+                <span>Nueva Entrega</span>
+            </a>
+            <a href="{% url 'historial' %}" class="btn btn-outline-secondary d-flex align-items-center gap-2">
+                <i class="bi bi-clock-history"></i>
+                <span class="d-none d-sm-inline">Historial General</span>
+            </a>
+        </div>
+
+    </div>
+
+    <!-- TARJETA DEL BUSCADOR CENTRAL (Búsqueda idéntica a Entrega de Beneficios) -->
+    <div class="card border-0 rounded-4 shadow-sm p-3.5 p-md-4 mb-4" style="background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%); border: 1px solid var(--border-color) !important;">
+        <div class="row align-items-center g-3">
+            <div class="col-12 col-lg-7">
+                <label for="cedulaInput" class="form-label fw-bold text-dark small mb-2 d-flex align-items-center gap-2">
+                    <i class="bi bi-search text-primary"></i> Ingrese la Cédula de Identidad del Ciudadano
+                </label>
+                <div class="input-group input-group-lg shadow-sm rounded-3 overflow-hidden border">
+                    <span class="input-group-text bg-light text-secondary border-0 px-3 fw-bold">
+                        <i class="bi bi-card-heading text-primary me-1"></i> V / E
+                    </span>
+                    <input type="text" id="cedulaInput" class="form-control border-0 fw-bold fs-5 px-3" 
+                           placeholder="Ej: 12345678" value="{{ cedula_input }}" autocomplete="off" autofocus>
+                    <button class="btn btn-light border-0 text-muted px-2" type="button" id="btnClearCedula" title="Limpiar búsqueda" style="display: {% if cedula_input %}block{% else %}none{% endif %};">
+                        <i class="bi bi-x-circle-fill"></i>
+                    </button>
+                    <button class="btn btn-primary px-4 fw-bold d-flex align-items-center gap-2" type="button" id="btnConsultar">
+                        <span id="spinnerConsultar" class="spinner-border spinner-border-sm d-none" role="status"></span>
+                        <i class="bi bi-search" id="iconConsultar"></i>
+                        <span>Consultar</span>
+                    </button>
+                </div>
+                <div class="d-flex flex-wrap align-items-center gap-2 mt-2">
+                    <span class="text-muted small" style="font-size: 0.78rem;">
+                        <i class="bi bi-info-circle me-1"></i> Búsqueda automática al presionar <kbd class="px-1.5 py-0.5 small bg-light border text-dark">Enter</kbd> o al ingresar 6 dígitos.
+                    </span>
+                </div>
+            </div>
+
+            <div class="col-12 col-lg-5 text-lg-end">
+                <div class="d-flex flex-wrap justify-content-lg-end align-items-center gap-2">
+                    <button type="button" id="btnForzarCNE" class="btn btn-outline-primary d-inline-flex align-items-center gap-2 rounded-pill px-3 py-2 shadow-sm small">
+                        <span id="spinnerForzarCNE" class="spinner-border spinner-border-sm d-none" role="status"></span>
+                        <i class="bi bi-cloud-arrow-down-fill" id="iconForzarCNE"></i>
+                        <span>Consultar CNE en línea</span>
+                    </button>
+                    <button type="button" id="btnRecargarActual" class="btn btn-outline-secondary d-inline-flex align-items-center gap-1 rounded-pill px-3 py-2 small" title="Refrescar">
+                        <i class="bi bi-arrow-clockwise"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Indicadores de estado de consulta -->
+        <div id="msgBuscando" class="alert alert-info border-0 rounded-3 mt-3 py-2 px-3 small d-flex align-items-center gap-2" style="display: none;">
+            <div class="spinner-border spinner-border-sm text-info" role="status"></div>
+            <span>Consultando datos en la Base de Datos Local y en sistemaspnp.com (CNE)...</span>
+        </div>
+
+        <div id="msgNoEncontrado" class="alert alert-warning border-0 rounded-3 mt-3 py-2 px-3 small d-flex align-items-center gap-2" style="display: {% if no_encontrado %}flex{% else %}none{% endif %};">
+            <i class="bi bi-exclamation-triangle-fill text-warning fs-5"></i>
+            <div>
+                <strong>No se hallaron registros</strong> para la cédula ingresada en la base de datos local ni en el padrón electoral CNE.
+            </div>
+        </div>
+    </div>
+
+    <!-- CONTENEDOR PRINCIPAL DINÁMICO (Resultados) -->
+    <div id="seccionResultados" style="display: {% if ciudadano %}block{% else %}none{% endif %};">
+        
+        <!-- 1. FICHA DE IDENTIDAD DEL CIUDADANO -->
+        <div class="card border border-light rounded-4 shadow-sm p-3.5 mb-4 position-relative overflow-hidden" style="background: var(--card-bg);">
+            <div class="position-absolute top-0 end-0 p-3 opacity-10 d-none d-md-block" style="font-size: 8rem; line-height: 1; pointer-events: none;">
+                <i class="bi bi-person-vcard"></i>
+            </div>
+
+            <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-3 border-bottom pb-3 mb-3">
+                <div class="d-flex align-items-center gap-3">
+                    <div class="rounded-4 bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25 d-flex align-items-center justify-content-center fw-extrabold flex-shrink-0" 
+                         id="avatarCiudadano" style="width: 62px; height: 62px; font-size: 1.7rem;">
+                        {{ ciudadano.nombre_apellido|slice:":1"|default:"C"|upper }}
+                    </div>
+                    <div>
+                        <div class="d-flex flex-wrap align-items-center gap-2 mb-1">
+                            <h3 class="fw-extrabold text-dark mb-0" id="txtNombreCiudadano">
+                                {{ ciudadano.nombre_apellido|default:"Ciudadano" }}
+                            </h3>
+                            <span id="badgeOrigen" class="badge rounded-pill px-2.5 py-1 small {% if ciudadano.origen == 'sistemaspnp' %}bg-primary-subtle text-primary border border-primary-subtle{% else %}bg-success-subtle text-success border border-success-subtle{% endif %}">
+                                {% if ciudadano.origen == 'sistemaspnp' %}
+                                <i class="bi bi-cloud-check-fill me-1"></i> CNE (sistemaspnp.com)
+                                {% else %}
+                                <i class="bi bi-database-check me-1"></i> Base de Datos Local
+                                {% endif %}
+                            </span>
+                        </div>
+                        <div class="d-flex flex-wrap align-items-center gap-2 text-secondary small">
+                            <span class="badge bg-light text-dark border px-2 py-1 font-monospace fs-6">
+                                <i class="bi bi-person-badge text-primary me-1"></i> C.I. <span id="txtCedulaCiudadano">{{ ciudadano.cedula }}</span>
+                            </span>
+                            <button type="button" class="btn btn-sm btn-link text-decoration-none text-muted p-0" id="btnCopiarCedula" title="Copiar cédula">
+                                <i class="bi bi-clipboard"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Botones de Acción Rápida para el Ciudadano -->
+                <div class="d-flex flex-wrap gap-2 w-100 w-md-auto">
+                    <a href="{% url 'asignar_beneficio' %}?cedula={{ ciudadano.cedula }}" id="btnEntregarBeneficioAccion" class="btn btn-success d-inline-flex align-items-center gap-2 shadow-sm rounded-3 py-2 px-3 fw-bold">
+                        <i class="bi bi-gift-fill"></i>
+                        <span>Entregar Beneficio</span>
+                    </a>
+                    <a href="{% url 'registrar_solicitud_ciudadano' %}?cedula={{ ciudadano.cedula }}" id="btnNuevaSolicitudAccion" class="btn btn-outline-primary d-inline-flex align-items-center gap-2 rounded-3 py-2 px-3">
+                        <i class="bi bi-inbox-fill"></i>
+                        <span>Nueva Solicitud</span>
+                    </a>
+                    <a href="{% url 'ficha_ciudadano_360' cedula=ciudadano.cedula|default:'0' %}" id="btnFicha360Accion" class="btn btn-outline-secondary d-inline-flex align-items-center gap-1 rounded-3 py-2 px-2.5" title="Ver Ficha 360 Integral">
+                        <i class="bi bi-person-bounding-box"></i>
+                    </a>
+                </div>
+            </div>
+
+            <!-- Datos de Contacto y Ubicación -->
+            <div class="row g-3">
+                <!-- Teléfono con botón WhatsApp -->
+                <div class="col-12 col-md-4">
+                    <div class="p-2.5 rounded-3 bg-light border d-flex align-items-center justify-content-between">
+                        <div>
+                            <span class="text-muted small d-block" style="font-size: 0.72rem; font-weight: 700;">TELÉFONO DE CONTACTO</span>
+                            <span class="fw-bold text-dark" id="txtTelefonoCiudadano">
+                                {{ ciudadano.telefono|default:"No registrado" }}
+                            </span>
+                        </div>
+                        <div id="contenedorWhatsAppBtn">
+                            {% if ciudadano.telefono %}
+                            <a href="https://wa.me/58{{ ciudadano.telefono|slice:'-10:' }}" target="_blank" class="btn btn-sm btn-success rounded-circle p-2" title="Abrir chat en WhatsApp">
+                                <i class="bi bi-whatsapp fs-6"></i>
+                            </a>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Dirección / Sector -->
+                <div class="col-12 col-md-8">
+                    <div class="p-2.5 rounded-3 bg-light border">
+                        <span class="text-muted small d-block" style="font-size: 0.72rem; font-weight: 700;">DIRECCIÓN / COMUNIDAD</span>
+                        <span class="fw-bold text-dark text-break" id="txtDireccionCiudadano">
+                            {{ ciudadano.direccion|default:"No registrada" }}
+                        </span>
+                        {% if ciudadano.centro_electoral %}
+                        <div class="mt-1 small text-primary" id="txtCentroElectoral">
+                            <i class="bi bi-geo-alt-fill me-1"></i> {{ ciudadano.centro_electoral }}
+                            {% if ciudadano.parroquia %} — Parroquia: {{ ciudadano.parroquia }}{% endif %}
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 2. RESUMEN ESTADÍSTICO DE BENEFICIOS -->
+        <div class="row g-3 mb-4">
+            <div class="col-12 col-sm-4">
+                <div class="card border-0 rounded-4 shadow-sm p-3 h-100 bg-primary text-white">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <span class="small text-white-50 text-uppercase fw-bold">Beneficios Recibidos</span>
+                            <h2 class="fw-extrabold mb-0 mt-1" id="kpiTotalEntregas">{{ total_entregas }}</h2>
+                        </div>
+                        <div class="fs-1 text-white-50"><i class="bi bi-gift-fill"></i></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-12 col-sm-4">
+                <div class="card border-0 rounded-4 shadow-sm p-3 h-100 bg-success bg-opacity-10 border border-success border-opacity-25">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <span class="small text-success text-uppercase fw-bold">Unidades Entregadas</span>
+                            <h2 class="fw-extrabold text-dark mb-0 mt-1" id="kpiTotalArticulos">{{ total_articulos }}</h2>
+                        </div>
+                        <div class="fs-1 text-success"><i class="bi bi-box-seam-fill"></i></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-12 col-sm-4">
+                <div class="card border-0 rounded-4 shadow-sm p-3 h-100 bg-secondary bg-opacity-10 border border-secondary border-opacity-25">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <span class="small text-secondary text-uppercase fw-bold">Solicitudes Sociales</span>
+                            <h2 class="fw-extrabold text-dark mb-0 mt-1" id="kpiTotalSolicitudes">{{ solicitudes|length }}</h2>
+                        </div>
+                        <div class="fs-1 text-secondary"><i class="bi bi-inbox-fill"></i></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 3. DETALLE DE BENEFICIOS RECIBIDOS O ESTADO VACÍO ("en su defecto si recibió algún beneficio y si no solo mostrar los datos encontrados") -->
+        
+        <!-- CASO A: SI TIENE BENEFICIOS REGISTRADOS -->
+        <div id="bloqueConBeneficios" style="display: {% if tiene_beneficios %}block{% else %}none{% endif %};" class="mb-4">
+            <div class="card border border-light rounded-4 shadow-sm overflow-hidden">
+                <div class="card-header bg-white border-bottom p-3.5 d-flex flex-column flex-sm-row justify-content-between align-items-sm-center gap-2">
+                    <h5 class="fw-extrabold text-dark mb-0 d-flex align-items-center gap-2">
+                        <i class="bi bi-card-checklist text-primary"></i> Historial de Beneficios Asignados
+                        <span class="badge bg-primary text-white rounded-pill ms-1" id="badgeCountEntregas">{{ total_entregas }}</span>
+                    </h5>
+                    <small class="text-muted">Despachos registrados y actas de entrega</small>
+                </div>
+
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="bg-light text-secondary small text-uppercase fw-bold border-bottom">
+                            <tr>
+                                <th class="ps-3">Fecha</th>
+                                <th>Producto / Beneficio</th>
+                                <th class="text-center">Cantidad</th>
+                                <th class="text-center">Estado</th>
+                                <th>Vía / Origen</th>
+                                <th class="text-center">Evidencias</th>
+                                <th class="text-end pe-3">Comprobante</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tablaEntregasBody">
+                            {% for e in entregas %}
+                            <tr>
+                                <td class="ps-3 fw-bold text-dark font-monospace small">
+                                    {{ e.fecha|date:"d/m/Y"|default:"N/A" }}
+                                </td>
+                                <td>
+                                    <div class="fw-bold text-dark">{{ e.descripcion_prod }}</div>
+                                    {% if e.codigo_prod %}
+                                    <span class="badge bg-light text-muted border" style="font-size: 0.70rem;">Cód: {{ e.codigo_prod }}</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-center">
+                                    <span class="badge bg-primary text-white px-2.5 py-1.5 fs-6 fw-bold">
+                                        {{ e.cantidad_dada }}
+                                    </span>
+                                </td>
+                                <td class="text-center">
+                                    {% if e.status == 'Entregado' %}
+                                    <span class="badge bg-success-subtle text-success border border-success-subtle px-2.5 py-1">
+                                        <i class="bi bi-check-circle-fill me-1"></i> Entregado
+                                    </span>
+                                    {% else %}
+                                    <span class="badge bg-warning-subtle text-warning border border-warning-subtle px-2.5 py-1">
+                                        <i class="bi bi-hourglass-split me-1"></i> {{ e.status|default:"Pendiente" }}
+                                    </span>
+                                    {% endif %}
+                                </td>
+                                <td class="small text-secondary">
+                                    {{ e.via|default:"Directa" }}
+                                </td>
+                                <td class="text-center">
+                                    <div class="d-flex justify-content-center gap-1">
+                                        {% if e.url_evidencia_1 %}
+                                        <button type="button" class="btn btn-sm btn-outline-secondary p-1 rounded-2 btn-ver-evidencia" data-url="{{ e.url_evidencia_1 }}" title="Foto Evidencia 1">
+                                            <i class="bi bi-camera-fill text-primary"></i>
+                                        </button>
+                                        {% endif %}
+                                        {% if e.url_evidencia_2 %}
+                                        <button type="button" class="btn btn-sm btn-outline-secondary p-1 rounded-2 btn-ver-evidencia" data-url="{{ e.url_evidencia_2 }}" title="Foto Evidencia 2">
+                                            <i class="bi bi-camera-fill text-primary"></i>
+                                        </button>
+                                        {% endif %}
+                                        {% if e.url_evidencia_3 %}
+                                        <button type="button" class="btn btn-sm btn-outline-secondary p-1 rounded-2 btn-ver-evidencia" data-url="{{ e.url_evidencia_3 }}" title="Foto Evidencia 3">
+                                            <i class="bi bi-camera-fill text-primary"></i>
+                                        </button>
+                                        {% endif %}
+                                        {% if not e.url_evidencia_1 and not e.url_evidencia_2 and not e.url_evidencia_3 %}
+                                        <span class="text-muted small">—</span>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                                <td class="text-end pe-3">
+                                    <a href="{% url 'generar_comprobante_pdf' entrega_id=e.id %}" target="_blank" class="btn btn-sm btn-outline-danger d-inline-flex align-items-center gap-1 rounded-3 px-2.5 py-1 shadow-sm" title="Descargar Comprobante Oficial PDF">
+                                        <i class="bi bi-file-earmark-pdf-fill"></i>
+                                        <span class="small fw-semibold">PDF</span>
+                                    </a>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="7" class="text-center py-4 text-muted small">
+                                    No hay registros disponibles.
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- CASO B: SI NO TIENE NINGÚN BENEFICIO REGISTRADO (Requerimiento explícito: "en su defecto si no recibio algun beneficio y si no solo mostrar los datos encontrados") -->
+        <div id="bloqueSinBeneficios" style="display: {% if not tiene_beneficios and ciudadano %}block{% else %}none{% endif %};" class="mb-4">
+            <div class="card border border-2 border-dashed rounded-4 p-4 text-center bg-light shadow-sm" style="border-color: #cbd5e1 !important;">
+                <div class="rounded-circle bg-primary bg-opacity-10 text-primary d-inline-flex align-items-center justify-content-center p-3 mb-3" style="width: 72px; height: 72px;">
+                    <i class="bi bi-info-circle-fill fs-1"></i>
+                </div>
+                <h4 class="fw-bold text-dark mb-1">Sin Beneficios Entregados</h4>
+                <p class="text-secondary small mb-3 mx-auto" style="max-width: 540px;">
+                    Se verificaron con éxito los datos de identidad de este ciudadano, pero <strong>actualmente no registra ninguna entrega de beneficios</strong> en el sistema.
+                </p>
+                <div>
+                    <a href="{% url 'asignar_beneficio' %}?cedula={{ ciudadano.cedula }}" id="btnPrimerBeneficio" class="btn btn-primary-custom fw-bold px-4 py-2.5 rounded-3 shadow-sm d-inline-flex align-items-center gap-2">
+                        <i class="bi bi-plus-circle-fill"></i>
+                        <span>Asignar Primer Beneficio a este Ciudadano</span>
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- 4. SOLICITUDES SOCIALES ASOCIADAS (SI APLICA) -->
+        <div id="bloqueSolicitudes" style="display: {% if solicitudes %}block{% else %}none{% endif %};" class="mb-4">
+            <div class="card border border-light rounded-4 shadow-sm overflow-hidden">
+                <div class="card-header bg-white border-bottom p-3 d-flex justify-content-between align-items-center">
+                    <h6 class="fw-bold text-dark mb-0 d-flex align-items-center gap-2">
+                        <i class="bi bi-inbox-fill text-primary"></i> Solicitudes de Atención Social Registradas
+                        <span class="badge bg-secondary text-white rounded-pill ms-1" id="badgeCountSolicitudes">{{ solicitudes|length }}</span>
+                    </h6>
+                    <a href="{% url 'registrar_solicitud_ciudadano' %}?cedula={{ ciudadano.cedula }}" class="btn btn-sm btn-outline-primary rounded-pill px-3">
+                        <i class="bi bi-plus"></i> Nueva
+                    </a>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0 small">
+                        <thead class="bg-light text-secondary text-uppercase fw-bold">
+                            <tr>
+                                <th class="ps-3"># Solicitud</th>
+                                <th>Fecha</th>
+                                <th>Tipo</th>
+                                <th>Requerimiento</th>
+                                <th class="text-center">Estado</th>
+                                <th class="text-center">Prioridad</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tablaSolicitudesBody">
+                            {% for s in solicitudes %}
+                            <tr>
+                                <td class="ps-3 fw-bold text-primary">#{{ s.id }}</td>
+                                <td class="text-muted">{{ s.fecha_solicitud|date:"d/m/Y H:i" }}</td>
+                                <td class="fw-bold">{{ s.tipo_solicitud }}</td>
+                                <td class="text-truncate" style="max-width: 250px;" title="{{ s.descripcion_solicitud }}">{{ s.descripcion_solicitud }}</td>
+                                <td class="text-center">
+                                    <span class="badge bg-light text-dark border">{{ s.status }}</span>
+                                </td>
+                                <td class="text-center">
+                                    <span class="badge {% if s.prioridad == 'Alta' %}bg-danger{% elif s.prioridad == 'Media' %}bg-warning text-dark{% else %}bg-secondary{% endif %}">
+                                        {{ s.prioridad }}
+                                    </span>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- SECCIÓN INICIAL: EXPLORADOR DE BENEFICIARIOS RECIENTES (Cuando no se ha consultado una cédula específica) -->
+    <div id="seccionInicial" style="display: {% if not ciudadano and not no_encontrado %}block{% else %}none{% endif %};">
+        <div class="card border border-light rounded-4 shadow-sm p-4 text-center mb-4 bg-light">
+            <div class="rounded-circle bg-primary bg-opacity-10 text-primary d-inline-flex align-items-center justify-content-center p-3 mb-2" style="width: 70px; height: 70px;">
+                <i class="bi bi-search fs-1"></i>
+            </div>
+            <h4 class="fw-extrabold text-dark mb-1">Módulo de Consulta y Expediente</h4>
+            <p class="text-secondary small mb-3 mx-auto" style="max-width: 580px;">
+                Escriba un número de cédula en el buscador superior para recuperar de inmediato la ficha del ciudadano, sus datos de contacto y el historial detallado de beneficios recibidos.
+            </p>
+            <div class="d-flex flex-wrap justify-content-center gap-3">
+                <div class="badge bg-white text-dark border px-3 py-2 shadow-sm rounded-pill d-inline-flex align-items-center gap-2">
+                    <i class="bi bi-people-fill text-primary"></i> {{ total_beneficiarios_registrados }} Ciudadanos en BD
+                </div>
+                <div class="badge bg-white text-dark border px-3 py-2 shadow-sm rounded-pill d-inline-flex align-items-center gap-2">
+                    <i class="bi bi-gift-fill text-success"></i> {{ total_entregas_historico }} Beneficios Entregados
+                </div>
+                <div class="badge bg-white text-dark border px-3 py-2 shadow-sm rounded-pill d-inline-flex align-items-center gap-2">
+                    <i class="bi bi-cloud-check-fill text-info"></i> Conexión Directa CNE Activa
+                </div>
+            </div>
+        </div>
+
+        {% if recientes %}
+        <div class="card border border-light rounded-4 shadow-sm p-3.5">
+            <h5 class="fw-bold text-dark mb-3 d-flex align-items-center gap-2">
+                <i class="bi bi-clock-history text-primary"></i> Beneficiarios Recientes en el Sistema
+            </h5>
+            <div class="row g-3">
+                {% for r in recientes %}
+                <div class="col-12 col-sm-6 col-lg-3">
+                    <div class="card h-100 border rounded-3 p-3 card-hover-click cursor-pointer tarjeta-reciente" data-cedula="{{ r.cedula }}" style="cursor: pointer; transition: all 0.2s ease;">
+                        <div class="d-flex align-items-center gap-2.5 mb-2">
+                            <div class="rounded-circle bg-primary bg-opacity-10 text-primary d-flex align-items-center justify-content-center fw-bold small flex-shrink-0" style="width: 38px; height: 38px;">
+                                {{ r.nombre_beneficiario|slice:":1"|default:"B"|upper }}
+                            </div>
+                            <div class="overflow-hidden">
+                                <div class="fw-bold text-dark text-truncate" style="font-size: 0.88rem;" title="{{ r.nombre_beneficiario }}">{{ r.nombre_beneficiario }}</div>
+                                <span class="text-muted small font-monospace">C.I. {{ r.cedula }}</span>
+                            </div>
+                        </div>
+                        <div class="d-flex justify-content-between align-items-center mt-auto pt-2 border-top small">
+                            <span class="badge bg-light text-primary border"><i class="bi bi-gift-fill me-1"></i> {{ r.total_recibido }} entrega(s)</span>
+                            <span class="text-primary fw-bold" style="font-size: 0.78rem;">Consultar <i class="bi bi-chevron-right"></i></span>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+</div>
+
+<!-- Modal para Ampliación de Evidencias Fotográficas -->
+<div class="modal fade" id="modalFotoEvidencia" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content rounded-4 border-0 shadow-lg overflow-hidden">
+            <div class="modal-header border-bottom py-2.5 px-3 bg-dark text-white">
+                <h6 class="modal-title fw-bold d-flex align-items-center gap-2">
+                    <i class="bi bi-image text-primary"></i> Evidencia Fotográfica de Entrega
+                </h6>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-2 text-center bg-black">
+                <img id="imgModalEvidencia" src="" alt="Evidencia" class="img-fluid rounded" style="max-height: 75vh; object-fit: contain;">
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL DE MENSAJERÍA MASIVA (WHATSAPP & TELEGRAM) -->
+<div class="modal fade" id="modalWhatsAppMasivo" tabindex="-1" aria-labelledby="modalWhatsAppMasivoLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content border-0 rounded-4 shadow-lg overflow-hidden">
+            <!-- Modal Header -->
+            <div class="modal-header bg-success text-white px-4 py-3 border-0" id="headerModalMensajeria">
+                <div class="d-flex align-items-center gap-3">
+                    <div class="rounded-circle bg-white bg-opacity-20 p-2.5 d-flex align-items-center justify-content-center" style="width: 48px; height: 48px;" id="contenedorIconoModalHeader">
+                        <i class="bi bi-whatsapp fs-3 text-white" id="iconoModalHeader"></i>
+                    </div>
+                    <div>
+                        <h5 class="modal-title fw-extrabold mb-0" id="modalWhatsAppMasivoLabel">
+                            Mensajería Masiva a Beneficiarios
+                        </h5>
+                        <p class="small text-white-50 mb-0" id="subtituloModalHeader">
+                            Redacte un mensaje personalizado para enviarlo a todos los beneficiarios registrados.
+                        </p>
+                    </div>
+                </div>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+            </div>
+
+            <!-- Modal Body -->
+            <div class="modal-body p-4 bg-light">
+                
+                <!-- SELECTOR SUPERIOR DE CANAL (WHATSAPP VS TELEGRAM) -->
+                <div class="d-flex flex-wrap align-items-center justify-content-between bg-white p-3 rounded-4 shadow-sm mb-4 border">
+                    <div class="fw-bold text-dark d-flex align-items-center gap-2 mb-2 mb-md-0">
+                        <i class="bi bi-broadcast text-primary fs-5"></i>
+                        <span>Canal de Mensajería Activo:</span>
+                    </div>
+                    <div class="btn-group" role="group" aria-label="Canal de Mensajería">
+                        <input type="radio" class="btn-check" name="radioCanalMensajeria" id="radioCanalWS" value="whatsapp" checked autocomplete="off">
+                        <label class="btn btn-outline-success fw-bold px-3 py-2 d-flex align-items-center gap-2" for="radioCanalWS">
+                            <i class="bi bi-whatsapp fs-5"></i> WhatsApp
+                        </label>
+                        
+                        <input type="radio" class="btn-check" name="radioCanalMensajeria" id="radioCanalTG" value="telegram" autocomplete="off">
+                        <label class="btn btn-outline-primary fw-bold px-3 py-2 d-flex align-items-center gap-2" for="radioCanalTG" style="border-color: #0088cc; color: #0088cc;">
+                            <i class="bi bi-telegram fs-5"></i> Telegram
+                        </label>
+                    </div>
+                </div>
+
+                <div class="row g-4">
+                    <!-- Columna Izquierda: Redacción del Mensaje y Adjuntos -->
+                    <div class="col-12 col-lg-5">
+                        <div class="card border-0 rounded-4 shadow-sm p-3 bg-white h-100">
+                            <label for="txtMensajeWhatsApp" class="form-label fw-bold text-dark d-flex justify-content-between align-items-center">
+                                <span><i class="bi bi-pencil-square me-1 text-success" id="iconoEditTexto"></i> Redactar Mensaje</span>
+                                <span class="badge bg-light text-secondary border small" id="lblCaracteresCount">0 caracteres</span>
+                            </label>
+                            
+                            <textarea id="txtMensajeWhatsApp" class="form-control border rounded-3 p-3 text-dark font-monospace" rows="5" style="font-size: 0.92rem; resize: vertical;" placeholder="Escriba aquí el mensaje que desea enviar a los beneficiarios..."></textarea>
+                            
+                            <!-- Etiquetas Dinámicas -->
+                            <div class="mt-2.5">
+                                <span class="text-muted small fw-bold d-block mb-1">Insertar Etiquetas Dinámicas:</span>
+                                <div class="d-flex flex-wrap gap-1.5">
+                                    <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill px-2.5 py-1 btn-tag-ws" data-tag="{nombre}" title="Nombre del Beneficiario">
+                                        <i class="bi bi-person-fill me-1"></i>{nombre}
+                                    </button>
+                                    <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill px-2.5 py-1 btn-tag-ws" data-tag="{cedula}" title="Cédula del Beneficiario">
+                                        <i class="bi bi-card-heading me-1"></i>{cedula}
+                                    </button>
+                                    <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill px-2.5 py-1 btn-tag-ws" data-tag="{fecha}" title="Fecha Actual">
+                                        <i class="bi bi-calendar-event me-1"></i>{fecha}
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- ADJUNTAR MULTIMEDIA (IMAGEN O VIDEO) -->
+                            <div class="mt-3 pt-2.5 border-top">
+                                <span class="text-muted small fw-bold d-block mb-1.5">
+                                    <i class="bi bi-paperclip me-1 text-primary"></i> Adjuntar Multimedia (Imagen o Video):
+                                </span>
+                                <input type="file" id="inputAdjuntoMedia" accept="image/*,video/*" class="d-none">
+                                <div class="d-flex align-items-center gap-2">
+                                    <button type="button" class="btn btn-sm btn-outline-dark d-flex align-items-center gap-1.5 rounded-pill px-3 py-1.5" id="btnSeleccionarMedia">
+                                        <i class="bi bi-image"></i>
+                                        <span id="lblAdjuntarMedia">Seleccionar Foto / Video</span>
+                                    </button>
+                                    <button type="button" class="btn btn-sm btn-outline-danger rounded-circle p-1.5 d-none" id="btnQuitarMedia" title="Remover adjunto">
+                                        <i class="bi bi-x-lg"></i>
+                                    </button>
+                                </div>
+                                <div id="lblInfoMediaArch" class="text-muted small mt-1 font-monospace" style="font-size: 0.76rem;"></div>
+                            </div>
+
+                            <!-- Vista Previa en Vivo del Mensaje y Chat -->
+                            <div class="mt-3 p-3 rounded-3 border" id="boxPrevioChatContenedor" style="background: #e5ddd5; border-color: #d1c7bd !important;">
+                                <div class="d-flex align-items-center justify-content-between mb-1.5">
+                                    <span class="badge bg-dark bg-opacity-75 text-white" style="font-size: 0.7rem;">VISTA PREVIA DE CHAT</span>
+                                    <i class="bi bi-whatsapp text-success small" id="iconoBadgePrevioChat"></i>
+                                </div>
+                                
+                                <div class="bg-white p-2.5 rounded-3 shadow-sm text-dark position-relative" style="font-size: 0.88rem; line-height: 1.4; border-top-left-radius: 0 !important;">
+                                    
+                                    <!-- Contenedor para Imagen o Video en Previsualización -->
+                                    <div id="contenedorPrevioMedia" class="mb-2 d-none">
+                                        <img id="imgPrevioMedia" src="" alt="Adjunto" class="img-fluid rounded border shadow-sm d-none" style="max-height: 180px; width: 100%; object-fit: cover;">
+                                        <video id="videoPrevioMedia" controls class="w-100 rounded border shadow-sm d-none" style="max-height: 180px;"></video>
+                                    </div>
+
+                                    <div id="previoMensajeWhatsApp" class="text-break">
+                                        Hola <strong>Juan Pérez</strong>, le saludamos...
+                                    </div>
+                                    
+                                    <div class="text-end text-muted mt-1" style="font-size: 0.68rem;">
+                                        Ahora <i class="bi bi-check2-all text-primary ms-1"></i>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Aviso Asistente Multimedia -->
+                            <div id="badgeAsistenteMedia" class="mt-2 alert alert-warning border-0 py-2 px-2.5 rounded-3 small d-none align-items-center gap-2" style="font-size: 0.78rem;">
+                                <i class="bi bi-images text-warning fs-5 flex-shrink-0"></i>
+                                <div>
+                                    <strong>Adjunto listo:</strong> Al abrir el chat, el texto estará pre-escrito y podrá pegar o arrastrar el archivo adjunto al mensaje.
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Columna Derecha: Panel de Envíos y Lista de Contactos -->
+                    <div class="col-12 col-lg-7">
+                        <div class="card border-0 rounded-4 shadow-sm p-3 bg-white h-100">
+                            
+                            <!-- Navegación por pestañas del panel derecho -->
+                            <ul class="nav nav-pills nav-fill bg-light p-1 rounded-3 mb-3" id="pills-tab-ws" role="tablist">
+                                <li class="nav-item" role="presentation">
+                                    <button class="nav-link active fw-bold py-2 rounded-3 small d-flex align-items-center justify-content-center gap-2" id="pill-secuencial-tab" data-bs-toggle="pill" data-bs-target="#pill-secuencial" type="button" role="tab">
+                                        <i class="bi bi-play-circle-fill text-success" id="iconoPillSecuencial"></i> Modo Guiado / Secuencial
+                                    </button>
+                                </li>
+                                <li class="nav-item" role="presentation">
+                                    <button class="nav-link fw-bold py-2 rounded-3 small d-flex align-items-center justify-content-center gap-2" id="pill-lista-tab" data-bs-toggle="pill" data-bs-target="#pill-lista" type="button" role="tab">
+                                        <i class="bi bi-card-list"></i> Lista de Destinatarios
+                                    </button>
+                                </li>
+                            </ul>
+
+                            <div class="tab-content" id="pills-tabContent-ws">
+                                
+                                <!-- PESTAÑA 1: MODO SECUENCIAL -->
+                                <div class="tab-pane fade show active" id="pill-secuencial" role="tabpanel">
+                                    <div class="text-center p-3 rounded-4 bg-success bg-opacity-10 border border-success border-opacity-25 mb-3" id="boxPanelSecuencial">
+                                        <span class="badge bg-success mb-2 px-3 py-1.5 rounded-pill text-uppercase" id="badgeProgresoSecuencial">
+                                            Contacto 1 de 159
+                                        </span>
+                                        <h4 class="fw-extrabold text-dark mb-1" id="txtSecuencialNombre">Cargando beneficiario...</h4>
+                                        <p class="text-secondary small mb-2 font-monospace" id="txtSecuencialTelefono">C.I. --- | Tel: ---</p>
+                                        
+                                        <!-- Barra de progreso -->
+                                        <div class="progress rounded-pill mb-3" style="height: 10px;">
+                                            <div id="barProgresoWS" class="progress-bar bg-success progress-bar-striped progress-bar-animated" role="progressbar" style="width: 0%;"></div>
+                                        </div>
+
+                                        <!-- Botón Acción Principal -->
+                                        <div class="d-flex flex-wrap justify-content-center gap-2">
+                                            <button type="button" id="btnWSAnterior" class="btn btn-outline-secondary px-3 rounded-pill btn-sm">
+                                                <i class="bi bi-chevron-left me-1"></i> Anterior
+                                            </button>
+                                            <button type="button" id="btnWSAbrirYSiguiente" class="btn btn-success px-4 py-2.5 rounded-pill fw-bold shadow">
+                                                <i class="bi bi-whatsapp me-2 fs-5 align-middle" id="iconoBotonAccionSecuencial"></i>
+                                                <span id="txtBotonAccionSecuencial">Abrir WhatsApp y Pasar al Siguiente</span>
+                                                <i class="bi bi-arrow-right ms-1"></i>
+                                            </button>
+                                            <button type="button" id="btnWSSiguiente" class="btn btn-outline-secondary px-3 rounded-pill btn-sm">
+                                                Saltar <i class="bi bi-chevron-right ms-1"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <div class="alert alert-info border-0 rounded-3 small py-2 px-3 d-flex align-items-center gap-2">
+                                        <i class="bi bi-info-circle-fill text-info fs-5 flex-shrink-0"></i>
+                                        <div id="txtInfoSecuencialAyuda">
+                                            Al hacer clic en <strong>"Abrir WhatsApp y Pasar al Siguiente"</strong>, se abrirá la aplicación o versión Web de WhatsApp con el mensaje personalizado para esa persona y el sistema avanzará automáticamente al siguiente contacto.
+                                        </div>
+                                    </div>
+                                </div>
+
+
+                                <!-- PESTAÑA 2: LISTA COMPLETA DE DESTINATARIOS -->
+                                <div class="tab-pane fade" id="pill-lista" role="tabpanel">
+                                    <div class="input-group input-group-sm mb-2 shadow-sm">
+                                        <span class="input-group-text bg-light border-end-0"><i class="bi bi-search text-muted"></i></span>
+                                        <input type="text" id="inputBuscarContactoWS" class="form-control border-start-0" placeholder="Buscar por nombre o cédula...">
+                                    </div>
+                                    
+                                    <div class="table-responsive rounded-3 border" style="max-height: 280px;">
+                                        <table class="table table-hover table-sm align-middle mb-0" id="tablaBeneficiariosWS">
+                                            <thead class="table-light sticky-top small">
+                                                <tr>
+                                                    <th>#</th>
+                                                    <th>Cédula</th>
+                                                    <th>Beneficiario</th>
+                                                    <th>Teléfono</th>
+                                                    <th class="text-end">Acción</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="tbodyBeneficiariosWS" class="small">
+                                                <tr>
+                                                    <td colspan="5" class="text-center text-muted py-3">Cargando beneficiarios...</td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+
+                            </div>
+
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Modal Footer -->
+            <div class="modal-footer bg-white px-4 py-2.5 border-top d-flex justify-content-between align-items-center">
+                <div class="text-muted small">
+                    <i class="bi bi-people-fill text-success me-1"></i>
+                    Total destinatarios con teléfono: <strong id="lblTotalDestinatariosWS">0</strong>
+                </div>
+                <div class="d-flex align-items-center gap-2">
+                    <button type="button" id="btnCopiarNumerosWS" class="btn btn-outline-secondary btn-sm rounded-pill px-3">
+                        <i class="bi bi-clipboard me-1"></i> Copiar Números
+                    </button>
+                    <button type="button" class="btn btn-secondary btn-sm rounded-pill px-4" data-bs-dismiss="modal">
+                        Cerrar
+                    </button>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+
+{% block scripts %}
+<script>
+$(document).ready(function() {
+    let buscandoEnCurso = false;
+    let timerBusquedaDebounce = null;
+    let ultimaCedulaConsultada = '{{ cedula_numerica|default:"" }}';
+
+    function ejecutarConsulta(forzarCNE = false) {
+        const raw = $('#cedulaInput').val() ? $('#cedulaInput').val().trim() : '';
+        const cedulaNum = raw.replace(/\D/g, '');
+
+        if (!cedulaNum || cedulaNum.length < 4) {
+            if (forzarCNE) {
+                alert('Por favor ingrese un número de cédula válido (mínimo 4 dígitos).');
+            }
+            return;
+        }
+
+        if (buscandoEnCurso) return;
+        buscandoEnCurso = true;
+
+        // UI Loading
+        $('#spinnerConsultar').removeClass('d-none');
+        $('#iconConsultar').addClass('d-none');
+        $('#btnConsultar').prop('disabled', true);
+        if (forzarCNE) {
+            $('#spinnerForzarCNE').removeClass('d-none');
+            $('#iconForzarCNE').addClass('d-none');
+            $('#btnForzarCNE').prop('disabled', true);
+        }
+        $('#msgBuscando').fadeIn();
+        $('#msgNoEncontrado').hide();
+
+        $.ajax({
+            url: "{% url 'api_consultar_beneficiario_expediente' %}",
+            data: {
+                'cedula': cedulaNum,
+                'forzar_cne': forzarCNE ? 'true' : 'false'
+            },
+            timeout: 12000,
+            success: function(res) {
+                if (res.existe && res.ciudadano) {
+                    ultimaCedulaConsultada = cedulaNum;
+                    renderizarFichaCiudadano(res);
+                    $('#seccionInicial').hide();
+                    $('#seccionResultados').fadeIn();
+                    $('#msgNoEncontrado').hide();
+                } else {
+                    $('#seccionResultados').hide();
+                    $('#msgNoEncontrado').fadeIn();
+                }
+            },
+            error: function() {
+                $('#seccionResultados').hide();
+                $('#msgNoEncontrado').fadeIn();
+            },
+            complete: function() {
+                buscandoEnCurso = false;
+                $('#spinnerConsultar').addClass('d-none');
+                $('#iconConsultar').removeClass('d-none');
+                $('#btnConsultar').prop('disabled', false);
+                $('#spinnerForzarCNE').addClass('d-none');
+                $('#iconForzarCNE').removeClass('d-none');
+                $('#btnForzarCNE').prop('disabled', false);
+                $('#msgBuscando').hide();
+            }
+        });
+    }
+
+    function renderizarFichaCiudadano(res) {
+        const c = res.ciudadano;
+        
+        // Identidad
+        const inicial = c.nombre_apellido ? c.nombre_apellido.charAt(0).toUpperCase() : 'C';
+        $('#avatarCiudadano').text(inicial);
+        $('#txtNombreCiudadano').text(c.nombre_apellido || 'Ciudadano');
+        $('#txtCedulaCiudadano').text(c.cedula || '');
+
+        // Badge de origen
+        const badgeOrigen = $('#badgeOrigen');
+        if (res.origen === 'sistemaspnp') {
+            badgeOrigen.removeClass().addClass('badge rounded-pill px-2.5 py-1 small bg-primary-subtle text-primary border border-primary-subtle')
+                       .html('<i class="bi bi-cloud-check-fill me-1"></i> CNE (sistemaspnp.com)');
+        } else {
+            badgeOrigen.removeClass().addClass('badge rounded-pill px-2.5 py-1 small bg-success-subtle text-success border border-success-subtle')
+                       .html('<i class="bi bi-database-check me-1"></i> Base de Datos Local');
+        }
+
+        // Acciones
+        $('#btnEntregarBeneficioAccion').attr('href', res.url_asignar_beneficio || `{% url 'asignar_beneficio' %}?cedula=${c.cedula}`);
+        $('#btnNuevaSolicitudAccion').attr('href', `{% url 'registrar_solicitud_ciudadano' %}?cedula=${c.cedula}`);
+        $('#btnFicha360Accion').attr('href', res.url_ficha_360 || `/ciudadano/${c.cedula}/ficha/`);
+        $('#btnPrimerBeneficio').attr('href', res.url_asignar_beneficio || `{% url 'asignar_beneficio' %}?cedula=${c.cedula}`);
+
+        // Contacto
+        $('#txtTelefonoCiudadano').text(c.telefono || 'No registrado');
+        if (c.telefono) {
+            const telLimpio = c.telefono.replace(/\D/g, '').slice(-10);
+            $('#contenedorWhatsAppBtn').html(`
+                <a href="https://wa.me/58${telLimpio}" target="_blank" class="btn btn-sm btn-success rounded-circle p-2" title="Abrir chat en WhatsApp">
+                    <i class="bi bi-whatsapp fs-6"></i>
+                </a>
+            `);
+        } else {
+            $('#contenedorWhatsAppBtn').empty();
+        }
+
+        // Dirección
+        let dirCompleta = c.direccion || 'No registrada';
+        if (c.centro_electoral) {
+            dirCompleta += `<div class="mt-1 small text-primary"><i class="bi bi-geo-alt-fill me-1"></i> ${c.centro_electoral} ${c.parroquia ? '— Parroquia: ' + c.parroquia : ''}</div>`;
+        }
+        $('#txtDireccionCiudadano').html(dirCompleta);
+
+        // KPIs
+        $('#kpiTotalEntregas').text(res.total_entregas || 0);
+        $('#kpiTotalArticulos').text(res.total_articulos || 0);
+        $('#badgeCountEntregas').text(res.total_entregas || 0);
+
+        const totalSol = res.solicitudes ? res.solicitudes.length : 0;
+        $('#kpiTotalSolicitudes').text(totalSol);
+        $('#badgeCountSolicitudes').text(totalSol);
+
+        // Bloques de Beneficios (Con o Sin Beneficios)
+        if (res.tiene_beneficios && res.entregas && res.entregas.length > 0) {
+            $('#bloqueSinBeneficios').hide();
+            
+            let htmlFilas = '';
+            res.entregas.forEach(function(e) {
+                const badgeStatus = e.status === 'Entregado' 
+                    ? '<span class="badge bg-success-subtle text-success border border-success-subtle px-2.5 py-1"><i class="bi bi-check-circle-fill me-1"></i> Entregado</span>'
+                    : `<span class="badge bg-warning-subtle text-warning border border-warning-subtle px-2.5 py-1"><i class="bi bi-hourglass-split me-1"></i> ${e.status || 'Pendiente'}</span>`;
+
+                let fotos = '';
+                if (e.url_evidencia_1) {
+                    fotos += `<button type="button" class="btn btn-sm btn-outline-secondary p-1 rounded-2 btn-ver-evidencia" data-url="${e.url_evidencia_1}" title="Foto 1"><i class="bi bi-camera-fill text-primary"></i></button> `;
+                }
+                if (e.url_evidencia_2) {
+                    fotos += `<button type="button" class="btn btn-sm btn-outline-secondary p-1 rounded-2 btn-ver-evidencia" data-url="${e.url_evidencia_2}" title="Foto 2"><i class="bi bi-camera-fill text-primary"></i></button> `;
+                }
+                if (e.url_evidencia_3) {
+                    fotos += `<button type="button" class="btn btn-sm btn-outline-secondary p-1 rounded-2 btn-ver-evidencia" data-url="${e.url_evidencia_3}" title="Foto 3"><i class="bi bi-camera-fill text-primary"></i></button>`;
+                }
+                if (!fotos) fotos = '<span class="text-muted small">—</span>';
+
+                htmlFilas += `
+                    <tr>
+                        <td class="ps-3 fw-bold text-dark font-monospace small">${e.fecha_str}</td>
+                        <td>
+                            <div class="fw-bold text-dark">${e.descripcion_prod}</div>
+                            ${e.codigo_prod ? `<span class="badge bg-light text-muted border" style="font-size: 0.70rem;">Cód: ${e.codigo_prod}</span>` : ''}
+                        </td>
+                        <td class="text-center">
+                            <span class="badge bg-primary text-white px-2.5 py-1.5 fs-6 fw-bold">${e.cantidad_dada}</span>
+                        </td>
+                        <td class="text-center">${badgeStatus}</td>
+                        <td class="small text-secondary">${e.via || 'Directa'}</td>
+                        <td class="text-center"><div class="d-flex justify-content-center gap-1">${fotos}</div></td>
+                        <td class="text-end pe-3">
+                            <a href="${e.url_comprobante_pdf}" target="_blank" class="btn btn-sm btn-outline-danger d-inline-flex align-items-center gap-1 rounded-3 px-2.5 py-1 shadow-sm" title="Descargar PDF">
+                                <i class="bi bi-file-earmark-pdf-fill"></i>
+                                <span class="small fw-semibold">PDF</span>
+                            </a>
+                        </td>
+                    </tr>
+                `;
+            });
+            $('#tablaEntregasBody').html(htmlFilas);
+            $('#bloqueConBeneficios').fadeIn();
+        } else {
+            // Requerimiento cumplido: Si no recibió beneficios, solo mostrar los datos encontrados y card de sin beneficios
+            $('#bloqueConBeneficios').hide();
+            $('#bloqueSinBeneficios').fadeIn();
+        }
+
+        // Solicitudes sociales
+        if (res.solicitudes && res.solicitudes.length > 0) {
+            let htmlSol = '';
+            res.solicitudes.forEach(function(s) {
+                const badgePrio = s.prioridad === 'Alta' ? 'bg-danger' : (s.prioridad === 'Media' ? 'bg-warning text-dark' : 'bg-secondary');
+                htmlSol += `
+                    <tr>
+                        <td class="ps-3 fw-bold text-primary">#${s.id}</td>
+                        <td class="text-muted">${s.fecha_str}</td>
+                        <td class="fw-bold">${s.tipo_solicitud}</td>
+                        <td class="text-truncate" style="max-width: 250px;" title="${s.descripcion_solicitud}">${s.descripcion_solicitud}</td>
+                        <td class="text-center"><span class="badge bg-light text-dark border">${s.status}</span></td>
+                        <td class="text-center"><span class="badge ${badgePrio}">${s.prioridad}</span></td>
+                    </tr>
+                `;
+            });
+            $('#tablaSolicitudesBody').html(htmlSol);
+            $('#bloqueSolicitudes').fadeIn();
+        } else {
+            $('#bloqueSolicitudes').hide();
+        }
+    }
+
+    // Eventos del Input de Cédula
+    $('#cedulaInput').on('input', function() {
+        const valActual = $(this).val() ? $(this).val().trim().replace(/\D/g, '') : '';
+        
+        if (valActual.length > 0) {
+            $('#btnClearCedula').show();
+        } else {
+            $('#btnClearCedula').hide();
+        }
+
+        // Si cambia la cédula respecto a la última mostrada, ocultar resultados anteriores para evitar confusión
+        if (ultimaCedulaConsultada && valActual !== ultimaCedulaConsultada) {
+            $('#seccionResultados').hide();
+            $('#msgNoEncontrado').hide();
+            $('#seccionInicial').show();
+        }
+
+        // Debounce predictivo a los 550ms si tiene al menos 6 dígitos
+        if (timerBusquedaDebounce) clearTimeout(timerBusquedaDebounce);
+        if (valActual.length >= 6) {
+            timerBusquedaDebounce = setTimeout(function() {
+                if (!buscandoEnCurso && valActual !== ultimaCedulaConsultada) {
+                    ejecutarConsulta(false);
+                }
+            }, 550);
+        }
+    });
+
+    $('#cedulaInput').on('keydown', function(e) {
+        if (e.key === 'Enter' || e.keyCode === 13) {
+            e.preventDefault();
+            if (timerBusquedaDebounce) clearTimeout(timerBusquedaDebounce);
+            ejecutarConsulta(false);
+        }
+    });
+
+    $('#btnConsultar').on('click', function(e) {
+        e.preventDefault();
+        if (timerBusquedaDebounce) clearTimeout(timerBusquedaDebounce);
+        ejecutarConsulta(false);
+    });
+
+    $('#btnForzarCNE').on('click', function(e) {
+        e.preventDefault();
+        ejecutarConsulta(true);
+    });
+
+    $('#btnRecargarActual').on('click', function(e) {
+        e.preventDefault();
+        ejecutarConsulta(false);
+    });
+
+    $('#btnClearCedula').on('click', function() {
+        $('#cedulaInput').val('').focus();
+        $(this).hide();
+        $('#seccionResultados').hide();
+        $('#msgNoEncontrado').hide();
+        $('#seccionInicial').fadeIn();
+        ultimaCedulaConsultada = '';
+    });
+
+    // Clic en tarjetas de beneficiarios recientes
+    $(document).on('click', '.tarjeta-reciente', function() {
+        const ced = $(this).data('cedula');
+        if (ced) {
+            $('#cedulaInput').val(ced);
+            $('#btnClearCedula').show();
+            ejecutarConsulta(false);
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+    });
+
+    // Copiar cédula al portapapeles
+    $(document).on('click', '#btnCopiarCedula', function() {
+        const cedula = $('#txtCedulaCiudadano').text().trim();
+        if (cedula && navigator.clipboard) {
+            navigator.clipboard.writeText(cedula).then(function() {
+                const btn = $('#btnCopiarCedula');
+                btn.html('<i class="bi bi-check2 text-success"></i>');
+                setTimeout(function() {
+                    btn.html('<i class="bi bi-clipboard"></i>');
+                }, 1800);
+            });
+        }
+    });
+
+    // Visualizador Modal de Evidencias
+    $(document).on('click', '.btn-ver-evidencia', function(e) {
+        e.preventDefault();
+        const url = $(this).data('url');
+        if (url) {
+            $('#imgModalEvidencia').attr('src', url);
+            const modal = new bootstrap.Modal(document.getElementById('modalFotoEvidencia'));
+            modal.show();
+        }
+    });
+
+    // ==========================================
+    // LÓGICA DE MENSAJERÍA MASIVA (WHATSAPP & TELEGRAM)
+    // ==========================================
+    let listaBeneficiariosWS = [];
+    let indiceSecuencialWS = 0;
+    let canalMensajeriaWS = 'whatsapp'; // 'whatsapp' o 'telegram'
+    let mensajePredeterminadoWS = "Estimado(a) {nombre}, le saludamos desde el Sistema de Atención Social. Le informamos que puede ponerse en contacto con nosotros para consultar su expediente y asignación de beneficios. ¡Estamos a su servicio!";
+
+    $('#txtMensajeWhatsApp').val(mensajePredeterminadoWS);
+
+    // Cambio de canal de mensajería (WhatsApp vs Telegram)
+    $('input[name="radioCanalMensajeria"]').on('change', function() {
+        canalMensajeriaWS = $(this).val();
+        aplicarEstiloCanalWS();
+        actualizarPreviewWS();
+    });
+
+    function aplicarEstiloCanalWS() {
+        const isTG = (canalMensajeriaWS === 'telegram');
+
+        if (isTG) {
+            // Estilos Telegram (Azul)
+            $('#headerModalMensajeria').removeClass('bg-success').css('background-color', '#0088cc');
+            $('#iconoModalHeader').removeClass('bi-whatsapp').addClass('bi-telegram');
+            $('#modalWhatsAppMasivoLabel').html('<i class="bi bi-telegram me-1"></i> Mensajería Masiva por Telegram');
+            $('#subtituloModalHeader').text('Redacte un mensaje personalizado para enviarlo vía Telegram a los beneficiarios.');
+            $('#iconoEditTexto').removeClass('text-success').css('color', '#0088cc');
+            $('#iconoBadgePrevioChat').removeClass('bi-whatsapp text-success').addClass('bi-telegram').css('color', '#0088cc');
+            $('#boxPrevioChatContenedor').css('background', '#e6f2f9');
+            
+            $('#iconoPillSecuencial').removeClass('bi-play-circle-fill text-success').addClass('bi-send-fill').css('color', '#0088cc');
+            $('#boxPanelSecuencial').removeClass('bg-success bg-opacity-10 border-success border-opacity-25').css({
+                'background-color': 'rgba(0, 136, 204, 0.1)',
+                'border-color': 'rgba(0, 136, 204, 0.3)'
+            });
+            $('#badgeProgresoSecuencial').removeClass('bg-success').css('background-color', '#0088cc');
+            $('#barProgresoWS').removeClass('bg-success').css('background-color', '#0088cc');
+            
+            $('#btnWSAbrirYSiguiente').removeClass('btn-success').css('background-color', '#0088cc').css('border-color', '#0088cc');
+            $('#iconoBotonAccionSecuencial').removeClass('bi-whatsapp').addClass('bi-telegram');
+            $('#txtBotonAccionSecuencial').text('Abrir Telegram y Pasar al Siguiente');
+            $('#txtInfoSecuencialAyuda').html('Al hacer clic en <strong>"Abrir Telegram y Pasar al Siguiente"</strong>, se abrirá Telegram con la conversación del contacto y el mensaje listo para enviar.');
+
+        } else {
+            // Estilos WhatsApp (Verde)
+            $('#headerModalMensajeria').addClass('bg-success').css('background-color', '');
+            $('#iconoModalHeader').removeClass('bi-telegram').addClass('bi-whatsapp');
+            $('#modalWhatsAppMasivoLabel').html('<i class="bi bi-whatsapp me-1"></i> Mensajería Masiva por WhatsApp');
+            $('#subtituloModalHeader').text('Redacte un mensaje personalizado para enviarlo vía WhatsApp a los beneficiarios.');
+            $('#iconoEditTexto').addClass('text-success').css('color', '');
+            $('#iconoBadgePrevioChat').removeClass('bi-telegram').addClass('bi-whatsapp text-success').css('color', '');
+            $('#boxPrevioChatContenedor').css('background', '#e5ddd5');
+
+            $('#iconoPillSecuencial').removeClass('bi-send-fill').addClass('bi-play-circle-fill text-success').css('color', '');
+            $('#boxPanelSecuencial').addClass('bg-success bg-opacity-10 border-success border-opacity-25').css({
+                'background-color': '',
+                'border-color': ''
+            });
+            $('#badgeProgresoSecuencial').addClass('bg-success').css('background-color', '');
+            $('#barProgresoWS').addClass('bg-success').css('background-color', '');
+
+            $('#btnWSAbrirYSiguiente').addClass('btn-success').css('background-color', '').css('border-color', '');
+            $('#iconoBotonAccionSecuencial').removeClass('bi-telegram').addClass('bi-whatsapp');
+            $('#txtBotonAccionSecuencial').text('Abrir WhatsApp y Pasar al Siguiente');
+            $('#txtInfoSecuencialAyuda').html('Al hacer clic en <strong>"Abrir WhatsApp y Pasar al Siguiente"</strong>, se abrirá WhatsApp con el mensaje personalizado para esa persona.');
+        }
+    }
+
+    // Gestión de Multimedia (Imágenes y Videos)
+    $('#btnSeleccionarMedia').on('click', function() {
+        $('#inputAdjuntoMedia').click();
+    });
+
+    $('#inputAdjuntoMedia').on('change', function(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = function(evt) {
+            const result = evt.target.result;
+            $('#contenedorPrevioMedia').removeClass('d-none');
+            $('#badgeAsistenteMedia').removeClass('d-none').addClass('d-flex');
+            $('#btnQuitarMedia').removeClass('d-none');
+            $('#lblAdjuntarMedia').text('Cambiar Archivo');
+            $('#lblInfoMediaArch').text(`Archivo: ${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB)`);
+
+            if (file.type.startsWith('image/')) {
+                $('#imgPrevioMedia').attr('src', result).removeClass('d-none');
+                $('#videoPrevioMedia').addClass('d-none').attr('src', '');
+            } else if (file.type.startsWith('video/')) {
+                $('#videoPrevioMedia').attr('src', result).removeClass('d-none');
+                $('#imgPrevioMedia').addClass('d-none').attr('src', '');
+            }
+        };
+        reader.readAsDataURL(file);
+    });
+
+    $('#btnQuitarMedia').on('click', function() {
+        $('#inputAdjuntoMedia').val('');
+        $('#contenedorPrevioMedia').addClass('d-none');
+        $('#imgPrevioMedia').addClass('d-none').attr('src', '');
+        $('#videoPrevioMedia').addClass('d-none').attr('src', '');
+        $('#badgeAsistenteMedia').addClass('d-none').removeClass('d-flex');
+        $('#btnQuitarMedia').addClass('d-none');
+        $('#lblAdjuntarMedia').text('Seleccionar Foto / Video');
+        $('#lblInfoMediaArch').text('');
+    });
+
+    function actualizarPreviewWS() {
+        const rawText = $('#txtMensajeWhatsApp').val() || '';
+        $('#lblCaracteresCount').text(rawText.length + ' caracteres');
+
+        let itemMuestra = (listaBeneficiariosWS && listaBeneficiariosWS.length > 0) ? listaBeneficiariosWS[indiceSecuencialWS] : {
+            nombre_apellido: 'Juan Pérez',
+            cedula: '12345678',
+            telefono: '04141234567',
+            telefono_normalizado: '584141234567'
+        };
+
+        const hoyStr = new Date().toLocaleDateString('es-VE');
+        let textoProcesado = rawText
+            .replace(/{nombre}/g, itemMuestra.nombre_apellido)
+            .replace(/{cedula}/g, itemMuestra.cedula)
+            .replace(/{fecha}/g, hoyStr);
+
+        $('#previoMensajeWhatsApp').html(textoProcesado.replace(/\n/g, '<br>'));
+        actualizarEstadoSecuencialWS();
+        renderizarTablaWS();
+    }
+
+    function cargarBeneficiariosWS() {
+        $.ajax({
+            url: "{% url 'api_obtener_beneficiarios_whatsapp' %}",
+            method: "GET",
+            dataType: "json",
+            success: function(res) {
+                if (res.ok && res.beneficiarios) {
+                    listaBeneficiariosWS = res.beneficiarios;
+                    $('#lblTotalDestinatariosWS').text(res.total_validos_whatsapp);
+                    $('#badgeTotalContactosTlf').text(res.total_validos_whatsapp);
+                    indiceSecuencialWS = 0;
+                    actualizarPreviewWS();
+                } else {
+                    $('#tbodyBeneficiariosWS').html('<tr><td colspan="5" class="text-center text-danger py-3">Error al cargar la lista de destinatarios.</td></tr>');
+                }
+            },
+            error: function() {
+                $('#tbodyBeneficiariosWS').html('<tr><td colspan="5" class="text-center text-danger py-3">No se pudo conectar con el servidor.</td></tr>');
+            }
+        });
+    }
+
+    function obtenerMensajePersonalizado(item) {
+        const rawText = $('#txtMensajeWhatsApp').val() || '';
+        const hoyStr = new Date().toLocaleDateString('es-VE');
+        return rawText
+            .replace(/{nombre}/g, item.nombre_apellido || '')
+            .replace(/{cedula}/g, item.cedula || '')
+            .replace(/{fecha}/g, hoyStr);
+    }
+
+    function generarUrlMensajeria(item) {
+        if (!item || !item.telefono_normalizado) return '#';
+        const msg = encodeURIComponent(obtenerMensajePersonalizado(item));
+
+        if (canalMensajeriaWS === 'telegram') {
+            // Telegram Deep Link por número telefónico o compartir texto
+            return `https://t.me/+${item.telefono_normalizado}`;
+        } else {
+            // WhatsApp Deep Link
+            return `https://wa.me/${item.telefono_normalizado}?text=${msg}`;
+        }
+    }
+
+    function actualizarEstadoSecuencialWS() {
+        if (!listaBeneficiariosWS || listaBeneficiariosWS.length === 0) {
+            $('#txtSecuencialNombre').text('Sin destinatarios');
+            $('#txtSecuencialTelefono').text('---');
+            $('#badgeProgresoSecuencial').text('0 / 0');
+            $('#barProgresoWS').css('width', '0%');
+            return;
+        }
+
+        if (indiceSecuencialWS < 0) indiceSecuencialWS = 0;
+        if (indiceSecuencialWS >= listaBeneficiariosWS.length) indiceSecuencialWS = listaBeneficiariosWS.length - 1;
+
+        const actual = listaBeneficiariosWS[indiceSecuencialWS];
+        const total = listaBeneficiariosWS.length;
+        const pct = Math.round(((indiceSecuencialWS + 1) / total) * 100);
+
+        $('#badgeProgresoSecuencial').text(`Contacto ${indiceSecuencialWS + 1} de ${total}`);
+        $('#txtSecuencialNombre').text(actual.nombre_apellido);
+        $('#txtSecuencialTelefono').text(`C.I. ${actual.cedula} | Tel: ${actual.telefono} (+${actual.telefono_normalizado})`);
+        $('#barProgresoWS').css('width', `${pct}%`).text(`${pct}%`);
+
+        $('#btnWSAnterior').prop('disabled', indiceSecuencialWS === 0);
+        $('#btnWSSiguiente').prop('disabled', indiceSecuencialWS === total - 1);
+    }
+
+    function renderizarTablaWS() {
+        if (!listaBeneficiariosWS || listaBeneficiariosWS.length === 0) return;
+
+        const filtro = ($('#inputBuscarContactoWS').val() || '').toLowerCase().trim();
+        let html = '';
+        let count = 0;
+
+        const isTG = (canalMensajeriaWS === 'telegram');
+        const btnClass = isTG ? 'btn-primary' : 'btn-success';
+        const btnStyle = isTG ? 'background-color: #0088cc; border-color: #0088cc;' : '';
+        const btnIcon = isTG ? 'bi-telegram' : 'bi-whatsapp';
+        const canalNombre = isTG ? 'Telegram' : 'WhatsApp';
+
+        listaBeneficiariosWS.forEach((b, idx) => {
+            if (filtro && !b.nombre_apellido.toLowerCase().includes(filtro) && !b.cedula.includes(filtro)) {
+                return;
+            }
+
+            count++;
+            const urlCanal = generarUrlMensajeria(b);
+
+            html += `
+                <tr class="${idx === indiceSecuencialWS ? (isTG ? 'table-primary font-weight-bold' : 'table-success font-weight-bold') : ''}">
+                    <td>${idx + 1}</td>
+                    <td class="font-monospace">${b.cedula}</td>
+                    <td><strong>${b.nombre_apellido}</strong></td>
+                    <td class="font-monospace">${b.telefono}</td>
+                    <td class="text-end">
+                        ${b.es_valido_whatsapp ? 
+                            `<a href="${urlCanal}" target="_blank" class="btn btn-sm ${btnClass} rounded-pill px-2.5 py-0.5" style="${btnStyle}">
+                                <i class="bi ${btnIcon} me-1"></i> Enviar ${canalNombre}
+                            </a>` :
+                            `<span class="badge bg-secondary">Sin Teléfono</span>`
+                        }
+                    </td>
+                </tr>
+            `;
+        });
+
+        if (count === 0) {
+            html = '<tr><td colspan="5" class="text-center text-muted py-3">No se encontraron resultados para el filtro.</td></tr>';
+        }
+
+        $('#tbodyBeneficiariosWS').html(html);
+    }
+
+    // Eventos WhatsApp & Telegram Modal
+    $('#txtMensajeWhatsApp').on('input', function() {
+        actualizarPreviewWS();
+    });
+
+    $('.btn-tag-ws').on('click', function() {
+        const tag = $(this).data('tag');
+        const area = $('#txtMensajeWhatsApp');
+        const val = area.val();
+        area.val(val + ' ' + tag + ' ');
+        area.focus();
+        actualizarPreviewWS();
+    });
+
+    $('#inputBuscarContactoWS').on('input', function() {
+        renderizarTablaWS();
+    });
+
+    $('#btnWSAbrirYSiguiente').on('click', function() {
+        if (!listaBeneficiariosWS || listaBeneficiariosWS.length === 0) return;
+
+        const actual = listaBeneficiariosWS[indiceSecuencialWS];
+        if (actual && actual.es_valido_whatsapp) {
+            const url = generarUrlMensajeria(actual);
+            window.open(url, '_blank');
+        } else {
+            alert(`El beneficiario actual no tiene un número telefónico válido para ${canalMensajeriaWS === 'telegram' ? 'Telegram' : 'WhatsApp'}.`);
+        }
+
+        if (indiceSecuencialWS < listaBeneficiariosWS.length - 1) {
+            indiceSecuencialWS++;
+            actualizarEstadoSecuencialWS();
+            renderizarTablaWS();
+        } else {
+            alert(`¡Ha completado la lista de envíos de ${canalMensajeriaWS === 'telegram' ? 'Telegram' : 'WhatsApp'} masivo!`);
+        }
+    });
+
+    $('#btnWSAnterior').on('click', function() {
+        if (indiceSecuencialWS > 0) {
+            indiceSecuencialWS--;
+            actualizarEstadoSecuencialWS();
+            renderizarTablaWS();
+        }
+    });
+
+    $('#btnWSSiguiente').on('click', function() {
+        if (indiceSecuencialWS < listaBeneficiariosWS.length - 1) {
+            indiceSecuencialWS++;
+            actualizarEstadoSecuencialWS();
+            renderizarTablaWS();
+        }
+    });
+
+    function copiarAlPortapapelesUniversal(texto) {
+        return new Promise(function(resolve, reject) {
+            if (navigator.clipboard && window.isSecureContext) {
+                navigator.clipboard.writeText(texto)
+                    .then(resolve)
+                    .catch(function() {
+                        ejecutarFallbackCopy(texto, resolve, reject);
+                    });
+            } else {
+                ejecutarFallbackCopy(texto, resolve, reject);
+            }
+        });
+    }
+
+    function ejecutarFallbackCopy(texto, resolve, reject) {
+        try {
+            // Insertar dentro del modal activo para evitar el bloqueo de foco de Bootstrap 5 Modal
+            const $modalBody = $('#modalWhatsAppMasivo .modal-body');
+            const $contenedor = $modalBody.length ? $modalBody : $('body');
+
+            const textArea = document.createElement('textarea');
+            textArea.value = texto;
+            textArea.style.position = 'fixed';
+            textArea.style.left = '-9999px';
+            textArea.style.top = '0';
+            textArea.style.opacity = '0';
+            $contenedor.append(textArea);
+
+            textArea.focus();
+            textArea.select();
+            textArea.setSelectionRange(0, 999999);
+
+            const exito = document.execCommand('copy');
+            $(textArea).remove();
+
+            if (exito) {
+                resolve();
+            } else {
+                reject(new Error('execCommand retornó false'));
+            }
+        } catch (err) {
+            reject(err);
+        }
+    }
+
+    $(document).on('click', '#btnCopiarNumerosWS', function(e) {
+        e.preventDefault();
+        if (!listaBeneficiariosWS || listaBeneficiariosWS.length === 0) {
+            alert('No hay números telefónicos cargados para copiar.');
+            return;
+        }
+
+        const contactosValidos = listaBeneficiariosWS.filter(b => b.es_valido_whatsapp);
+        if (contactosValidos.length === 0) {
+            alert('No se encontraron destinatarios con números válidos.');
+            return;
+        }
+
+        // Formato tabulado (\t) para que Excel pegue automáticamente en 4 columnas limpias
+        const listaExcel = contactosValidos
+            .map(b => `${b.cedula}\t${b.nombre_apellido}\t${b.telefono}\t+${b.telefono_normalizado}`)
+            .join('\n');
+
+        const $btn = $('#btnCopiarNumerosWS');
+        const htmlOriginal = $btn.html();
+
+        copiarAlPortapapelesUniversal(listaExcel).then(function() {
+            $btn.removeClass('btn-outline-secondary').addClass('btn-success')
+                .html('<i class="bi bi-check2-circle me-1"></i> ¡Copiado para Excel!');
+
+            setTimeout(function() {
+                $btn.removeClass('btn-success').addClass('btn-outline-secondary')
+                    .html(htmlOriginal);
+            }, 2500);
+        }).catch(function() {
+            mostrarCuadroCopiaManual(listaExcel);
+        });
+    });
+
+    function mostrarCuadroCopiaManual(texto) {
+        let $modalCopy = $('#modalCopiaManualWS');
+        if (!$modalCopy.length) {
+            const htmlModal = `
+                <div class="modal fade" id="modalCopiaManualWS" tabindex="-1" style="z-index: 1060;">
+                    <div class="modal-dialog modal-dialog-centered">
+                        <div class="modal-content border-0 rounded-4 shadow-lg">
+                            <div class="modal-header bg-primary text-white py-2.5 px-3">
+                                <h6 class="modal-title fw-bold"><i class="bi bi-clipboard-check me-1"></i> Lista para Pegar en Excel</h6>
+                                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                            </div>
+                            <div class="modal-body p-3">
+                                <p class="small text-muted mb-2">Presione <strong>Ctrl + C</strong> para copiar el texto seleccionado y luego péguelo en Excel (Ctrl + V):</p>
+                                <textarea id="txtAreaCopiaManual" class="form-control font-monospace small" rows="8" readonly></textarea>
+                            </div>
+                            <div class="modal-footer py-2 px-3">
+                                <button type="button" class="btn btn-sm btn-primary rounded-pill px-3" id="btnSeleccionarTodoManual">Seleccionar Todo</button>
+                                <button type="button" class="btn btn-sm btn-secondary rounded-pill px-3" data-bs-dismiss="modal">Cerrar</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            $('body').append(htmlModal);
+            $modalCopy = $('#modalCopiaManualWS');
+
+            $(document).on('click', '#btnSeleccionarTodoManual', function() {
+                $('#txtAreaCopiaManual').focus().select();
+            });
+        }
+
+        $('#txtAreaCopiaManual').val(texto);
+        const modalInst = new bootstrap.Modal(document.getElementById('modalCopiaManualWS'));
+        modalInst.show();
+        setTimeout(function() {
+            $('#txtAreaCopiaManual').focus().select();
+        }, 400);
+    }
+
+    // Al abrir el modal
+    $('#modalWhatsAppMasivo').on('show.bs.modal', function() {
+        if (listaBeneficiariosWS.length === 0) {
+            cargarBeneficiariosWS();
+        } else {
+            actualizarPreviewWS();
+        }
+    });
+
+
+
+});
+</script>
+
+
+<style>
+.tarjeta-reciente:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-sm);
+    border-color: var(--primary) !important;
+}
+</style>
+{% endblock %}

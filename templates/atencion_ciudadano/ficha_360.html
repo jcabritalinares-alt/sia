@@ -1,0 +1,222 @@
+{% extends 'base.html' %}
+
+{% block contenido %}
+<div class="container-fluid px-0">
+
+    <!-- Header Ficha 360 -->
+    <div class="card border border-light rounded-4 shadow-sm p-4 mb-4 bg-gradient">
+        <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3">
+            <div class="d-flex align-items-center gap-3">
+                <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 65px; height: 65px; font-size: 1.8rem;">
+                    <i class="bi bi-person-fill"></i>
+                </div>
+                <div>
+                    <h3 class="fw-bold text-dark mb-1">
+                        {{ beneficiario.nombre_apellido|default:"Ciudadano Registrado" }}
+                    </h3>
+                    <div class="d-flex flex-wrap align-items-center gap-3 small text-secondary">
+                        <span><i class="bi bi-card-heading text-primary me-1"></i><strong>C.I.:</strong> {{ cedula }}</span>
+                        <span><i class="bi bi-telephone-fill text-success me-1"></i><strong>Teléfono:</strong> {{ beneficiario.telefono|default:"Sin registro" }}</span>
+                        <span><i class="bi bi-geo-alt-fill text-danger me-1"></i><strong>Dirección:</strong> {{ beneficiario.direccion|default:"Sin dirección" }}</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="d-flex flex-wrap gap-2">
+                {% if beneficiario.telefono %}
+                <button type="button" class="btn btn-success fw-bold d-inline-flex align-items-center gap-2 shadow-sm" onclick="enviarWhatsAppDirecto('{{ beneficiario.telefono }}', '{{ beneficiario.nombre_apellido }}')">
+                    <i class="bi bi-whatsapp fs-5"></i> Contactar por WhatsApp
+                </button>
+                {% endif %}
+                <a href="{% url 'lista_solicitudes_ciudadano' %}" class="btn btn-outline-secondary d-inline-flex align-items-center gap-2">
+                    <i class="bi bi-arrow-left"></i> Volver a Lista
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tarjetas KPI Expediente -->
+    <div class="row g-3 mb-4">
+        <div class="col-12 col-sm-6">
+            <div class="card border-0 shadow-sm rounded-4 bg-primary text-white p-3 h-100">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <div class="small text-white-50 fw-bold uppercase">Solicitudes Tramitadas</div>
+                        <div class="fs-2 fw-bold mt-1">{{ total_solicitudes }}</div>
+                    </div>
+                    <div class="fs-1 text-white-50"><i class="bi bi-envelope-paper-fill"></i></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-12 col-sm-6">
+            <div class="card border-0 shadow-sm rounded-4 bg-success bg-opacity-10 border border-success border-opacity-25 p-3 h-100">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <div class="small text-success fw-bold uppercase">Beneficios Entregados Efectivamente</div>
+                        <div class="fs-2 fw-bold text-dark mt-1">{{ total_entregas }}</div>
+                    </div>
+                    <div class="fs-1 text-success"><i class="bi bi-gift-fill"></i></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Pestañas de Navegación del Expediente -->
+    <ul class="nav nav-pills nav-fill mb-4 bg-light p-2 rounded-4 border" id="tabExpediente" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active rounded-3 fw-bold" id="solicitudes-tab" data-bs-toggle="tab" data-bs-target="#solicitudes-pane" type="button" role="tab">
+                <i class="bi bi-inbox-fill me-2"></i> Solicitudes de Atención Social ({{ solicitudes|length }})
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link rounded-3 fw-bold" id="entregas-tab" data-bs-toggle="tab" data-bs-target="#entregas-pane" type="button" role="tab">
+                <i class="bi bi-check-circle-fill me-2"></i> Beneficios Entregados ({{ entregas|length }})
+            </button>
+        </li>
+    </ul>
+
+    <div class="tab-content" id="tabExpedienteContent">
+        <!-- Panel 1: Solicitudes de Atención -->
+        <div class="tab-pane fade show active" id="solicitudes-pane" role="tabpanel">
+            <div class="card border border-light rounded-4 shadow-sm p-3">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="bg-light text-secondary small text-uppercase fw-bold border-bottom">
+                            <tr>
+                                <th># Solicitud</th>
+                                <th>Fecha</th>
+                                <th>Tipo de Solicitud</th>
+                                <th>Requerimiento Detallado</th>
+                                <th>Prioridad</th>
+                                <th class="text-center">Estado</th>
+                                <th class="text-end">Comprobante</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for s in solicitudes %}
+                            <tr>
+                                <td class="fw-bold text-primary">#{{ s.id }}</td>
+                                <td class="small text-muted">{{ s.fecha_solicitud|date:"d/m/Y H:i" }}</td>
+                                <td class="fw-semibold text-dark">{{ s.tipo_solicitud }}</td>
+                                <td>{{ s.descripcion_solicitud }}</td>
+                                <td>
+                                    <span class="badge {% if s.prioridad == 'Alta' %}bg-danger{% elif s.prioridad == 'Media' %}bg-warning text-dark{% else %}bg-info text-dark{% endif %} px-2 py-1">
+                                        {{ s.prioridad }}
+                                    </span>
+                                </td>
+                                <td class="text-center">
+                                    <span class="badge {% if s.status == 'Entregada' %}bg-success{% elif s.status == 'Aprobada' %}bg-primary{% elif s.status == 'En Proceso' %}bg-warning text-dark{% else %}bg-secondary{% endif %} px-2.5 py-1.5 fs-6">
+                                        {{ s.status }}
+                                    </span>
+                                </td>
+                                <td class="text-end">
+                                    <a href="{% url 'imprimir_comprobante_solicitud' s.id %}" target="_blank" class="btn btn-sm btn-outline-primary">
+                                        <i class="bi bi-printer-fill me-1"></i> Recibo
+                                    </a>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="7" class="text-center py-4 text-muted fst-italic">No hay solicitudes registradas para este ciudadano.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Panel 2: Beneficios Entregados con Fotos y Firmas -->
+        <div class="tab-pane fade" id="entregas-pane" role="tabpanel">
+            <div class="row g-4">
+                {% for e in entregas %}
+                <div class="col-12 col-md-6">
+                    <div class="card border border-light rounded-4 shadow-sm p-4 h-100">
+                        <div class="d-flex justify-content-between align-items-center border-bottom pb-2 mb-3">
+                            <h6 class="fw-bold text-dark mb-0 d-flex align-items-center gap-2">
+                                <i class="bi bi-box-seam-fill text-success"></i> Entrega #{{ e.id }}
+                            </h6>
+                            <span class="badge bg-success px-3 py-1">{{ e.status|default:"Entregado" }}</span>
+                        </div>
+
+                        <div class="mb-3">
+                            <div class="fs-5 fw-bold text-primary mb-1">{{ e.descripcion_prod }}</div>
+                            <div class="small text-secondary">
+                                <strong>Cantidad Otorgada:</strong> <span class="fw-bold text-dark">{{ e.cantidad_dada }} u.</span> | 
+                                <strong>Fecha:</strong> {{ e.fecha|date:"d/m/Y"|default:"N/A" }}
+                            </div>
+                        </div>
+
+                        <!-- Evidencias Fotográficas -->
+                        {% if e.url_evidencia_1 or e.url_evidencia_2 or e.url_evidencia_3 %}
+                        <div class="mb-3">
+                            <label class="small fw-bold text-muted d-block mb-1">Evidencia Fotográfica de Entrega:</label>
+                            <div class="d-flex gap-2">
+                                {% if e.url_evidencia_1 %}
+                                <a href="{{ e.url_evidencia_1 }}" target="_blank">
+                                    <img src="{{ e.url_evidencia_1 }}" class="rounded-3 border shadow-sm" style="width: 90px; height: 90px; object-fit: cover;">
+                                </a>
+                                {% endif %}
+                                {% if e.url_evidencia_2 %}
+                                <a href="{{ e.url_evidencia_2 }}" target="_blank">
+                                    <img src="{{ e.url_evidencia_2 }}" class="rounded-3 border shadow-sm" style="width: 90px; height: 90px; object-fit: cover;">
+                                </a>
+                                {% endif %}
+                                {% if e.url_evidencia_3 %}
+                                <a href="{{ e.url_evidencia_3 }}" target="_blank">
+                                    <img src="{{ e.url_evidencia_3 }}" class="rounded-3 border shadow-sm" style="width: 90px; height: 90px; object-fit: cover;">
+                                </a>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% endif %}
+
+                        <!-- Firma Digital y Huella Biométrica -->
+                        {% if e.firma_beneficiario or e.huella_dactilar %}
+                        <div class="pt-2 border-top">
+                            <div class="row g-2 text-center align-items-center">
+                                {% if e.firma_beneficiario %}
+                                <div class="{% if e.huella_dactilar %}col-7{% else %}col-12{% endif %}">
+                                    <label class="small fw-bold text-muted d-block mb-1" style="font-size: 0.72rem;">Firma Digital:</label>
+                                    <div class="bg-light p-1 rounded-3 border">
+                                        <img src="{{ e.firma_beneficiario }}" style="max-height: 45px; max-width: 100%;" alt="Firma">
+                                    </div>
+                                </div>
+                                {% endif %}
+                                {% if e.huella_dactilar %}
+                                <div class="{% if e.firma_beneficiario %}col-5{% else %}col-12{% endif %}">
+                                    <label class="small fw-bold text-muted d-block mb-1" style="font-size: 0.72rem;">Huella Dactilar:</label>
+                                    <div class="bg-light p-1 rounded-3 border">
+                                        <img src="{{ e.huella_dactilar }}" style="max-height: 48px; max-width: 42px; border: 1px solid #0f172a; border-radius: 3px; background: #fff;" alt="Huella">
+                                    </div>
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+                {% empty %}
+                <div class="col-12 text-center py-5 text-muted fst-italic">
+                    <i class="bi bi-gift fs-1 d-block mb-2 text-secondary"></i>
+                    No hay registros de beneficios entregados para este ciudadano.
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function enviarWhatsAppDirecto(telefono, nombre) {
+        let numClean = telefono.replace(/[^0-9]/g, '');
+        if (!numClean.startsWith('58')) {
+            if (numClean.startsWith('0')) numClean = '58' + numClean.substring(1);
+            else numClean = '58' + numClean;
+        }
+        let texto = encodeURIComponent(`Hola ${nombre}, te saludamos desde la Dirección de Atención Social de la Alcaldía (SIA Web). Nos comunicamos en relación a tu solicitud social.`);
+        window.open(`https://api.whatsapp.com/send?phone=${numClean}&text=${texto}`, '_blank');
+    }
+</script>
+{% endblock %}

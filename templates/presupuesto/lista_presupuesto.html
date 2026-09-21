@@ -1,0 +1,194 @@
+{% extends 'base.html' %}
+
+{% block contenido %}
+<div class="container-fluid px-0">
+
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-4 gap-3">
+        <div>
+            <h2 class="fw-extrabold text-dark mb-1 d-flex align-items-center gap-2">
+                <i class="bi bi-bank2 text-primary"></i> Hacienda Pública y Presupuesto Fiscal (SIGEF)
+            </h2>
+            <p class="text-muted small mb-0">Plan Operativo Anual (POA), Ejecución de Gastos (Compromiso, Causado, Pago) y Control de Partidas</p>
+        </div>
+        <div class="d-flex flex-wrap gap-2">
+            <button class="btn btn-primary-custom fw-bold shadow-sm d-flex align-items-center gap-2" data-bs-toggle="modal" data-bs-target="#modalEjecucionPresupuestaria">
+                <i class="bi bi-plus-circle-fill"></i> Registrar Ejecución de Gasto
+            </button>
+        </div>
+    </div>
+
+    <!-- KPIs Presupuestarios -->
+    <div class="row g-3 mb-4">
+        <div class="col-12 col-sm-6 col-xl-3">
+            <div class="card border-0 shadow-sm rounded-4 bg-primary bg-opacity-10 border border-primary border-opacity-25 p-3 h-100">
+                <div class="small text-primary fw-bold uppercase">Presupuesto Actual (POA)</div>
+                <div class="fs-3 fw-extrabold text-dark mt-1">{{ total_presupuestado|floatformat:2 }} BS</div>
+            </div>
+        </div>
+        <div class="col-12 col-sm-6 col-xl-3">
+            <div class="card border-0 shadow-sm rounded-4 bg-warning bg-opacity-10 border border-warning border-opacity-25 p-3 h-100">
+                <div class="small text-warning fw-bold uppercase">Monto Comprometido</div>
+                <div class="fs-3 fw-extrabold text-dark mt-1">{{ total_comprometido|floatformat:2 }} BS</div>
+            </div>
+        </div>
+        <div class="col-12 col-sm-6 col-xl-3">
+            <div class="card border-0 shadow-sm rounded-4 bg-info bg-opacity-10 border border-info border-opacity-25 p-3 h-100">
+                <div class="small text-info fw-bold uppercase">Monto Causado / Devengado</div>
+                <div class="fs-3 fw-extrabold text-dark mt-1">{{ total_causado|floatformat:2 }} BS</div>
+            </div>
+        </div>
+        <div class="col-12 col-sm-6 col-xl-3">
+            <div class="card border-0 shadow-sm rounded-4 bg-success bg-opacity-10 border border-success border-opacity-25 p-3 h-100">
+                <div class="small text-success fw-bold uppercase">Saldo Disponible</div>
+                <div class="fs-3 fw-extrabold text-dark mt-1">{{ saldo_disponible|floatformat:2 }} BS</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabla de Partidas Presupuestarias -->
+    <div class="card border border-light rounded-4 shadow-sm p-4 mb-4 bg-white">
+        <h5 class="fw-bold text-dark mb-3 border-bottom pb-2 d-flex align-items-center gap-2">
+            <i class="bi bi-list-columns-reverse text-primary"></i> Partidas Presupuestarias del Ejercicio Fiscal 2026
+        </h5>
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="bg-light">
+                    <tr>
+                        <th>Código Partida</th>
+                        <th>Denominación de la Partida</th>
+                        <th>Proyecto POA</th>
+                        <th class="text-end">Presupuestado</th>
+                        <th class="text-end">Comprometido</th>
+                        <th class="text-end">Causado</th>
+                        <th class="text-end">Pagado</th>
+                        <th class="text-end">Disponible</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for p in partidas %}
+                    <tr>
+                        <td><span class="badge bg-dark font-monospace px-2.5 py-1.5 fs-6">{{ p.codigo }}</span></td>
+                        <td class="fw-bold text-dark">{{ p.denominacion }}</td>
+                        <td class="small text-muted">{{ p.proyecto.nombre|truncatechars:40 }}</td>
+                        <td class="text-end fw-bold">{{ p.monto_actual|floatformat:2 }} BS</td>
+                        <td class="text-end text-warning fw-semibold">{{ p.monto_comprometido|floatformat:2 }} BS</td>
+                        <td class="text-end text-info fw-semibold">{{ p.monto_causado|floatformat:2 }} BS</td>
+                        <td class="text-end text-success fw-semibold">{{ p.monto_pagado|floatformat:2 }} BS</td>
+                        <td class="text-end fw-extrabold text-primary">{{ p.saldo_disponible|floatformat:2 }} BS</td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="8" class="text-center py-4 text-muted">No hay partidas presupuestarias registradas.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Tabla de Últimas Ejecuciones de Gasto -->
+    <div class="card border border-light rounded-4 shadow-sm p-4 bg-white">
+        <h5 class="fw-bold text-dark mb-3 border-bottom pb-2 d-flex align-items-center gap-2">
+            <i class="bi bi-clock-history text-info"></i> Trazabilidad de Movimientos Presupuestarios Recientes
+        </h5>
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="bg-light">
+                    <tr>
+                        <th>Fecha</th>
+                        <th>Fase</th>
+                        <th>Partida</th>
+                        <th>Beneficiario / Proveedor</th>
+                        <th>Concepto / Referencia</th>
+                        <th class="text-end">Monto</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for e in ejecuciones %}
+                    <tr>
+                        <td class="small text-muted">{{ e.fecha|date:"d/m/Y H:i" }}</td>
+                        <td>
+                            {% if e.fase == 'Compromiso' %}
+                            <span class="badge bg-warning text-dark fw-bold px-3 py-1">Compromiso</span>
+                            {% elif e.fase == 'Causado' %}
+                            <span class="badge bg-info text-dark fw-bold px-3 py-1">Causado</span>
+                            {% else %}
+                            <span class="badge bg-success fw-bold px-3 py-1">Pago</span>
+                            {% endif %}
+                        </td>
+                        <td><span class="font-monospace small fw-bold">{{ e.partida.codigo }}</span></td>
+                        <td class="fw-bold text-dark">{{ e.beneficiario_proveedor }}</td>
+                        <td class="small text-secondary">{{ e.concepto }} (Ref: {{ e.num_documento_ref }})</td>
+                        <td class="text-end fw-extrabold text-dark">{{ e.monto|floatformat:2 }} BS</td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="text-center py-4 text-muted">No se registran movimientos presupuestarios recientes.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</div>
+
+<!-- Modal para Registrar Ejecución Presupuestaria -->
+<div class="modal fade" id="modalEjecucionPresupuestaria" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content rounded-4 shadow-lg border-0 overflow-hidden">
+            <div class="modal-header bg-primary text-white py-3">
+                <h5 class="modal-title fw-bold d-flex align-items-center gap-2">
+                    <i class="bi bi-bank2"></i> Registrar Ejecución Presupuestaria de Gasto
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST">
+                {% csrf_token %}
+                <div class="modal-body p-4">
+                    <div class="row g-3 mb-3">
+                        <div class="col-12 col-md-6">
+                            <label class="form-label fw-semibold text-dark">Seleccionar Partida Presupuestaria:</label>
+                            <select name="partida_id" class="form-select border-primary" required>
+                                {% for p in partidas %}
+                                <option value="{{ p.id }}">{{ p.codigo }} - {{ p.denominacion }} (Disp: {{ p.saldo_disponible|floatformat:2 }} BS)</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <label class="form-label fw-semibold text-dark">Fase de Ejecución:</label>
+                            <select name="fase" class="form-select border-primary" required>
+                                <option value="Compromiso">Compromiso (Reserva de Crédito)</option>
+                                <option value="Causado">Causado / Devengado (Recepción de Factura)</option>
+                                <option value="Pago">Pago Efectivo (Emisión de Transferencia)</option>
+                            </select>
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <label class="form-label fw-semibold text-dark">Monto (BS):</label>
+                            <input type="number" step="0.01" name="monto" class="form-control form-control-lg font-monospace fw-bold" placeholder="0.00" required>
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <label class="form-label fw-semibold text-dark">Beneficiario / Proveedor:</label>
+                            <input type="text" name="beneficiario" class="form-control" placeholder="Nombre o RIF del proveedor/persona" required>
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <label class="form-label fw-semibold text-dark">N° Documento Referencia:</label>
+                            <input type="text" name="num_documento_ref" class="form-control font-monospace" placeholder="Ej: Orden Compra #102, Factura #405" required>
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <label class="form-label fw-semibold text-dark">Concepto / Motivo del Gasto:</label>
+                            <input type="text" name="concepto" class="form-control" placeholder="Descripción detallada de la ejecución" required>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light py-2 justify-content-between">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary-custom fw-bold shadow-sm px-4">
+                        <i class="bi bi-floppy-fill me-1"></i> Procesar Ejecución
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

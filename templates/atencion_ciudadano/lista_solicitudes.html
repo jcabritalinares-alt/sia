@@ -1,0 +1,820 @@
+{% extends 'base.html' %}
+
+{% block contenido %}
+<div class="container-fluid px-0">
+
+    <!-- Encabezado y Acciones -->
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-4 gap-3">
+        <div>
+            <h2 class="fw-extrabold text-dark mb-1 d-flex align-items-center gap-2">
+                <i class="bi bi-people-fill text-primary"></i> Módulo de Atención al Ciudadano
+            </h2>
+            <p class="text-muted small mb-0">Recepción, seguimiento institucional y gestión de solicitudes sociales</p>
+        </div>
+        <div class="d-flex flex-wrap gap-2">
+            {% if request.user.is_superuser or request.user.perfil.puede_imprimir_atencion %}
+            <a href="{% url 'generar_reporte_solicitudes_pdf' %}{% if request.GET.urlencode %}?{{ request.GET.urlencode }}{% endif %}" target="_blank" class="btn btn-danger no-print d-inline-flex align-items-center gap-2 fw-bold shadow-sm">
+                <i class="bi bi-file-earmark-pdf-fill"></i> Reporte PDF
+            </a>
+            <a href="{% url 'exportar_solicitudes_excel' %}{% if request.GET.urlencode %}?{{ request.GET.urlencode }}{% endif %}" class="btn btn-outline-success no-print d-inline-flex align-items-center gap-2">
+                <i class="bi bi-file-earmark-excel-fill"></i> Exportar Excel
+            </a>
+            <button onclick="imprimirReporteSolicitudes(this)" class="btn btn-primary-custom no-print d-inline-flex align-items-center gap-2">
+                <i class="bi bi-printer-fill"></i> Reporte General
+            </button>
+            {% endif %}
+            <a href="{% url 'registrar_solicitud_ciudadano' %}" class="btn btn-outline-primary fw-bold shadow-sm d-inline-flex align-items-center gap-2 px-3 py-2">
+                <i class="bi bi-plus-lg fs-5"></i> Registrar Nueva Solicitud
+            </a>
+        </div>
+    </div>
+
+    <!-- Tarjetas KPI -->
+    <div class="row g-3 mb-4">
+        <div class="col-12 col-sm-6 col-xl-3">
+            <div class="card border-0 shadow-sm rounded-4 bg-primary text-white p-3 h-100">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <div class="small text-white-50 fw-bold uppercase">Total Solicitudes</div>
+                        <div class="fs-2 fw-bold mt-1">{{ total_solicitudes }}</div>
+                    </div>
+                    <div class="fs-1 text-white-50"><i class="bi bi-inbox-fill"></i></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-12 col-sm-6 col-xl-3">
+            <div class="card border-0 shadow-sm rounded-4 bg-light border p-3 h-100">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <div class="small text-muted fw-bold uppercase">Recibidas / Pendientes</div>
+                        <div class="fs-2 fw-bold text-dark mt-1">{{ recibidas_count }}</div>
+                    </div>
+                    <div class="fs-1 text-secondary"><i class="bi bi-envelope-open-fill"></i></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-12 col-sm-6 col-xl-3">
+            <div class="card border-0 shadow-sm rounded-4 bg-warning bg-opacity-10 border border-warning border-opacity-25 p-3 h-100">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <div class="small text-warning fw-bold uppercase">En Proceso / Evaluación</div>
+                        <div class="fs-2 fw-bold text-dark mt-1">{{ en_proceso_count }}</div>
+                    </div>
+                    <div class="fs-1 text-warning"><i class="bi bi-gear-wide-connected"></i></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-12 col-sm-6 col-xl-3">
+            <div class="card border-0 shadow-sm rounded-4 bg-success bg-opacity-10 border border-success border-opacity-25 p-3 h-100">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <div class="small text-success fw-bold uppercase">Aprobadas para Entrega</div>
+                        <div class="fs-2 fw-bold text-dark mt-1">{{ aprobadas_count }}</div>
+                    </div>
+                    <div class="fs-1 text-success"><i class="bi bi-check-circle-fill"></i></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Barra de Filtros y Búsqueda -->
+    <div class="card border border-light rounded-4 p-3 mb-4 shadow-sm">
+        <form method="GET" action="{% url 'lista_solicitudes_ciudadano' %}" id="formFiltroSolicitudes" class="row g-3 align-items-end">
+            <div class="col-12 col-md-2">
+                <label class="form-label fw-semibold text-secondary small">Estado</label>
+                <select name="status" class="form-select">
+                    <option value="Todos" {% if status_actual == 'Todos' %}selected{% endif %}>Todos los estados</option>
+                    <option value="Recibida" {% if status_actual == 'Recibida' %}selected{% endif %}>Recibida 📥</option>
+                    <option value="En Proceso" {% if status_actual == 'En Proceso' %}selected{% endif %}>En Proceso ⚙️</option>
+                    <option value="Aprobada" {% if status_actual == 'Aprobada' %}selected{% endif %}>Aprobada ✅</option>
+                    <option value="Entregada" {% if status_actual == 'Entregada' %}selected{% endif %}>Entregada 🎁</option>
+                    <option value="Rechazada" {% if status_actual == 'Rechazada' %}selected{% endif %}>Rechazada ❌</option>
+                </select>
+            </div>
+
+            <div class="col-12 col-md-2">
+                <label class="form-label fw-semibold text-secondary small">Prioridad</label>
+                <select name="prioridad" class="form-select">
+                    <option value="Todas" {% if prioridad_actual == 'Todas' %}selected{% endif %}>Todas las prioridades</option>
+                    <option value="Alta" {% if prioridad_actual == 'Alta' %}selected{% endif %}>Alta 🔴</option>
+                    <option value="Media" {% if prioridad_actual == 'Media' %}selected{% endif %}>Media 🟡</option>
+                    <option value="Baja" {% if prioridad_actual == 'Baja' %}selected{% endif %}>Baja 🟢</option>
+                </select>
+            </div>
+
+            <div class="col-12 col-md-2">
+                <label class="form-label fw-semibold text-secondary small">Desde Fecha</label>
+                <input type="date" name="fecha_inicio" id="fechaInicioFilter" class="form-control" value="{{ fecha_inicio }}">
+            </div>
+
+            <div class="col-12 col-md-2">
+                <label class="form-label fw-semibold text-secondary small">Hasta Fecha</label>
+                <input type="date" name="fecha_fin" id="fechaFinFilter" class="form-control" value="{{ fecha_fin }}">
+            </div>
+
+            <div class="col-12 col-md-2">
+                <label class="form-label fw-semibold text-secondary small">Búsqueda Rápida</label>
+                <div class="input-group">
+                    <span class="input-group-text bg-light text-muted border-end-0"><i class="bi bi-search"></i></span>
+                    <input type="text" name="q" class="form-control border-start-0" placeholder="Cédula, nombre..." value="{{ q }}">
+                </div>
+            </div>
+
+            <div class="col-6 col-md-1">
+                <label class="form-label fw-semibold text-secondary small">Ver</label>
+                <select name="per_page" class="form-select px-2" onchange="this.form.submit()">
+                    <option value="15" {% if per_page == 15 %}selected{% endif %}>15</option>
+                    <option value="30" {% if per_page == 30 %}selected{% endif %}>30</option>
+                    <option value="50" {% if per_page == 50 %}selected{% endif %}>50</option>
+                    <option value="100" {% if per_page == 100 %}selected{% endif %}>100</option>
+                </select>
+            </div>
+
+            <div class="col-12 col-md-2 d-flex gap-2">
+                <button type="submit" class="btn btn-primary-custom flex-grow-1">
+                    <i class="bi bi-funnel-fill me-1"></i> Filtrar
+                </button>
+                <a href="{% url 'lista_solicitudes_ciudadano' %}" class="btn btn-outline-secondary" title="Limpiar Filtros">
+                    <i class="bi bi-x-circle"></i>
+                </a>
+            </div>
+
+            <!-- Botones de Rango Rápido -->
+            <div class="col-12 pt-2 border-top">
+                <div class="d-flex flex-wrap align-items-center gap-2">
+                    <span class="small fw-bold text-muted me-1"><i class="bi bi-lightning-charge-fill text-warning me-1"></i> Filtros Rápidos:</span>
+                    <button type="button" class="btn btn-sm btn-outline-primary rounded-pill px-3" onclick="setQuickDate('hoy')">Hoy</button>
+                    <button type="button" class="btn btn-sm btn-outline-primary rounded-pill px-3" onclick="setQuickDate('semana')">Esta Semana</button>
+                    <button type="button" class="btn btn-sm btn-outline-primary rounded-pill px-3" onclick="setQuickDate('mes')">Este Mes</button>
+                    <button type="button" class="btn btn-sm btn-outline-primary rounded-pill px-3" onclick="setQuickDate('30dias')">Últimos 30 Días</button>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <!-- Tabla de Solicitudes -->
+    <div class="card border border-light rounded-4 shadow-sm overflow-hidden mb-4">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="bg-light text-secondary small text-uppercase fw-bold border-bottom">
+                    <tr>
+                        <th class="ps-3" style="width: 80px;"># Solicitud</th>
+                        <th style="width: 140px;">Fecha</th>
+                        <th>Ciudadano / Solicitante</th>
+                        <th style="width: 180px;">Tipo de Solicitud</th>
+                        <th>Requerimiento Detallado</th>
+                        <th class="text-center" style="width: 110px;">Prioridad</th>
+                        <th class="text-center" style="width: 130px;">Estado</th>
+                        <th class="text-end pe-3" style="width: 160px;">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for s in solicitudes %}
+                    <tr>
+                        <td class="ps-3 fw-bold text-primary">#{{ s.id }}</td>
+                        <td class="small text-muted fw-semibold">{{ s.fecha_solicitud|date:"d/m/Y H:i" }}</td>
+                        <td>
+                            <div class="fw-bold text-dark">{{ s.nombre_apellido }}</div>
+                            <div class="small text-muted font-monospace">
+                                C.I. {{ s.cedula }}
+                                {% if s.telefono %}<span class="ms-1 text-secondary">• <i class="bi bi-telephone"></i> {{ s.telefono }}</span>{% endif %}
+                            </div>
+                        </td>
+                        <td>
+                            <span class="badge bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25 px-2.5 py-1.5 rounded-3 fw-semibold">
+                                {{ s.tipo_solicitud }}
+                            </span>
+                        </td>
+                        <td>
+                            <div class="text-dark small text-truncate" style="max-width: 260px;" title="{{ s.descripcion_solicitud }}">
+                                {{ s.descripcion_solicitud }}
+                            </div>
+                            {% if s.observaciones_seguimiento %}
+                            <div class="small text-muted fst-italic mt-0.5">
+                                <i class="bi bi-chat-left-text me-1"></i> {{ s.observaciones_seguimiento|truncatechars:40 }}
+                            </div>
+                            {% endif %}
+                            {% if s.status == 'Entregada' or s.status == 'Entregado' %}
+                                {% if s.entrega %}
+                                <div class="mt-1">
+                                    <span class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25 small fw-semibold">
+                                        <i class="bi bi-box-seam-fill me-1"></i> {{ s.entrega.cantidad_dada }}x {{ s.entrega.descripcion_prod }}
+                                    </span>
+                                </div>
+                                {% endif %}
+                                {% if s.fecha_entrega %}
+                                <div class="small text-success fw-semibold mt-0.5" style="font-size: 0.75rem;">
+                                    <i class="bi bi-calendar2-check-fill me-1"></i> Entregado el {{ s.fecha_entrega|date:"d/m/Y" }}
+                                </div>
+                                {% endif %}
+                            {% endif %}
+                        </td>
+                        <td class="text-center">
+                            {% if s.prioridad == 'Alta' %}
+                                <span class="badge bg-danger text-white px-2.5 py-1 rounded-pill"><i class="bi bi-exclamation-triangle-fill me-1"></i>Alta</span>
+                            {% elif s.prioridad == 'Media' %}
+                                <span class="badge bg-warning text-dark px-2.5 py-1 rounded-pill"><i class="bi bi-dash-circle-fill me-1"></i>Media</span>
+                            {% else %}
+                                <span class="badge bg-success text-white px-2.5 py-1 rounded-pill"><i class="bi bi-check-circle-fill me-1"></i>Baja</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-center">
+                            {% if s.status == 'Recibida' %}
+                                <span class="badge bg-secondary text-white px-2.5 py-1.5 rounded-pill fw-semibold">📥 Recibida</span>
+                            {% elif s.status == 'En Proceso' %}
+                                <span class="badge bg-warning text-dark px-2.5 py-1.5 rounded-pill fw-bold">⚙️ En Proceso</span>
+                            {% elif s.status == 'Aprobada' %}
+                                <span class="badge bg-info text-dark px-2.5 py-1.5 rounded-pill fw-bold">✅ Aprobada</span>
+                            {% elif s.status == 'Entregada' %}
+                                <span class="badge bg-success text-white px-2.5 py-1.5 rounded-pill fw-bold">🎁 Entregada</span>
+                            {% else %}
+                                <span class="badge bg-danger text-white px-2.5 py-1.5 rounded-pill fw-bold">❌ Rechazada</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-end pe-3">
+                            <div class="d-inline-flex align-items-center gap-1">
+                                <!-- Ficha 360° del Ciudadano -->
+                                <a href="{% url 'ficha_ciudadano_360' s.cedula %}" class="btn btn-sm btn-outline-info text-dark rounded-3 p-1" style="width: 32px; height: 32px;" title="Ver Ficha 360° Expediente Unificado">
+                                    <i class="bi bi-person-vcard-fill text-info"></i>
+                                </a>
+
+                                {% if s.telefono %}
+                                <!-- Enviar WhatsApp Directo -->
+                                <button type="button" onclick="enviarWhatsAppSolicitud('{{ s.telefono }}', '{{ s.nombre_apellido|escapejs }}', '{{ s.id }}', '{{ s.status|escapejs }}')" class="btn btn-sm btn-outline-success rounded-3 p-1" style="width: 32px; height: 32px;" title="Notificar por WhatsApp">
+                                    <i class="bi bi-whatsapp"></i>
+                                </button>
+                                {% endif %}
+
+                                {% if s.status == 'Entregada' or s.status == 'Entregado' %}
+                                    <!-- Ver Evidencias Fotográficas -->
+                                    <button type="button" class="btn btn-sm btn-outline-success rounded-3 p-1" style="width: 32px; height: 32px;" data-bs-toggle="modal" data-bs-target="#modalFotos{{ s.id }}" title="Ver Evidencias Fotográficas de Entrega">
+                                        <i class="bi bi-camera-fill text-success"></i>
+                                    </button>
+                                {% endif %}
+
+                                {% if request.user.is_superuser and s.status != 'Entregada' and s.status != 'Entregado' %}
+                                <!-- 1. Cambiar Estado / Observaciones -->
+                                <button class="btn btn-sm btn-outline-primary rounded-3 p-1" style="width: 32px; height: 32px;" data-bs-toggle="modal" data-bs-target="#modalEstado{{ s.id }}" title="Gestionar Estado y Seguimiento">
+                                    <i class="bi bi-pencil-square"></i>
+                                </button>
+                                {% endif %}
+
+                                {% if request.user.is_superuser and s.status != 'Entregada' and s.status != 'Entregado' and s.status != 'Rechazada' %}
+                                <!-- 2. Entregar desde Inventario -->
+                                <button class="btn btn-sm btn-success rounded-3 p-1 shadow-sm" style="width: 32px; height: 32px;" data-bs-toggle="modal" data-bs-target="#modalEntregar{{ s.id }}" title="Entregar Beneficio desde Inventario">
+                                    <i class="bi bi-gift-fill"></i>
+                                </button>
+                                {% endif %}
+
+                                {% if request.user.is_superuser or request.user.perfil.puede_imprimir_atencion %}
+                                <!-- 3. Imprimir Ticket y Constancia PDF -->
+                                <a href="{% url 'imprimir_comprobante_solicitud' s.id %}" target="_blank" class="btn btn-sm btn-outline-dark rounded-3 p-1" style="width: 32px; height: 32px;" title="Imprimir Ticket de Recepción / Entrega">
+                                    <i class="bi bi-printer-fill"></i>
+                                </a>
+                                <a href="{% url 'generar_constancia_solicitud_pdf' s.id %}" target="_blank" class="btn btn-sm btn-outline-danger rounded-3 p-1" style="width: 32px; height: 32px;" title="📜 Descargar Constancia Oficial PDF">
+                                    <i class="bi bi-file-earmark-pdf-fill"></i>
+                                </a>
+                                {% endif %}
+
+                                {% if request.user.is_superuser %}
+                                <!-- 4. Eliminar -->
+                                <button class="btn btn-sm btn-outline-danger rounded-3 p-1" style="width: 32px; height: 32px;" data-bs-toggle="modal" data-bs-target="#modalEliminar{{ s.id }}" title="Eliminar Registro">
+                                    <i class="bi bi-trash3-fill"></i>
+                                </button>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+
+                    <!-- Modal Entregar Beneficio desde Inventario -->
+                    <div class="modal fade" id="modalEntregar{{ s.id }}" tabindex="-1" aria-hidden="true">
+                        <div class="modal-dialog modal-dialog-centered modal-lg">
+                            <div class="modal-content border-0 shadow-lg rounded-4">
+                                <form method="POST" action="{% url 'entregar_solicitud_desde_inventario' s.id %}" enctype="multipart/form-data" id="formEntregar{{ s.id }}">
+                                    {% csrf_token %}
+                                    <div class="modal-header bg-success bg-opacity-10 border-bottom border-success border-opacity-25 py-3">
+                                        <h5 class="modal-title fw-bold text-success d-flex align-items-center gap-2">
+                                            <i class="bi bi-gift-fill"></i> Entregar Solicitud #{{ s.id }} desde Inventario
+                                        </h5>
+                                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                    </div>
+                                    <div class="modal-body p-4">
+                                        <!-- Resumen del Solicitante -->
+                                        <div class="card bg-light border-0 p-3 rounded-3 mb-3">
+                                            <div class="row g-2">
+                                                <div class="col-12 col-md-6">
+                                                    <div class="small text-muted fw-bold">Beneficiario:</div>
+                                                    <div class="fw-bold text-dark fs-6">{{ s.nombre_apellido }}</div>
+                                                    <div class="small text-muted font-monospace">C.I. {{ s.cedula }}</div>
+                                                </div>
+                                                <div class="col-12 col-md-6">
+                                                    <div class="small text-muted fw-bold">Requerimiento Solicitado:</div>
+                                                    <span class="badge bg-primary px-2 py-1">{{ s.tipo_solicitud }}</span>
+                                                    <div class="small text-dark text-truncate mt-1" title="{{ s.descripcion_solicitud }}">
+                                                        "{{ s.descripcion_solicitud }}"
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div class="row g-3">
+                                            <!-- Selector de Producto de Inventario -->
+                                            <div class="col-12 col-md-6">
+                                                <label class="form-label fw-semibold text-secondary small">
+                                                    Producto a Asignar <span class="text-danger fw-bold">*</span>
+                                                </label>
+                                                <select name="producto_id" class="form-select select-producto-inventario" data-solicitud-id="{{ s.id }}" required>
+                                                    <option value="" disabled selected>-- Seleccione del catálogo --</option>
+                                                    {% for p in lista_inventario %}
+                                                    <option value="{{ p.id }}" data-stock="{{ p.cantidad }}" data-nombre="{{ p.descripcion }}" data-codigo="{{ p.codigo }}">
+                                                        {{ p.descripcion }} — (Stock: {{ p.cantidad }} u. | {{ p.almacen|default:"Principal" }})
+                                                    </option>
+                                                    {% endfor %}
+                                                </select>
+                                            </div>
+
+                                            <!-- Cantidad -->
+                                            <div class="col-6 col-md-3">
+                                                <label class="form-label fw-semibold text-secondary small">
+                                                    Cantidad <span class="text-danger fw-bold">*</span>
+                                                </label>
+                                                <input type="number" name="cantidad" class="form-control fw-bold input-cantidad-entrega" data-solicitud-id="{{ s.id }}" value="1" min="1" required>
+                                            </div>
+
+                                            <!-- Fecha de Entrega -->
+                                            <div class="col-6 col-md-3">
+                                                <label class="form-label fw-semibold text-secondary small">
+                                                    Fecha de Entrega <span class="text-danger fw-bold">*</span>
+                                                </label>
+                                                <input type="date" name="fecha_entrega" class="form-control fw-semibold" value="{{ hoy }}" required>
+                                            </div>
+
+                                            <!-- Tarjeta dinámica de Disponibilidad y Stock Restante -->
+                                            <div class="col-12">
+                                                <div class="alert alert-light border rounded-3 py-2 px-3 mb-0 d-flex justify-content-between align-items-center" id="cardStockInfo{{ s.id }}">
+                                                    <div class="small text-muted">
+                                                        <i class="bi bi-info-circle me-1"></i> Stock disponible: <strong id="txtStockActual{{ s.id }}">-</strong>
+                                                    </div>
+                                                    <div class="small text-muted">
+                                                        Stock resultante: <strong id="txtStockResultante{{ s.id }}" class="text-success">-</strong>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <!-- Evidencias Fotográficas (Hasta 3) -->
+                                            <div class="col-12 border-top pt-3 mt-3">
+                                                <label class="form-label fw-semibold text-dark mb-2 d-flex align-items-center gap-1">
+                                                    <i class="bi bi-camera-fill text-primary"></i> Evidencias Fotográficas del Beneficio Entregado
+                                                    <span class="badge bg-light text-secondary border ms-1">Hasta 3 fotos</span>
+                                                </label>
+                                                <div class="row g-2">
+                                                    <!-- Foto 1 -->
+                                                    <div class="col-12 col-md-4">
+                                                        <div class="drop-zone border border-2 border-dashed rounded-4 p-3 text-center bg-light position-relative h-100 d-flex flex-column justify-content-center align-items-center" id="dropZone{{ s.id }}_1" style="min-height: 120px; cursor: pointer; border-color: #cbd5e1 !important;">
+                                                            <i class="bi bi-cloud-arrow-up-fill fs-2 text-primary d-block mb-1 icon-placeholder"></i>
+                                                            <span class="small fw-bold text-dark d-block">Foto Evidencia #1</span>
+                                                            <span class="small text-muted d-block text-center" style="font-size: 0.72rem;">Arrastra o selecciona</span>
+                                                            <input type="file" name="evidencia1" id="file{{ s.id }}_1" class="position-absolute top-0 start-0 w-100 h-100 opacity-0 cursor-pointer input-evidencia" accept="image/*" data-preview-id="preview{{ s.id }}_1" data-zone-id="dropZone{{ s.id }}_1">
+                                                            <img id="preview{{ s.id }}_1" src="" class="img-thumbnail mt-1 rounded shadow-sm" style="display:none; max-height: 85px; object-fit: cover;">
+                                                        </div>
+                                                    </div>
+                                                    <!-- Foto 2 -->
+                                                    <div class="col-12 col-md-4">
+                                                        <div class="drop-zone border border-2 border-dashed rounded-4 p-3 text-center bg-light position-relative h-100 d-flex flex-column justify-content-center align-items-center" id="dropZone{{ s.id }}_2" style="min-height: 120px; cursor: pointer; border-color: #cbd5e1 !important;">
+                                                            <i class="bi bi-cloud-arrow-up-fill fs-2 text-primary d-block mb-1 icon-placeholder"></i>
+                                                            <span class="small fw-bold text-dark d-block">Foto Evidencia #2</span>
+                                                            <span class="small text-muted d-block text-center" style="font-size: 0.72rem;">Arrastra o selecciona</span>
+                                                            <input type="file" name="evidencia2" id="file{{ s.id }}_2" class="position-absolute top-0 start-0 w-100 h-100 opacity-0 cursor-pointer input-evidencia" accept="image/*" data-preview-id="preview{{ s.id }}_2" data-zone-id="dropZone{{ s.id }}_2">
+                                                            <img id="preview{{ s.id }}_2" src="" class="img-thumbnail mt-1 rounded shadow-sm" style="display:none; max-height: 85px; object-fit: cover;">
+                                                        </div>
+                                                    </div>
+                                                    <!-- Foto 3 -->
+                                                    <div class="col-12 col-md-4">
+                                                        <div class="drop-zone border border-2 border-dashed rounded-4 p-3 text-center bg-light position-relative h-100 d-flex flex-column justify-content-center align-items-center" id="dropZone{{ s.id }}_3" style="min-height: 120px; cursor: pointer; border-color: #cbd5e1 !important;">
+                                                            <i class="bi bi-cloud-arrow-up-fill fs-2 text-primary d-block mb-1 icon-placeholder"></i>
+                                                            <span class="small fw-bold text-dark d-block">Foto Evidencia #3</span>
+                                                            <span class="small text-muted d-block text-center" style="font-size: 0.72rem;">Arrastra o selecciona</span>
+                                                            <input type="file" name="evidencia3" id="file{{ s.id }}_3" class="position-absolute top-0 start-0 w-100 h-100 opacity-0 cursor-pointer input-evidencia" accept="image/*" data-preview-id="preview{{ s.id }}_3" data-zone-id="dropZone{{ s.id }}_3">
+                                                            <img id="preview{{ s.id }}_3" src="" class="img-thumbnail mt-1 rounded shadow-sm" style="display:none; max-height: 85px; object-fit: cover;">
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <!-- Observaciones de Entrega -->
+                                            <div class="col-12">
+                                                <label class="form-label fw-semibold text-secondary small">
+                                                    Observaciones adicionales de Entrega (Opcional)
+                                                </label>
+                                                <textarea name="observaciones_seguimiento" class="form-control" rows="2" placeholder="Detalles de la entrega, receptor presente, observaciones del beneficio..."></textarea>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="modal-footer border-top justify-content-between">
+                                        <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancelar</button>
+                                        <button type="submit" class="btn btn-success fw-bold px-4 shadow-sm">
+                                            <i class="bi bi-check2-circle me-1"></i> Confirmar Entrega y Descontar Stock
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Modal Ver Evidencias Fotográficas -->
+                    <div class="modal fade" id="modalFotos{{ s.id }}" tabindex="-1" aria-hidden="true">
+                        <div class="modal-dialog modal-dialog-centered modal-lg">
+                            <div class="modal-content border-0 shadow-lg rounded-4">
+                                <div class="modal-header bg-light border-bottom py-3">
+                                    <h5 class="modal-title fw-bold text-dark d-flex align-items-center gap-2">
+                                        <i class="bi bi-images text-success"></i> Evidencias Fotográficas • Solicitud #{{ s.id }}
+                                    </h5>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                </div>
+                                <div class="modal-body p-4">
+                                    <div class="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom">
+                                        <div>
+                                            <div class="fw-bold text-dark">{{ s.nombre_apellido }} (C.I. {{ s.cedula }})</div>
+                                            <div class="small text-muted">
+                                                {% if s.fecha_entrega %}Fecha de entrega: <strong>{{ s.fecha_entrega|date:"d/m/Y" }}</strong>{% endif %}
+                                                {% if s.entrega %} • Beneficio: <strong>{{ s.entrega.cantidad_dada }} u. {{ s.entrega.descripcion_prod }}</strong>{% endif %}
+                                            </div>
+                                        </div>
+                                        <span class="badge bg-success px-3 py-2 fw-bold">🎁 Entregada</span>
+                                    </div>
+
+                                    <div class="row g-3">
+                                        {% if s.foto_1 %}
+                                        <div class="col-12 col-md-4">
+                                            <div class="card border rounded-4 overflow-hidden shadow-sm h-100">
+                                                <a href="{{ s.foto_1 }}" target="_blank" title="Abrir imagen completa">
+                                                    <img src="{{ s.foto_1 }}" class="card-img-top" style="height: 180px; object-fit: cover;" alt="Evidencia 1">
+                                                </a>
+                                                <div class="card-body p-2 text-center bg-light">
+                                                    <small class="fw-bold text-secondary">Evidencia #1</small>
+                                                    <a href="{{ s.foto_1 }}" target="_blank" class="d-block small text-primary text-decoration-none mt-1">
+                                                        <i class="bi bi-box-arrow-up-right me-1"></i> Ver tamaño completo
+                                                    </a>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        {% endif %}
+
+                                        {% if s.foto_2 %}
+                                        <div class="col-12 col-md-4">
+                                            <div class="card border rounded-4 overflow-hidden shadow-sm h-100">
+                                                <a href="{{ s.foto_2 }}" target="_blank" title="Abrir imagen completa">
+                                                    <img src="{{ s.foto_2 }}" class="card-img-top" style="height: 180px; object-fit: cover;" alt="Evidencia 2">
+                                                </a>
+                                                <div class="card-body p-2 text-center bg-light">
+                                                    <small class="fw-bold text-secondary">Evidencia #2</small>
+                                                    <a href="{{ s.foto_2 }}" target="_blank" class="d-block small text-primary text-decoration-none mt-1">
+                                                        <i class="bi bi-box-arrow-up-right me-1"></i> Ver tamaño completo
+                                                    </a>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        {% endif %}
+
+                                        {% if s.foto_3 %}
+                                        <div class="col-12 col-md-4">
+                                            <div class="card border rounded-4 overflow-hidden shadow-sm h-100">
+                                                <a href="{{ s.foto_3 }}" target="_blank" title="Abrir imagen completa">
+                                                    <img src="{{ s.foto_3 }}" class="card-img-top" style="height: 180px; object-fit: cover;" alt="Evidencia 3">
+                                                </a>
+                                                <div class="card-body p-2 text-center bg-light">
+                                                    <small class="fw-bold text-secondary">Evidencia #3</small>
+                                                    <a href="{{ s.foto_3 }}" target="_blank" class="d-block small text-primary text-decoration-none mt-1">
+                                                        <i class="bi bi-box-arrow-up-right me-1"></i> Ver tamaño completo
+                                                    </a>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        {% endif %}
+
+                                        {% if not s.tiene_fotos %}
+                                        <div class="col-12 text-center py-4 text-muted">
+                                            <i class="bi bi-camera-slash fs-1 d-block mb-2 text-secondary opacity-50"></i>
+                                            Esta entrega no tiene evidencias fotográficas adjuntas.
+                                        </div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                <div class="modal-footer border-top">
+                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Modal Gestionar Estado -->
+                    <div class="modal fade" id="modalEstado{{ s.id }}" tabindex="-1">
+                        <div class="modal-dialog modal-dialog-centered">
+                            <div class="modal-content border-0 shadow-lg rounded-4">
+                                <form method="POST" action="{% url 'cambiar_estado_solicitud' s.id %}">
+                                    {% csrf_token %}
+                                    <div class="modal-header border-bottom">
+                                        <h5 class="modal-title fw-bold text-dark"><i class="bi bi-sliders text-primary me-2"></i>Gestionar Solicitud #{{ s.id }}</h5>
+                                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                    </div>
+                                    <div class="modal-body p-4">
+                                        {% if s.status != 'Entregada' and s.status != 'Entregado' %}
+                                        <div class="alert alert-success bg-success bg-opacity-10 border border-success border-opacity-25 rounded-3 p-3 mb-3 d-flex align-items-center justify-content-between gap-2">
+                                            <div class="small">
+                                                <strong class="text-success d-block"><i class="bi bi-gift-fill me-1"></i> ¿Deseas entregar el beneficio?</strong>
+                                                <span class="text-muted">Utiliza el botón de entrega para descontar del inventario y cargar fotos de evidencia.</span>
+                                            </div>
+                                            <button type="button" class="btn btn-sm btn-success fw-bold py-1 px-3 text-nowrap shadow-sm" data-bs-dismiss="modal" data-bs-toggle="modal" data-bs-target="#modalEntregar{{ s.id }}">
+                                                Entregar
+                                            </button>
+                                        </div>
+                                        {% endif %}
+
+                                        <div class="mb-3">
+                                            <label class="form-label fw-semibold text-secondary small">Estado de la Solicitud</label>
+                                            <select name="status" class="form-select fw-bold">
+                                                <option value="Recibida" {% if s.status == 'Recibida' %}selected{% endif %}>📥 Recibida</option>
+                                                <option value="En Proceso" {% if s.status == 'En Proceso' %}selected{% endif %}>⚙️ En Proceso</option>
+                                                <option value="Aprobada" {% if s.status == 'Aprobada' %}selected{% endif %}>✅ Aprobada</option>
+                                                <option value="Entregada" {% if s.status == 'Entregada' %}selected{% endif %}>🎁 Entregada</option>
+                                                <option value="Rechazada" {% if s.status == 'Rechazada' %}selected{% endif %}>❌ Rechazada</option>
+                                            </select>
+                                        </div>
+
+                                        <div class="mb-3">
+                                            <label class="form-label fw-semibold text-secondary small">Nivel de Prioridad</label>
+                                            <select name="prioridad" class="form-select">
+                                                <option value="Alta" {% if s.prioridad == 'Alta' %}selected{% endif %}>🔴 Alta</option>
+                                                <option value="Media" {% if s.prioridad == 'Media' %}selected{% endif %}>🟡 Media</option>
+                                                <option value="Baja" {% if s.prioridad == 'Baja' %}selected{% endif %}>🟢 Baja</option>
+                                            </select>
+                                        </div>
+
+                                        <div class="mb-3">
+                                            <label class="form-label fw-semibold text-secondary small">Notas de Seguimiento / Observaciones Institucionales</label>
+                                            <textarea name="observaciones_seguimiento" class="form-control" rows="3" placeholder="Escriba las acciones tomadas, requerimientos adjuntos o respuestas al ciudadano...">{{ s.observaciones_seguimiento|default:"" }}</textarea>
+                                        </div>
+                                    </div>
+                                    <div class="modal-footer border-top justify-content-between">
+                                        <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancelar</button>
+                                        <button type="submit" class="btn btn-primary-custom px-4">Guardar Cambios</button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+
+                    {% if request.user.is_superuser %}
+                    <!-- Modal Eliminar -->
+                    <div class="modal fade" id="modalEliminar{{ s.id }}" tabindex="-1">
+                        <div class="modal-dialog modal-dialog-centered">
+                            <div class="modal-content border-0 shadow-lg rounded-4">
+                                <form method="POST" action="{% url 'eliminar_solicitud_ciudadano' s.id %}">
+                                    {% csrf_token %}
+                                    <div class="modal-header border-bottom">
+                                        <h5 class="modal-title fw-bold text-danger"><i class="bi bi-exclamation-triangle-fill me-2"></i>Eliminar Solicitud #{{ s.id }}</h5>
+                                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                    </div>
+                                    <div class="modal-body p-4 text-center">
+                                        <p class="mb-0 text-dark">¿Estás seguro de eliminar permanentemente la solicitud de <strong>{{ s.nombre_apellido }}</strong> (C.I. {{ s.cedula }})?</p>
+                                    </div>
+                                    <div class="modal-footer border-top justify-content-between">
+                                        <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancelar</button>
+                                        <button type="submit" class="btn btn-danger px-4">Sí, Eliminar</button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    {% empty %}
+                    <tr>
+                        <td colspan="8" class="text-center text-muted py-4 fst-italic">No hay solicitudes registradas que coincidan con los criterios.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Paginación -->
+    {% if page_obj.has_other_pages %}
+    <nav class="d-flex justify-content-between align-items-center mt-3">
+        <div class="text-muted small">Página <strong>{{ page_obj.number }}</strong> de <strong>{{ page_obj.paginator.num_pages }}</strong></div>
+        <ul class="pagination pagination-sm mb-0">
+            {% if page_obj.has_previous %}
+                <li class="page-item"><a class="page-link" href="?page=1{% if status_actual != 'Todos' %}&status={{ status_actual }}{% endif %}{% if prioridad_actual != 'Todas' %}&prioridad={{ prioridad_actual }}{% endif %}{% if fecha_inicio %}&fecha_inicio={{ fecha_inicio }}{% endif %}{% if fecha_fin %}&fecha_fin={{ fecha_fin }}{% endif %}{% if per_page %}&per_page={{ per_page }}{% endif %}{% if q %}&q={{ q }}{% endif %}">&laquo; Primero</a></li>
+                <li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if status_actual != 'Todos' %}&status={{ status_actual }}{% endif %}{% if prioridad_actual != 'Todas' %}&prioridad={{ prioridad_actual }}{% endif %}{% if fecha_inicio %}&fecha_inicio={{ fecha_inicio }}{% endif %}{% if fecha_fin %}&fecha_fin={{ fecha_fin }}{% endif %}{% if per_page %}&per_page={{ per_page }}{% endif %}{% if q %}&q={{ q }}{% endif %}">Anterior</a></li>
+            {% endif %}
+            
+            <li class="page-item active"><span class="page-link">{{ page_obj.number }}</span></li>
+
+            {% if page_obj.has_next %}
+                <li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}{% if status_actual != 'Todos' %}&status={{ status_actual }}{% endif %}{% if prioridad_actual != 'Todas' %}&prioridad={{ prioridad_actual }}{% endif %}{% if fecha_inicio %}&fecha_inicio={{ fecha_inicio }}{% endif %}{% if fecha_fin %}&fecha_fin={{ fecha_fin }}{% endif %}{% if per_page %}&per_page={{ per_page }}{% endif %}{% if q %}&q={{ q }}{% endif %}">Siguiente</a></li>
+                <li class="page-item"><a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if status_actual != 'Todos' %}&status={{ status_actual }}{% endif %}{% if prioridad_actual != 'Todas' %}&prioridad={{ prioridad_actual }}{% endif %}{% if fecha_inicio %}&fecha_inicio={{ fecha_inicio }}{% endif %}{% if fecha_fin %}&fecha_fin={{ fecha_fin }}{% endif %}{% if per_page %}&per_page={{ per_page }}{% endif %}{% if q %}&q={{ q }}{% endif %}">Último &raquo;</a></li>
+            {% endif %}
+        </ul>
+    </nav>
+    {% endif %}
+
+</div>
+
+<script>
+    function setQuickDate(tipo) {
+        const today = new Date();
+        const formatDate = (d) => {
+            const year = d.getFullYear();
+            const month = String(d.getMonth() + 1).padStart(2, '0');
+            const day = String(d.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        };
+        
+        let start = new Date();
+        let end = new Date();
+
+        if (tipo === 'hoy') {
+            start = today;
+            end = today;
+        } else if (tipo === 'semana') {
+            const day = today.getDay() || 7;
+            start.setDate(today.getDate() - (day - 1));
+            end = today;
+        } else if (tipo === 'mes') {
+            start = new Date(today.getFullYear(), today.getMonth(), 1);
+            end = today;
+        } else if (tipo === '30dias') {
+            start.setDate(today.getDate() - 30);
+            end = today;
+        }
+
+        document.getElementById('fechaInicioFilter').value = formatDate(start);
+        document.getElementById('fechaFinFilter').value = formatDate(end);
+        document.getElementById('formFiltroSolicitudes').submit();
+    }
+
+    function imprimirReporteSolicitudes(btn) {
+        const contenedorTemp = document.querySelector('.table-responsive').cloneNode(true);
+        $(contenedorTemp).find('th:last-child, td:last-child').remove();
+
+        const contenido = contenedorTemp.innerHTML;
+        
+        const content = `
+            <!DOCTYPE html>
+            <html lang="es">
+            <head>
+                <meta charset="UTF-8">
+                <title>Reporte General de Atención al Ciudadano</title>
+                <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+                <style>
+                    @page { size: 8.5in 11in; margin: 15mm; }
+                    body { background-color: #ffffff; color: #212529; font-size: 12px; }
+                    .logo-encabezado { max-width: 75px; height: auto; }
+                    @media print { .no-print { display: none !important; } }
+                </style>
+            </head>
+            <body>
+                <div class="container p-4">
+                    <div class="d-flex justify-content-between align-items-center border-bottom pb-3 mb-4">
+                        <img src="https://res.cloudinary.com/tehn5bfb/image/upload/v1783630731/efad9adhn201uv8xemcn.jpg" class="logo-encabezado rounded" alt="Alcaldía">
+                        <div class="text-center flex-grow-1 px-2">
+                            <h4 class="text-primary mb-0 fw-bold">Reporte General de Atención al Ciudadano</h4>
+                            <p class="text-muted small mb-0">Alcaldía / Sistema de Gestión e Inventario (SIA Web)</p>
+                        </div>
+                        <img src="https://res.cloudinary.com/tehn5bfb/image/upload/v1783630731/hgb44vfc0d8wirbnz2th.jpg" class="logo-encabezado rounded" alt="Valera Renace">
+                    </div>
+                    <div class="mb-3">${contenido}</div>
+                </div>
+            </body>
+            </html>
+        `;
+        
+        const printWindow = window.open('', '_blank');
+        printWindow.document.write(content);
+        printWindow.document.close();
+        printWindow.onload = function() { setTimeout(() => { printWindow.print(); }, 300); };
+    }
+
+    function enviarWhatsAppSolicitud(telefono, nombre, id, status) {
+        let numClean = telefono.replace(/[^0-9]/g, '');
+        if (!numClean.startsWith('58')) {
+            if (numClean.startsWith('0')) numClean = '58' + numClean.substring(1);
+            else numClean = '58' + numClean;
+        }
+        let texto = encodeURIComponent(`Estimado(a) ${nombre}, te saludamos de la Dirección de Atención Social (Alcaldía). Te informamos que tu solicitud #${id} se encuentra en estado: *${status.toUpperCase()}*.`);
+        window.open(`https://api.whatsapp.com/send?phone=${numClean}&text=${texto}`, '_blank');
+    }
+
+    // --- LÓGICA DE ENTREGA DESDE INVENTARIO (ATENCIÓN AL CIUDADANO) ---
+    $(document).on('change', '.select-producto-inventario', function() {
+        const solId = $(this).data('solicitud-id');
+        actualizarStockEntrega(solId);
+    });
+
+    $(document).on('input change', '.input-cantidad-entrega', function() {
+        const solId = $(this).data('solicitud-id');
+        actualizarStockEntrega(solId);
+    });
+
+    function actualizarStockEntrega(solId) {
+        const select = document.querySelector(`.select-producto-inventario[data-solicitud-id="${solId}"]`);
+        const inputCant = document.querySelector(`.input-cantidad-entrega[data-solicitud-id="${solId}"]`);
+        const txtActual = document.getElementById(`txtStockActual${solId}`);
+        const txtResultante = document.getElementById(`txtStockResultante${solId}`);
+
+        if (!select || !inputCant || !txtActual || !txtResultante) return;
+
+        const opt = select.options[select.selectedIndex];
+        if (!opt || !opt.value) {
+            txtActual.textContent = '-';
+            txtResultante.textContent = '-';
+            return;
+        }
+
+        const stock = parseInt(opt.getAttribute('data-stock') || 0);
+        const cant = parseInt(inputCant.value || 1);
+        const resultante = stock - cant;
+
+        txtActual.textContent = `${stock} u.`;
+        txtResultante.textContent = `${resultante} u.`;
+
+        if (resultante < 0) {
+            txtResultante.className = 'text-danger fw-bold';
+            txtResultante.textContent = `${resultante} u. (¡Stock insuficiente!)`;
+        } else {
+            txtResultante.className = 'text-success fw-bold';
+        }
+    }
+
+    // Drag and drop & image preview con auto-compresión para inputs de evidencia fotográfica
+    document.addEventListener('change', async function(e) {
+        if (e.target && e.target.classList.contains('input-evidencia')) {
+            const input = e.target;
+            const file = input.files[0];
+            const previewId = input.getAttribute('data-preview-id');
+            const preview = document.getElementById(previewId);
+            const zoneId = input.getAttribute('data-zone-id');
+            const zone = document.getElementById(zoneId);
+
+            if (file && preview) {
+                const reader = new FileReader();
+                reader.onload = function(evt) {
+                    preview.src = evt.target.result;
+                    preview.style.display = 'inline-block';
+                    if (zone) {
+                        const icon = zone.querySelector('.icon-placeholder');
+                        if (icon) icon.style.display = 'none';
+                    }
+                };
+                reader.readAsDataURL(file);
+
+                if (window.compressImageFile) {
+                    try {
+                        const comp = await window.compressImageFile(file, 1280, 1280, 0.82);
+                        if (comp && window.DataTransfer) {
+                            const dt = new DataTransfer();
+                            dt.items.add(comp);
+                            input.files = dt.files;
+                        }
+                    } catch (err) {}
+                }
+            }
+        }
+    });
+
+    document.addEventListener('dragover', function(e) {
+        const zone = e.target.closest('.drop-zone');
+        if (zone) {
+            e.preventDefault();
+            zone.style.borderColor = '#198754';
+            zone.style.backgroundColor = 'rgba(25, 135, 84, 0.08)';
+        }
+    });
+
+    document.addEventListener('dragleave', function(e) {
+        const zone = e.target.closest('.drop-zone');
+        if (zone) {
+            zone.style.borderColor = '#cbd5e1';
+            zone.style.backgroundColor = '';
+        }
+    });
+
+    document.addEventListener('drop', function(e) {
+        const zone = e.target.closest('.drop-zone');
+        if (zone) {
+            e.preventDefault();
+            zone.style.borderColor = '#cbd5e1';
+            zone.style.backgroundColor = '';
+            const input = zone.querySelector('input[type="file"]');
+            if (input && e.dataTransfer.files.length > 0) {
+                input.files = e.dataTransfer.files;
+                const changeEvent = new Event('change', { bubbles: true });
+                input.dispatchEvent(changeEvent);
+            }
+        }
+    });
+</script>
+{% endblock %}

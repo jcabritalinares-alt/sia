@@ -1,0 +1,339 @@
+{% extends 'base.html' %}
+
+{% block style %}
+<style>
+    .autocomplete-items {
+        position: absolute;
+        border: 1px solid var(--border-color);
+        border-top: none;
+        z-index: 99;
+        top: 100%;
+        left: 0;
+        right: 0;
+        background-color: var(--card-bg);
+        border-radius: 0 0 12px 12px;
+        box-shadow: var(--shadow-md);
+        max-height: 220px;
+        overflow-y: auto;
+    }
+    .autocomplete-item {
+        padding: 10px 14px;
+        cursor: pointer;
+        font-size: 0.9rem;
+        transition: background 0.15s ease;
+    }
+    .autocomplete-item:hover {
+        background-color: var(--primary-light);
+        color: var(--primary);
+    }
+    .nav-tabs-custom .nav-link {
+        border: none;
+        color: var(--text-muted);
+        font-weight: 700;
+        padding: 0.75rem 1.25rem;
+        border-radius: 12px 12px 0 0;
+        transition: all 0.2s ease;
+    }
+    .nav-tabs-custom .nav-link.active {
+        background-color: var(--card-bg);
+        color: var(--primary);
+        border-bottom: 3px solid var(--primary);
+    }
+</style>
+{% endblock %}
+
+{% block contenido %}
+<div class="container-fluid px-0">
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-4 gap-3">
+        <div>
+            <h2 class="fw-extrabold text-dark mb-1 d-flex align-items-center gap-2">
+                <i class="bi bi-box-seam-fill text-primary"></i> Gestión de Inventario
+            </h2>
+            <p class="text-muted small mb-0">Reabastece productos existentes o registra nuevos artículos en almacén</p>
+        </div>
+        <div>
+            <a href="{% url 'inventario' %}" class="btn btn-outline-secondary d-flex align-items-center gap-2 rounded-3 fw-semibold">
+                <i class="bi bi-arrow-left"></i> Volver al Inventario
+            </a>
+        </div>
+    </div>
+
+    <!-- Pestañas Conmutadoras de Modo -->
+    <ul class="nav nav-tabs nav-tabs-custom mb-4 border-bottom" id="modeTab" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active d-flex align-items-center gap-2" id="tabExistente" data-bs-toggle="tab" data-bs-target="#panelExistente" type="button" role="tab">
+                <i class="bi bi-arrow-repeat text-success"></i> 1. Reabastecer / Sumar Stock
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link d-flex align-items-center gap-2" id="tabNuevo" data-bs-toggle="tab" data-bs-target="#panelNuevo" type="button" role="tab">
+                <i class="bi bi-plus-square-fill text-primary"></i> 2. Crear Producto Nuevo
+            </button>
+        </li>
+    </ul>
+
+    <div class="tab-content" id="modeTabContent">
+        <!-- PESTAÑA 1: REABASTECER PRODUCTO EXISTENTE -->
+        <div class="tab-pane fade show active" id="panelExistente" role="tabpanel">
+            <div class="card border border-light rounded-4 p-4 shadow-sm">
+                <h5 class="fw-bold text-dark mb-3 border-bottom pb-2 d-flex align-items-center gap-2">
+                    <i class="bi bi-search text-success"></i> Buscar Producto Existente en Almacén
+                </h5>
+
+                <form method="POST" action="{% url 'registrar_inventario' %}" id="formReabastecer" autocomplete="off">
+                    {% csrf_token %}
+                    <input type="hidden" name="codigo" id="existenteCodigo" required>
+                    <input type="hidden" name="descripcion" id="existenteDescripcion" required>
+                    <input type="hidden" name="almacen" id="existenteAlmacen" value="Principal">
+
+                    <div class="row g-3 mb-3">
+                        <div class="col-12 position-relative">
+                            <label class="form-label fw-semibold text-secondary small">Buscar por Nombre o Código (Búsqueda inteligente)</label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-light text-muted border-end-0"><i class="bi bi-box-seam"></i></span>
+                                <input type="text" id="inputBuscarExistente" class="form-control border-start-0" placeholder="Escribe para buscar (Ej: Paracetamol, PROD-001)..." autocomplete="off">
+                            </div>
+                            <div id="existenteAutocompleteList" class="autocomplete-items" style="display:none;"></div>
+                        </div>
+                    </div>
+
+                    <!-- Panel de Selección de Presentación + Calculadora Visual -->
+                    <div id="panelCalculadoraExistente" class="card bg-light border p-3.5 rounded-4 mb-4" style="display: none;">
+                        <h6 id="lblExistenteNombre" class="fw-bold text-dark fs-5 mb-1"></h6>
+                        <p id="lblExistenteDetalle" class="text-muted font-monospace small mb-3"></p>
+
+                        <div class="row g-3 mb-3">
+                            <div class="col-12 col-md-6">
+                                <label class="form-label fw-semibold text-secondary small">¿Cómo viene este nuevo lote?</label>
+                                <select name="tipo_ingreso" id="existenteTipoIngreso" class="form-select border-primary" onchange="cambiarPresentacionExistente()">
+                                    <option value="unidad">👤 Unidades Sueltas</option>
+                                    <option value="caja">📦 Caja / Paquete / Bulto</option>
+                                </select>
+                            </div>
+                            <div class="col-12 col-md-6" id="seccionCajasExistente" style="display: none;">
+                                <label class="form-label fw-semibold text-secondary small">Unidades por Caja / Paquete</label>
+                                <input type="number" name="unidades_por_caja" id="existenteUnidadesCaja" class="form-control fw-bold" value="1" min="1">
+                            </div>
+                        </div>
+
+                        <div class="row g-3 text-center align-items-center bg-white p-3 rounded-3 border">
+                            <div class="col-12 col-md-4">
+                                <span class="small text-muted d-block fw-semibold">Stock Actual en Almacén</span>
+                                <span id="calcStockActual" class="fw-extrabold text-secondary fs-4">0 u.</span>
+                            </div>
+                            <div class="col-12 col-md-4 border-start border-end">
+                                <label id="lblCantIngreso" class="small text-muted d-block fw-semibold">Cantidad a Ingresar</label>
+                                <input type="number" name="cantidad" id="inputCantIngreso" class="form-control form-control-lg fw-bold text-center border-success mt-1" min="1" value="1" required>
+                                <small id="lblSubtotalIngreso" class="text-success fw-bold d-block mt-1" style="display:none;"></small>
+                            </div>
+                            <div class="col-12 col-md-4">
+                                <span class="small text-muted d-block fw-semibold">Stock Final Resultante</span>
+                                <span id="calcStockResultante" class="fw-extrabold text-success fs-3">0 u.</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <button type="submit" id="btnGuardarExistente" class="btn btn-success w-100 py-3 fs-6 d-flex align-items-center justify-content-center gap-2" style="display: none;">
+                        <i class="bi bi-check-circle-fill fs-5"></i> Confirmar y Sumar al Inventario
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <!-- PESTAÑA 2: REGISTRAR PRODUCTO NUEVO -->
+        <div class="tab-pane fade" id="panelNuevo" role="tabpanel">
+            <div class="card border border-light rounded-4 p-4 shadow-sm">
+                <h5 class="fw-bold text-dark mb-3 border-bottom pb-2 d-flex align-items-center gap-2">
+                    <i class="bi bi-plus-circle text-primary"></i> Registrar Ficha de Nuevo Producto
+                </h5>
+
+                <form method="POST" action="{% url 'registrar_inventario' %}" id="formNuevoProducto" autocomplete="off">
+                    {% csrf_token %}
+                    
+                    <div class="row g-3 mb-3">
+                        <div class="col-12 col-md-4">
+                            <label class="form-label fw-semibold text-secondary small">Código del Producto (Automático)</label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-light text-muted border-end-0"><i class="bi bi-barcode"></i></span>
+                                <input type="text" name="codigo" class="form-control border-start-0 font-monospace fw-bold bg-light" value="{{ codigo_sugerido }}" readonly required title="Código autogenerado y protegido por el sistema">
+                                <span class="input-group-text bg-light text-primary border-start-0" title="Campo Bloqueado"><i class="bi bi-lock-fill"></i></span>
+                            </div>
+                            <small class="text-muted d-block mt-1" style="font-size: 0.75rem;"><i class="bi bi-shield-check text-success me-1"></i>Código único autogenerado y bloqueado por el sistema.</small>
+                        </div>
+
+                        <div class="col-12 col-md-8">
+                            <label class="form-label fw-semibold text-secondary small">Descripción Completa del Producto</label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-light text-muted border-end-0"><i class="bi bi-card-text"></i></span>
+                                <input type="text" name="descripcion" class="form-control border-start-0 fw-semibold" placeholder="Nombre y especificación del producto" required>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row g-3 mb-3">
+                        <div class="col-12 col-md-6">
+                            <label class="form-label fw-semibold text-secondary small">Almacén de Ubicación</label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-light text-muted border-end-0"><i class="bi bi-geo-alt"></i></span>
+                                <select name="almacen" class="form-select border-start-0" required>
+                                    <option value="Principal">Almacén Principal</option>
+                                    <option value="Almacén 1">Almacén 1</option>
+                                    <option value="Almacén 2">Almacén 2</option>
+                                    <option value="Galpon">Galpón</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <div class="col-12 col-md-6">
+                            <label class="form-label fw-semibold text-secondary small">Presentación de Ingreso</label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-light text-muted border-end-0"><i class="bi bi-box"></i></span>
+                                <select name="tipo_ingreso" id="tipoIngresoNuevo" class="form-select border-start-0" onchange="cambiarPresentacionNuevo()" required>
+                                    <option value="unidad">Unidades Sueltas</option>
+                                    <option value="caja">Caja / Paquete / Bulto</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row g-3 mb-4">
+                        <div class="col-12 col-md-6">
+                            <label id="labelCantidadNuevo" class="form-label fw-semibold text-secondary small">Cantidad Inicial de Unidades</label>
+                            <input type="number" name="cantidad" class="form-control fw-bold" min="1" placeholder="Ej: 10" required>
+                        </div>
+
+                        <div class="col-12 col-md-6" id="seccionUnidadesPorCajaNuevo" style="display: none;">
+                            <label class="form-label fw-semibold text-secondary small">Unidades por Caja / Paquete</label>
+                            <input type="number" name="unidades_por_caja" id="unidades_por_caja_nuevo" class="form-control fw-bold" value="1" min="1">
+                            <small class="text-muted d-block mt-1">El sistema calculará automáticamente: Cantidad de Cajas × Unidades.</small>
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary-custom w-100 py-3 fs-6 d-flex align-items-center justify-content-center gap-2">
+                        <i class="bi bi-check-circle-fill fs-5"></i> Guardar Nuevo Producto en Inventario
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    let stockExistenteSeleccionado = 0;
+
+    // --- BUSCADOR INTELIGENTE EN MODO REABASTECER ---
+    $('#inputBuscarExistente').on('input', function() {
+        let q = $(this).val().trim();
+        let listContainer = $('#existenteAutocompleteList');
+
+        if (q.length < 2) {
+            listContainer.hide().empty();
+            return;
+        }
+
+        $.ajax({
+            url: "{% url 'api_buscar_producto_autocomplete' %}",
+            data: { 'q': q },
+            success: function(res) {
+                listContainer.empty();
+                if (res.resultados && res.resultados.length > 0) {
+                    res.resultados.forEach(p => {
+                        let item = `<div class="autocomplete-item" data-codigo="${p.codigo}" data-descripcion="${p.descripcion}" data-stock="${p.cantidad}" data-almacen="${p.almacen}">
+                            <strong>${p.descripcion}</strong> — <span class="badge bg-dark font-monospace">${p.codigo}</span> (Stock: ${p.cantidad} u. / ${p.almacen})
+                        </div>`;
+                        listContainer.append(item);
+                    });
+                    listContainer.show();
+                } else {
+                    listContainer.hide();
+                }
+            }
+        });
+    });
+
+    $(document).on('click', '#existenteAutocompleteList .autocomplete-item', function() {
+        const codigo = $(this).data('codigo');
+        const descripcion = $(this).data('descripcion');
+        const stock = parseInt($(this).data('stock') || 0);
+        const almacen = $(this).data('almacen');
+
+        stockExistenteSeleccionado = stock;
+
+        $('#existenteCodigo').val(codigo);
+        $('#existenteDescripcion').val(descripcion);
+        $('#existenteAlmacen').val(almacen);
+        $('#inputBuscarExistente').val(descripcion + ' (' + codigo + ')');
+        $('#existenteAutocompleteList').hide();
+
+        $('#lblExistenteNombre').text(descripcion);
+        $('#lblExistenteDetalle').text('Código: ' + codigo + ' | Almacén: ' + almacen);
+
+        $('#panelCalculadoraExistente').slideDown();
+        $('#btnGuardarExistente').slideDown();
+        
+        $('#inputCantIngreso').val(1);
+        $('#existenteTipoIngreso').val('unidad');
+        cambiarPresentacionExistente();
+    });
+
+    function cambiarPresentacionExistente() {
+        const tipo = $('#existenteTipoIngreso').val();
+        if (tipo === 'caja') {
+            $('#seccionCajasExistente').slideDown();
+            $('#lblCantIngreso').text('Cantidad de Cajas:');
+        } else {
+            $('#seccionCajasExistente').slideUp();
+            $('#lblCantIngreso').text('Cantidad de Unidades:');
+            $('#existenteUnidadesCaja').val(1);
+        }
+        calcularSumaExistente();
+    }
+
+    function calcularSumaExistente() {
+        const cant = parseInt($('#inputCantIngreso').val() || 0);
+        const tipo = $('#existenteTipoIngreso').val();
+        const unidadesPorCaja = tipo === 'caja' ? parseInt($('#existenteUnidadesCaja').val() || 1) : 1;
+
+        const unidadesNetasASumar = cant * unidadesPorCaja;
+        const total = stockExistenteSeleccionado + unidadesNetasASumar;
+
+        if (tipo === 'caja' && unidadesPorCaja > 1) {
+            $('#lblSubtotalIngreso').text('(' + cant + ' cajas × ' + unidadesPorCaja + ' u. = + ' + unidadesNetasASumar + ' u.)').show();
+        } else {
+            $('#lblSubtotalIngreso').hide();
+        }
+
+        $('#calcStockActual').text(stockExistenteSeleccionado + ' u.');
+        $('#calcStockResultante').text(total + ' u.');
+    }
+
+    $('#inputCantIngreso, #existenteUnidadesCaja').on('input keyup change', calcularSumaExistente);
+
+    $(document).on('click', function(e) {
+        if (!$(e.target).closest('#inputBuscarExistente, #existenteAutocompleteList').length) {
+            $('#existenteAutocompleteList').hide();
+        }
+    });
+
+    // --- MODO PRODUCTO NUEVO ---
+    function cambiarPresentacionNuevo() {
+        const tipo = document.getElementById('tipoIngresoNuevo').value;
+        const seccionCajas = document.getElementById('seccionUnidadesPorCajaNuevo');
+        const labelCantidad = document.getElementById('labelCantidadNuevo');
+        const inputUnidadesCaja = document.getElementById('unidades_por_caja_nuevo');
+
+        if (tipo === 'caja') {
+            seccionCajas.style.display = 'block';
+            labelCantidad.innerText = 'Cantidad de Cajas';
+            inputUnidadesCaja.required = true;
+        } else {
+            seccionCajas.style.display = 'none';
+            labelCantidad.innerText = 'Cantidad Inicial de Unidades';
+            inputUnidadesCaja.required = false;
+            inputUnidadesCaja.value = '1';
+        }
+    }
+</script>
+{% endblock %}

@@ -1,0 +1,55 @@
+{% extends 'base.html' %}
+
+{% block contenido %}
+<div class="container mt-4">
+    <h2 class="mb-4">Dashboard Principal</h2>
+    
+    <div class="row mb-4">
+        <div class="col-md-4"><div class="card text-white bg-primary mb-3"><div class="card-body"><h5>Pendientes</h5><h3>{{ pendientes }}</h3></div></div></div>
+        <div class="col-md-4"><div class="card text-white bg-success mb-3"><div class="card-body"><h5>Entregados</h5><h3>{{ entregados }}</h3></div></div></div>
+        <div class="col-md-4"><div class="card text-white bg-info mb-3"><div class="card-body"><h5>Total Artículos</h5><h3>{{ total_entregado }}</h3></div></div></div>
+    </div>
+
+    {% if alertas %}
+    <div class="alert alert-danger">
+        <h4>⚠️ Alerta de Stock Bajo</h4>
+        <ul>{% for p in alertas %}<li>{{ p.descripcion }}: Quedan {{ p.cantidad }}</li>{% endfor %}</ul>
+    </div>
+    {% endif %}
+
+    <h3>Últimas operaciones</h3>
+    <table class="table table-hover">
+        <thead><tr><th>Beneficiario</th><th>Producto</th><th>Fecha</th></tr></thead>
+        <tbody>
+            {% for r in recientes %}
+            <tr><td>{{ r.nombre_beneficiario }}</td><td>{{ r.descripcion_prod }}</td><td>{{ r.fecha }}</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <div class="row mt-5">
+        <div class="col-md-8 mx-auto">
+            <canvas id="graficoEntregas"></canvas>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    const ctx = document.getElementById('graficoEntregas').getContext('2d');
+    new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: {{ nombres_productos|safe }},
+            datasets: [{
+                label: 'Artículos entregados por producto',
+                data: {{ cantidades_productos|safe }},
+                backgroundColor: 'rgba(54, 162, 235, 0.6)'
+            }]
+        },
+        options: { scales: { y: { beginAtZero: true } } }
+    });
+</script>
+{% endblock %}

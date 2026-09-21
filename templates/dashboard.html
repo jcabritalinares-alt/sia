@@ -1,0 +1,396 @@
+{% extends 'base.html' %}
+
+{% block contenido %}
+<div class="container-fluid px-0">
+    <!-- Header principal -->
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-4 gap-3">
+        <div>
+            <h2 class="fw-extrabold text-dark mb-1">Dashboard Principal</h2>
+            <p class="text-muted small mb-0">Resumen operativo de inventario y entregas registradas</p>
+        </div>
+        <div class="d-flex gap-2">
+            <a href="{% url 'asignar_beneficio' %}" class="btn btn-primary-custom d-flex align-items-center gap-2">
+                <i class="bi bi-heart-fill"></i> Registrar Entrega
+            </a>
+            <a href="{% url 'registrar_inventario' %}" class="btn btn-outline-secondary d-flex align-items-center gap-2 rounded-3 fw-semibold">
+                <i class="bi bi-box-seam-fill"></i> Nuevo Producto
+            </a>
+        </div>
+    </div>
+    
+    <!-- Tarjetas de Métricas KPI -->
+    <div class="row g-4 mb-4">
+        <!-- Pendientes -->
+        <div class="col-12 col-sm-6 col-lg-4">
+            <div class="card border-0 shadow-sm rounded-4 p-3 h-100 position-relative overflow-hidden" style="background: linear-gradient(135deg, var(--card-bg) 0%, rgba(245, 158, 11, 0.1) 100%); border: 1px solid rgba(245, 158, 11, 0.3) !important;">
+                <div class="d-flex align-items-center justify-content-between">
+                    <div>
+                        <span class="text-uppercase fw-bold text-warning small tracking-wider">Entregas Pendientes</span>
+                        <h2 class="fw-extrabold text-dark mt-2 mb-0" style="font-size: 2.2rem;">{{ pendientes }}</h2>
+                    </div>
+                    <div class="d-flex align-items-center justify-content-center bg-warning bg-opacity-10 text-warning rounded-4" style="width: 58px; height: 58px;">
+                        <i class="bi bi-clock-history fs-2"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Entregados -->
+        <div class="col-12 col-sm-6 col-lg-4">
+            <div class="card border-0 shadow-sm rounded-4 p-3 h-100 position-relative overflow-hidden" style="background: linear-gradient(135deg, var(--card-bg) 0%, rgba(16, 185, 129, 0.1) 100%); border: 1px solid rgba(16, 185, 129, 0.3) !important;">
+                <div class="d-flex align-items-center justify-content-between">
+                    <div>
+                        <span class="text-uppercase fw-bold text-success small tracking-wider">Beneficios Entregados</span>
+                        <h2 class="fw-extrabold text-dark mt-2 mb-0" style="font-size: 2.2rem;">{{ entregados }}</h2>
+                    </div>
+                    <div class="d-flex align-items-center justify-content-center bg-success bg-opacity-10 text-success rounded-4" style="width: 58px; height: 58px;">
+                        <i class="bi bi-check-circle-fill fs-2"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Total Artículos -->
+        <div class="col-12 col-sm-6 col-lg-4">
+            <div class="card border-0 shadow-sm rounded-4 p-3 h-100 position-relative overflow-hidden" style="background: linear-gradient(135deg, var(--card-bg) 0%, rgba(79, 70, 229, 0.1) 100%); border: 1px solid rgba(79, 70, 229, 0.3) !important;">
+                <div class="d-flex align-items-center justify-content-between">
+                    <div>
+                        <span class="text-uppercase fw-bold text-primary small tracking-wider">Total Productos Registrados</span>
+                        <h2 class="fw-extrabold text-dark mt-2 mb-0" style="font-size: 2.2rem;">{{ total_articulos }}</h2>
+                    </div>
+                    <div class="d-flex align-items-center justify-content-center text-primary rounded-4" style="width: 58px; height: 58px; background-color: rgba(79, 70, 229, 0.15);">
+                        <i class="bi bi-boxes fs-2"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Alertas de Stock Bajo -->
+    {% if alertas %}
+    <div class="alert alert-warning border-0 shadow-sm rounded-4 p-3 mb-4 d-flex align-items-start gap-3">
+        <div class="bg-warning text-dark rounded-circle p-2 d-flex align-items-center justify-content-center flex-shrink-0 mt-1">
+            <i class="bi bi-exclamation-triangle-fill fs-5"></i>
+        </div>
+        <div class="flex-grow-1">
+            <h5 class="fw-bold mb-1 text-dark">Alerta de Stock Crítico (≤ 5 unidades)</h5>
+            <div class="d-flex flex-wrap gap-2 mt-2">
+                {% for p in alertas %}
+                    <span class="badge bg-white text-dark border border-warning shadow-sm rounded-pill px-3 py-2">
+                        <strong>{{ p.descripcion }}</strong>: Quedan <span class="text-danger fw-extrabold">{{ p.cantidad }}</span>
+                    </span>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Sección Inferior: Tabla de Operaciones + Gráfico -->
+    <div class="row g-4 mt-1">
+        <!-- Tabla de Últimas Operaciones -->
+        <div class="col-12 col-lg-6">
+            <div class="card border border-light shadow-sm rounded-4 p-3 h-100">
+                <div class="d-flex align-items-center justify-content-between mb-3 border-bottom pb-2">
+                    <h5 class="fw-bold text-dark mb-0 d-flex align-items-center gap-2">
+                        <i class="bi bi-journal-text text-primary"></i> Últimas Operaciones
+                    </h5>
+                    <a href="{% url 'historial' %}" class="btn btn-sm btn-link text-decoration-none fw-semibold">Ver todo <i class="bi bi-arrow-right"></i></a>
+                </div>
+                
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="bg-light text-secondary small text-uppercase">
+                            <tr>
+                                <th>Beneficiario</th>
+                                <th>Producto</th>
+                                <th class="text-end">Fecha</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for r in recientes %}
+                            <tr>
+                                <td class="fw-semibold text-dark">{{ r.nombre_beneficiario }}</td>
+                                <td><span class="badge bg-light text-dark border">{{ r.descripcion_prod }}</span></td>
+                                <td class="text-end text-muted small">{{ r.fecha }}</td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="3" class="text-center text-muted py-4 fst-italic">No hay operaciones recientes registradas.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Gráfico de Productos -->
+        <div class="col-12 col-lg-6">
+            <div class="card border border-light shadow-sm rounded-4 p-3 h-100 d-flex flex-column">
+                <div class="d-flex align-items-center justify-content-between mb-3 border-bottom pb-2 flex-wrap gap-2">
+                    <div class="d-flex align-items-center gap-2">
+                        <h5 class="fw-bold text-dark mb-0 d-flex align-items-center gap-2">
+                            <i class="bi bi-bar-chart-line-fill text-primary"></i> Distribución por Producto
+                        </h5>
+                        {% if cantidades_productos %}
+                        <span class="badge bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25 rounded-pill px-2.5 py-1 small fw-semibold">
+                            {{ cantidades_productos|length }} renglón{{ cantidades_productos|length|pluralize:"es" }}
+                        </span>
+                        {% endif %}
+                    </div>
+                    {% if cantidades_productos %}
+                    <div class="btn-group btn-group-sm" role="group" aria-label="Orientación del gráfico">
+                        <button type="button" class="btn btn-outline-primary py-1 px-2.5 d-flex align-items-center gap-1.5 fw-semibold active" id="btnChartHorizontal" onclick="cambiarOrientacionGrafico('y')" title="Vista por renglones (barras horizontales con cantidades)">
+                            <i class="bi bi-distribute-horizontal"></i> Renglones
+                        </button>
+                        <button type="button" class="btn btn-outline-primary py-1 px-2.5 d-flex align-items-center gap-1.5 fw-semibold" id="btnChartVertical" onclick="cambiarOrientacionGrafico('x')" title="Vista por columnas (barras verticales)">
+                            <i class="bi bi-distribute-vertical"></i> Columnas
+                        </button>
+                    </div>
+                    {% endif %}
+                </div>
+                
+                <div class="position-relative flex-grow-1" id="contenedorCanvasGrafico" style="min-height: 260px;">
+                    {% if cantidades_productos %}
+                        <canvas id="graficoEntregas"></canvas>
+                    {% else %}
+                        <div class="d-flex flex-column align-items-center justify-content-center h-100 py-5 text-muted">
+                            <i class="bi bi-bar-chart fs-1 opacity-50 mb-2"></i>
+                            <p class="mb-0 small fw-semibold">No hay entregas registradas aún para graficar.</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    const canvasGrafico = document.getElementById('graficoEntregas');
+    const ctx = canvasGrafico ? canvasGrafico.getContext('2d') : null;
+    let chartInstance = null;
+    let currentOrientation = localStorage.getItem('sia_dashboard_chart_axis') || 'y';
+
+    const labelsData = {{ nombres_productos|safe }};
+    const valuesData = {{ cantidades_productos|safe }};
+
+    // Plugin personalizado para dibujar la cantidad exacta en cada barra
+    const pluginCantidadesBarras = {
+        id: 'pluginCantidadesBarras',
+        afterDatasetsDraw(chart) {
+            const { ctx, chartArea } = chart;
+            const isHorizontal = chart.options.indexAxis === 'y';
+            const savedTheme = localStorage.getItem('sia_theme') || 'light';
+            const labelColor = savedTheme === 'dark' ? '#f1f5f9' : '#1e293b';
+
+            ctx.save();
+            ctx.font = 'bold 12px "Plus Jakarta Sans", system-ui, -apple-system, sans-serif';
+
+            chart.data.datasets.forEach((dataset, datasetIndex) => {
+                const meta = chart.getDatasetMeta(datasetIndex);
+                if (meta.hidden) return;
+
+                meta.data.forEach((bar, index) => {
+                    const rawVal = dataset.data[index];
+                    if (rawVal === undefined || rawVal === null) return;
+                    const text = Number(rawVal).toLocaleString();
+
+                    if (isHorizontal) {
+                        // Modo Renglones (horizontal): bar.x es el extremo derecho, bar.y es el centro vertical
+                        const barTipX = bar.x;
+                        const barCenterY = bar.y;
+                        const textWidth = ctx.measureText(text).width;
+                        const barWidth = Math.abs(barTipX - bar.base);
+
+                        // Si la barra llega cerca del borde derecho y es ancha, dibujar dentro en blanco
+                        if (barTipX + textWidth + 14 > chartArea.right && barWidth > textWidth + 20) {
+                            ctx.fillStyle = '#ffffff';
+                            ctx.textAlign = 'right';
+                            ctx.textBaseline = 'middle';
+                            ctx.fillText(text, barTipX - 8, barCenterY);
+                        } else {
+                            // Dibujar al lado del extremo de la barra
+                            ctx.fillStyle = labelColor;
+                            ctx.textAlign = 'left';
+                            ctx.textBaseline = 'middle';
+                            ctx.fillText(text, barTipX + 8, barCenterY);
+                        }
+                    } else {
+                        // Modo Columnas (vertical): bar.x es el centro horizontal, bar.y es el extremo superior
+                        const barCenterX = bar.x;
+                        const barTipY = bar.y;
+                        const barHeight = Math.abs(bar.base - barTipY);
+
+                        // Si la barra está pegada al tope superior y es alta, dibujar dentro
+                        if (barTipY - 14 < chartArea.top && barHeight > 25) {
+                            ctx.fillStyle = '#ffffff';
+                            ctx.textAlign = 'center';
+                            ctx.textBaseline = 'top';
+                            ctx.fillText(text, barCenterX, barTipY + 6);
+                        } else {
+                            // Dibujar justo encima de la barra
+                            ctx.fillStyle = labelColor;
+                            ctx.textAlign = 'center';
+                            ctx.textBaseline = 'bottom';
+                            ctx.fillText(text, barCenterX, barTipY - 6);
+                        }
+                    }
+                });
+            });
+            ctx.restore();
+        }
+    };
+
+    function renderizarGrafico() {
+        if (!ctx || !labelsData || labelsData.length === 0) return;
+
+        const savedTheme = localStorage.getItem('sia_theme') || 'light';
+        const textColor = savedTheme === 'dark' ? '#cbd5e1' : '#475569';
+        const gridColor = savedTheme === 'dark' ? 'rgba(51, 65, 85, 0.4)' : 'rgba(226, 232, 240, 0.8)';
+
+        // Ajustar altura del contenedor dinámicamente si hay múltiples renglones
+        const contenedor = document.getElementById('contenedorCanvasGrafico');
+        if (contenedor) {
+            if (currentOrientation === 'y' && labelsData.length > 4) {
+                const alturaCalculada = Math.min(520, Math.max(260, labelsData.length * 42));
+                contenedor.style.height = `${alturaCalculada}px`;
+            } else {
+                contenedor.style.height = '280px';
+            }
+        }
+
+        // Crear gradiente según la orientación seleccionada
+        let gradient;
+        if (currentOrientation === 'y') {
+            gradient = ctx.createLinearGradient(0, 0, 450, 0);
+            gradient.addColorStop(0, 'rgba(79, 70, 229, 0.9)');
+            gradient.addColorStop(1, 'rgba(6, 182, 212, 0.65)');
+        } else {
+            gradient = ctx.createLinearGradient(0, 280, 0, 0);
+            gradient.addColorStop(0, 'rgba(6, 182, 212, 0.4)');
+            gradient.addColorStop(1, 'rgba(79, 70, 229, 0.9)');
+        }
+
+        if (chartInstance) {
+            chartInstance.destroy();
+        }
+
+        // Actualizar botones de orientación
+        const btnH = document.getElementById('btnChartHorizontal');
+        const btnV = document.getElementById('btnChartVertical');
+        if (btnH && btnV) {
+            if (currentOrientation === 'y') {
+                btnH.classList.add('active');
+                btnV.classList.remove('active');
+            } else {
+                btnV.classList.add('active');
+                btnH.classList.remove('active');
+            }
+        }
+
+        chartInstance = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: labelsData,
+                datasets: [{
+                    label: 'Unidades entregadas',
+                    data: valuesData,
+                    backgroundColor: gradient,
+                    borderColor: '#4f46e5',
+                    borderWidth: 1.5,
+                    borderRadius: 6,
+                    borderSkipped: false,
+                    barPercentage: currentOrientation === 'y' ? 0.7 : 0.6,
+                    categoryPercentage: 0.8
+                }]
+            },
+            plugins: [pluginCantidadesBarras],
+            options: {
+                indexAxis: currentOrientation,
+                responsive: true,
+                maintainAspectRatio: false,
+                layout: {
+                    padding: {
+                        top: currentOrientation === 'x' ? 22 : 8,
+                        right: currentOrientation === 'y' ? 32 : 12,
+                        bottom: 8,
+                        left: 8
+                    }
+                },
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        backgroundColor: savedTheme === 'dark' ? '#1e293b' : '#0f172a',
+                        titleColor: '#ffffff',
+                        bodyColor: '#f8fafc',
+                        titleFont: { family: 'Plus Jakarta Sans', size: 12, weight: 'bold' },
+                        bodyFont: { family: 'Plus Jakarta Sans', size: 12 },
+                        padding: 10,
+                        cornerRadius: 8,
+                        callbacks: {
+                            label: function(context) {
+                                const val = context.raw || 0;
+                                return ` Cantidad entregada: ${Number(val).toLocaleString()} unid.`;
+                            }
+                        }
+                    }
+                },
+                scales: currentOrientation === 'y' ? {
+                    x: {
+                        beginAtZero: true,
+                        grace: '15%',
+                        ticks: { 
+                            color: textColor,
+                            precision: 0,
+                            font: { family: 'Plus Jakarta Sans', size: 11 }
+                        },
+                        grid: { color: gridColor }
+                    },
+                    y: {
+                        ticks: { 
+                            color: textColor,
+                            font: { family: 'Plus Jakarta Sans', size: 12, weight: '600' }
+                        },
+                        grid: { display: false }
+                    }
+                } : {
+                    y: {
+                        beginAtZero: true,
+                        grace: '15%',
+                        ticks: { 
+                            color: textColor,
+                            precision: 0,
+                            font: { family: 'Plus Jakarta Sans', size: 11 }
+                        },
+                        grid: { color: gridColor }
+                    },
+                    x: {
+                        ticks: { 
+                            color: textColor,
+                            font: { family: 'Plus Jakarta Sans', size: 11, weight: '500' }
+                        },
+                        grid: { display: false }
+                    }
+                }
+            }
+        });
+    }
+
+    function cambiarOrientacionGrafico(orientacion) {
+        currentOrientation = orientacion;
+        localStorage.setItem('sia_dashboard_chart_axis', orientacion);
+        renderizarGrafico();
+    }
+
+    function actualizarGraficoTema(theme) {
+        renderizarGrafico();
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        renderizarGrafico();
+    });
+</script>
+{% endblock %}

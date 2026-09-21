@@ -1,0 +1,229 @@
+{% extends 'base.html' %}
+
+{% block contenido %}
+<div class="container-fluid px-0" style="max-width: 900px; margin: 0 auto;">
+
+    <!-- Encabezado -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="fw-extrabold text-dark mb-1 d-flex align-items-center gap-2">
+                <i class="bi bi-person-lines-fill text-primary"></i> Registrar Nueva Solicitud
+            </h2>
+            <p class="text-muted small mb-0">Recepción e ingreso de solicitudes ciudadanas de atención social</p>
+        </div>
+        <a href="{% url 'lista_solicitudes_ciudadano' %}" class="btn btn-outline-secondary rounded-3">
+            <i class="bi bi-arrow-left me-1"></i> Volver a Solicitudes
+        </a>
+    </div>
+
+    <!-- Formulario -->
+    <form method="POST" action="{% url 'registrar_solicitud_ciudadano' %}">
+        {% csrf_token %}
+
+        <!-- Sección 1: Datos del Ciudadano -->
+        <div class="card border border-light rounded-4 p-4 mb-4 shadow-sm">
+            <h5 class="fw-bold text-dark mb-3 border-bottom pb-2 d-flex align-items-center gap-2">
+                <i class="bi bi-person-fill text-primary"></i> Datos del Ciudadano / Solicitante
+            </h5>
+
+            <div class="row g-3">
+                <div class="col-12 col-md-6 position-relative">
+                    <label class="form-label fw-semibold text-secondary small">Cédula de Identidad <span class="text-danger fw-bold">*</span></label>
+                    <div class="input-group">
+                        <span class="input-group-text bg-light text-muted border-end-0"><i class="bi bi-card-heading"></i></span>
+                        <input type="text" name="cedula" id="cedula" class="form-control border-start-0 border-end-0 enter-next" data-next="#nombre" placeholder="Ej: 12345678" required autofocus>
+                        <button type="button" class="btn btn-primary px-3 d-flex align-items-center gap-1 shadow-none" id="btnBuscarCNE" title="Consultar en sistemaspnp.com (CNE)">
+                            <i class="bi bi-search" id="iconBuscarCNE"></i>
+                            <span id="spinnerBuscarCNE" class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
+                            <span class="d-none d-sm-inline small fw-semibold">Consultar</span>
+                        </button>
+                    </div>
+                    <div id="msgAutoFill" class="form-text text-success fw-semibold small mt-1" style="display: none;">
+                        <span id="txtAutoFill"><i class="bi bi-check-circle-fill me-1"></i> Ciudadano registrado. Datos autocompletados.</span>
+                    </div>
+                    <div id="msgBuscandoCNE" class="form-text text-primary fw-semibold small mt-1" style="display: none;">
+                        <i class="bi bi-hourglass-split me-1"></i> Consultando datos en sistemaspnp.com (CNE)...
+                    </div>
+                    <div id="msgDuplicados" class="alert alert-warning border border-warning rounded-3 p-2 mt-2 small shadow-sm" style="display: none;">
+                        <div class="fw-bold text-dark mb-1"><i class="bi bi-exclamation-triangle-fill text-warning me-1"></i>¡Advertencia de Trámites Activos!</div>
+                        <ul id="listaDuplicados" class="mb-0 ps-3 text-secondary small"></ul>
+                    </div>
+                </div>
+
+                <div class="col-12 col-md-6">
+                    <label class="form-label fw-semibold text-secondary small">Nombre y Apellido Completo <span class="text-danger fw-bold">*</span></label>
+                    <div class="input-group">
+                        <span class="input-group-text bg-light text-muted border-end-0"><i class="bi bi-person"></i></span>
+                        <input type="text" name="nombre_apellido" id="nombre" class="form-control border-start-0 enter-next" data-next="#telefono" placeholder="Nombre completo" required>
+                    </div>
+                </div>
+
+                <div class="col-12 col-md-4">
+                    <label class="form-label fw-semibold text-secondary small">Teléfono de Contacto</label>
+                    <div class="input-group">
+                        <span class="input-group-text bg-light text-muted border-end-0"><i class="bi bi-telephone"></i></span>
+                        <input type="text" name="telefono" id="telefono" class="form-control border-start-0 enter-next" data-next="#direccion" placeholder="Ej: 04121234567">
+                    </div>
+                </div>
+
+                <div class="col-12 col-md-8">
+                    <label class="form-label fw-semibold text-secondary small">Dirección de Habitación / Sector</label>
+                    <div class="input-group">
+                        <span class="input-group-text bg-light text-muted border-end-0"><i class="bi bi-geo-alt"></i></span>
+                        <input type="text" name="direccion" id="direccion" class="form-control border-start-0 enter-next" data-next="#tipoSolicitud" placeholder="Comunidad / Parroquia / Dirección exacta">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sección 2: Detalle de la Solicitud -->
+        <div class="card border border-light rounded-4 p-4 mb-4 shadow-sm">
+            <h5 class="fw-bold text-dark mb-3 border-bottom pb-2 d-flex align-items-center gap-2">
+                <i class="bi bi-file-earmark-text-fill text-primary"></i> Detalle del Requerimiento Solicitado
+            </h5>
+
+            <div class="row g-3">
+                <div class="col-12 col-md-7">
+                    <label class="form-label fw-semibold text-secondary small">Tipo / Categoría de Solicitud <span class="text-danger fw-bold">*</span></label>
+                    <select name="tipo_solicitud" id="tipoSolicitud" class="form-select fw-semibold enter-next" data-next="#prioridad" required>
+                        <option value="Ayuda Médica">Ayuda Médica (Exámenes / Intervenciones / Consultas)</option>
+                        <option value="Enseres / Ayuda Social" selected>Enseres / Ayuda Social (Alimentos, colchones, láminas)</option>
+                        <option value="Donación de Medicamentos">Donación de Medicamentos / Insumos Médicos</option>
+                        <option value="Soporte Técnico / Tránsito">Soporte Técnico / Servicios Públicos / Vialidad</option>
+                        <option value="Asesoría Jurídica">Asesoría Jurídica / Tramitación Legal</option>
+                        <option value="Otro">Otro requerimiento especial</option>
+                    </select>
+                </div>
+
+                <div class="col-12 col-md-5">
+                    <label class="form-label fw-semibold text-secondary small">Nivel de Prioridad <span class="text-danger fw-bold">*</span></label>
+                    <select name="prioridad" id="prioridad" class="form-select fw-semibold enter-next" data-next="#descripcionSolicitud" required>
+                        <option value="Alta">🔴 Alta (Urgencia Médica / Caso Crítico)</option>
+                        <option value="Media" selected>🟡 Media (Atención Estándar)</option>
+                        <option value="Baja">🟢 Baja (Solicitud Informativa / Trámite)</option>
+                    </select>
+                </div>
+
+                <div class="col-12">
+                    <label class="form-label fw-semibold text-secondary small">Descripción Detallada del Requerimiento <span class="text-danger fw-bold">*</span></label>
+                    <textarea name="descripcion_solicitud" id="descripcionSolicitud" class="form-control" rows="4" placeholder="Describa claramente lo que el ciudadano está solicitando, motivos, informe médico adjunto o caso social..." required></textarea>
+                </div>
+            </div>
+        </div>
+
+        <!-- Botón de Guardado -->
+        <button type="submit" class="btn btn-primary-custom w-100 py-3 fs-6 d-flex align-items-center justify-content-center gap-2 fw-bold shadow-sm">
+            <i class="bi bi-check-circle-fill fs-5"></i> Registrar Solicitud de Atención
+        </button>
+    </form>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // --- NAVEGACIÓN CON ENTER ---
+    $('.enter-next').on('keydown', function(e) {
+        if (e.key === 'Enter' || e.keyCode === 13) {
+            e.preventDefault();
+            const nextSelector = $(this).data('next');
+            if (nextSelector) $(nextSelector).focus();
+        }
+    });
+
+    // --- BÚSQUEDA AUTOMÁTICA DE CÉDULA (LOCAL + CNE SISTEMASPNP) ---
+    let buscandoSolicitanteEnCurso = false;
+
+    function consultarSolicitante(forzarCNE = false) {
+        const cedula = $('#cedula').val() ? $('#cedula').val().trim() : '';
+        const cedulaNumerica = cedula.replace(/\D/g, '');
+        if (!cedulaNumerica || cedulaNumerica.length < 4) {
+            if (forzarCNE) alert('Por favor ingrese una cédula válida.');
+            return;
+        }
+
+        if (buscandoSolicitanteEnCurso) return;
+        buscandoSolicitanteEnCurso = true;
+
+        $('#iconBuscarCNE').addClass('d-none');
+        $('#spinnerBuscarCNE').removeClass('d-none');
+        $('#btnBuscarCNE').prop('disabled', true);
+        $('#msgBuscandoCNE').fadeIn();
+        $('#msgAutoFill').hide();
+
+        $.ajax({
+            url: "{% url 'buscar_beneficiario' %}",
+            data: { 
+                'cedula': cedulaNumerica,
+                'forzar_cne': forzarCNE ? 'true' : 'false'
+            },
+            timeout: 10000,
+            success: function(res) {
+                if (res.existe) {
+                    $('#nombre').val(res.nombre_apellido);
+                    if (res.direccion && !$('#direccion').val()) $('#direccion').val(res.direccion);
+                    if (res.telefono && !$('#telefono').val()) $('#telefono').val(res.telefono);
+
+                    if (res.origen === 'sistemaspnp') {
+                        let cneInfo = '';
+                        if (res.datos_cne && res.datos_cne.centro_electoral) {
+                            cneInfo = ` <span class="badge bg-primary-subtle text-primary border ms-1"><i class="bi bi-geo-alt"></i> ${res.datos_cne.centro_electoral}</span>`;
+                        }
+                        $('#txtAutoFill').html(`<i class="bi bi-cloud-check-fill text-primary me-1"></i> <strong>Datos CNE (sistemaspnp.com):</strong> Nombre autocompletado.${cneInfo}`);
+                    } else {
+                        $('#txtAutoFill').html(`<i class="bi bi-check-circle-fill text-success me-1"></i> Ciudadano registrado en base de datos local.`);
+                    }
+
+                    $('#msgAutoFill').fadeIn();
+                } else {
+                    $('#msgAutoFill').hide();
+                }
+            },
+            complete: function() {
+                buscandoSolicitanteEnCurso = false;
+                $('#iconBuscarCNE').removeClass('d-none');
+                $('#spinnerBuscarCNE').addClass('d-none');
+                $('#btnBuscarCNE').prop('disabled', false);
+                $('#msgBuscandoCNE').hide();
+            }
+        });
+
+        $.ajax({
+            url: "{% url 'api_verificar_duplicados_ciudadano' %}",
+            data: { 'cedula': cedulaNumerica },
+            success: function(res) {
+                if (res.tiene_pendientes) {
+                    let html = '';
+                    res.solicitudes.forEach(s => {
+                        html += `<li><strong>Solicitud #${s.id}</strong> (${s.tipo}) - Estado: <span class="badge bg-warning text-dark">${s.status}</span> [${s.fecha}]</li>`;
+                    });
+                    $('#listaDuplicados').html(html);
+                    $('#msgDuplicados').slideDown();
+                } else {
+                    $('#msgDuplicados').slideUp();
+                }
+            }
+        });
+    }
+
+    $('#btnBuscarCNE').on('click', function(e) {
+        e.preventDefault();
+        consultarSolicitante(true);
+    });
+
+    $('#cedula').on('keydown', function(e) {
+        if (e.key === 'Enter' || e.keyCode === 13 || e.key === 'Tab' || e.keyCode === 9) {
+            if (e.key === 'Enter' || e.keyCode === 13) e.preventDefault();
+            consultarSolicitante(false);
+        }
+    });
+
+    $('#cedula').on('blur', function() {
+        const cedula = $(this).val() ? $(this).val().trim() : '';
+        const nombre = $('#nombre').val() ? $('#nombre').val().trim() : '';
+        if (cedula && !nombre && !buscandoSolicitanteEnCurso) {
+            consultarSolicitante(false);
+        }
+    });
+</script>
+{% endblock %}

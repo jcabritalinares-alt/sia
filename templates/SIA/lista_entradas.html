@@ -1,0 +1,72 @@
+{% extends 'base.html' %}
+
+{% block contenido %}
+<div class="container-fluid px-0">
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-4 gap-3">
+        <div>
+            <h2 class="fw-extrabold text-dark mb-1 d-flex align-items-center gap-2">
+                <i class="bi bi-clock-history text-success"></i> Historial de Recepciones de Almacén
+            </h2>
+            <p class="text-muted small mb-0">Registro histórico de entradas de mercancía, compras y donaciones recibidas</p>
+        </div>
+        <a href="{% url 'registrar_entrada_inventario' %}" class="btn btn-success fw-bold d-inline-flex align-items-center gap-2 shadow-sm px-3 py-2">
+            <i class="bi bi-plus-lg fs-5"></i> Registrar Nueva Entrada
+        </a>
+    </div>
+
+    <div class="card border border-light rounded-4 shadow-sm overflow-hidden">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="bg-light text-secondary small text-uppercase fw-bold border-bottom">
+                    <tr>
+                        <th class="ps-3" style="width: 100px;"># Entrada</th>
+                        <th style="width: 150px;">Fecha y Hora</th>
+                        <th>Origen / Proveedor / Donante</th>
+                        <th>Nro. Guía / Acta</th>
+                        <th>Detalle de Productos Ingresados</th>
+                        <th>Registrado Por</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for e in entradas %}
+                    <tr>
+                        <td class="ps-3 fw-bold text-primary">#{{ e.id }}</td>
+                        <td class="small text-muted">{{ e.fecha|date:"d/m/Y H:i" }}</td>
+                        <td class="fw-bold text-dark">{{ e.origen_o_proveedor }}</td>
+                        <td>
+                            {% if e.nro_guia_o_acta %}
+                                <span class="badge bg-light text-dark border">{{ e.nro_guia_o_acta }}</span>
+                            {% else %}
+                                <span class="text-muted small">Sin número</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="d-flex flex-wrap gap-1">
+                                {% for d in e.detalles.all %}
+                                    <span class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25 px-2 py-1">
+                                        {{ d.producto.descripcion }}: <strong>+{{ d.cantidad_ingresada }} u.</strong>
+                                    </span>
+                                {% endfor %}
+                            </div>
+                            {% if e.observaciones %}
+                                <div class="small text-muted mt-1 fst-italic"><i class="bi bi-info-circle me-1"></i>{{ e.observaciones }}</div>
+                            {% endif %}
+                        </td>
+                        <td class="small fw-semibold text-secondary">
+                            <i class="bi bi-person-circle me-1 text-primary"></i>{{ e.registrado_por.username|default:"Sistema" }}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="text-center py-5 text-muted fst-italic">
+                            <i class="bi bi-inbox fs-1 d-block mb-2 text-secondary"></i>
+                            No hay registros de entradas de inventario en el sistema.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

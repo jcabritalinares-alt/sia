@@ -1,0 +1,245 @@
+{% extends 'base.html' %}
+
+{% block contenido %}
+<div class="container-fluid px-0">
+
+    <!-- Encabezado -->
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-4 gap-3">
+        <div>
+            <h2 class="fw-extrabold text-dark mb-1 d-flex align-items-center gap-2">
+                <i class="bi bi-bar-chart-line-fill text-primary"></i> Panel de Estadísticas e Inteligencia Social
+            </h2>
+            <p class="text-muted small mb-0">Análisis gráfico de demandas ciudadanas, distribución por categorías y rendimiento de atención</p>
+        </div>
+        <div class="d-flex flex-wrap align-items-center gap-2">
+            <div class="btn-group btn-group-sm no-print" role="group" id="grupoFiltroRango">
+                <button type="button" class="btn btn-outline-primary active fw-bold" onclick="filtrarEstadisticas('todos', this)">Todos</button>
+                <button type="button" class="btn btn-outline-primary fw-bold" onclick="filtrarEstadisticas('hoy', this)">Hoy</button>
+                <button type="button" class="btn btn-outline-primary fw-bold" onclick="filtrarEstadisticas('semana', this)">Esta Semana</button>
+                <button type="button" class="btn btn-outline-primary fw-bold" onclick="filtrarEstadisticas('mes', this)">Este Mes</button>
+            </div>
+            <a href="{% url 'generar_reporte_parroquias_pdf' %}" target="_blank" class="btn btn-danger btn-sm d-inline-flex align-items-center gap-2 no-print shadow-sm fw-bold">
+                <i class="bi bi-file-earmark-pdf-fill"></i> Reporte Parroquias PDF
+            </a>
+            <button onclick="window.print()" class="btn btn-outline-secondary btn-sm d-inline-flex align-items-center gap-2 no-print">
+                <i class="bi bi-printer-fill"></i> Imprimir Reporte
+            </button>
+        </div>
+    </div>
+
+    <!-- Tarjetas KPI Globales -->
+    <div class="row g-3 mb-4">
+        <div class="col-12 col-sm-6 col-xl-3">
+            <div class="card border-0 shadow-sm rounded-4 bg-primary text-white p-3 h-100">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <div class="small text-white-50 fw-bold uppercase">Total Solicitudes</div>
+                        <div class="fs-2 fw-bold mt-1" id="kpiTotalSolicitudes">{{ total_solicitudes }}</div>
+                    </div>
+                    <div class="fs-1 text-white-50"><i class="bi bi-inbox-fill"></i></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-12 col-sm-6 col-xl-3">
+            <div class="card border-0 shadow-sm rounded-4 bg-success bg-opacity-10 border border-success border-opacity-25 p-3 h-100">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <div class="small text-success fw-bold uppercase">Entregas Realizadas</div>
+                        <div class="fs-2 fw-bold text-dark mt-1" id="kpiTotalEntregas">{{ total_entregas }}</div>
+                    </div>
+                    <div class="fs-1 text-success"><i class="bi bi-check-circle-fill"></i></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-12 col-sm-6 col-xl-3">
+            <div class="card border-0 shadow-sm rounded-4 bg-warning bg-opacity-10 border border-warning border-opacity-25 p-3 h-100">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <div class="small text-warning fw-bold uppercase">En Evaluación / Proceso</div>
+                        <div class="fs-2 fw-bold text-dark mt-1" id="kpiCntEvaluacion">{{ cnt_en_evaluacion }}</div>
+                    </div>
+                    <div class="fs-1 text-warning"><i class="bi bi-clock-history"></i></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-12 col-sm-6 col-xl-3">
+            <div class="card border-0 shadow-sm rounded-4 bg-info bg-opacity-10 border border-info border-opacity-25 p-3 h-100">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <div class="small text-info fw-bold uppercase">Tasa de Aprobación</div>
+                        <div class="fs-2 fw-bold text-dark mt-1" id="kpiTasaAprobacion">
+                            {% if total_solicitudes > 0 %}
+                                {% widthratio total_entregas total_solicitudes 100 %}%
+                            {% else %}
+                                100%
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="fs-1 text-info"><i class="bi bi-graph-up-arrow"></i></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Gráficos Estadísticos -->
+    <div class="row g-4 mb-4">
+        <!-- Gráfico 1: Demandas por Categoría -->
+        <div class="col-12 col-lg-7">
+            <div class="card border border-light rounded-4 shadow-sm p-4 h-100">
+                <h5 class="fw-bold text-dark mb-3 border-bottom pb-2 d-flex align-items-center gap-2">
+                    <i class="bi bi-pie-chart-fill text-primary"></i> Distribución de Solicitudes por Categoría
+                </h5>
+                <div style="height: 300px; position: relative;">
+                    <canvas id="chartCategorias"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Gráfico 2: Productos Más Entregados -->
+        <div class="col-12 col-lg-5">
+            <div class="card border border-light rounded-4 shadow-sm p-4 h-100">
+                <h5 class="fw-bold text-dark mb-3 border-bottom pb-2 d-flex align-items-center gap-2">
+                    <i class="bi bi-box-seam-fill text-success"></i> Insumos con Mayor Demanda
+                </h5>
+                <div style="height: 300px; position: relative;">
+                    <canvas id="chartProductos"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Gráfico 3: Tendencia Mensual de Solicitudes vs Beneficios Entregados -->
+    <div class="row g-4 mb-4">
+        <div class="col-12">
+            <div class="card border border-light rounded-4 shadow-sm p-4">
+                <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-3 border-bottom pb-2 gap-2">
+                    <h5 class="fw-bold text-dark mb-0 d-flex align-items-center gap-2">
+                        <i class="bi bi-graph-up-arrow text-primary"></i> Tendencia Mensual de Atención Social (Solicitudes vs Entregas)
+                    </h5>
+                    <span class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25 px-3 py-1.5 fw-bold rounded-pill">
+                        ⚡ Eficiencia de Respuesta: {{ eficiencia_pct }}%
+                    </span>
+                </div>
+                <div style="height: 280px; position: relative;">
+                    <canvas id="chartTendenciaMensual"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<!-- Chart.js CDN -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script>
+    let chartCat, chartProd, chartTendencia;
+
+    document.addEventListener('DOMContentLoaded', function() {
+        // 1. Gráfico por Categoría
+        const ctxCat = document.getElementById('chartCategorias').getContext('2d');
+        chartCat = new Chart(ctxCat, {
+            type: 'bar',
+            data: {
+                labels: {{ cat_labels_json|safe }},
+                datasets: [{
+                    label: 'Cantidad de Solicitudes',
+                    data: {{ cat_totals_json|safe }},
+                    backgroundColor: 'rgba(79, 70, 229, 0.75)',
+                    borderColor: '#4f46e5',
+                    borderWidth: 2,
+                    borderRadius: 8
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: { y: { beginAtZero: true, ticks: { precision: 0 } } }
+            }
+        });
+
+        // 2. Gráfico Productos Más Entregados
+        const ctxProd = document.getElementById('chartProductos').getContext('2d');
+        chartProd = new Chart(ctxProd, {
+            type: 'doughnut',
+            data: {
+                labels: {{ prod_labels_json|safe }},
+                datasets: [{
+                    data: {{ prod_totals_json|safe }},
+                    backgroundColor: [
+                        '#4f46e5', '#10b981', '#f59e0b', '#06b6d4', '#ec4899', '#8b5cf6'
+                    ]
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { position: 'bottom' } }
+            }
+        });
+
+        // 3. Gráfico de Tendencia Mensual (Línea)
+        const ctxTend = document.getElementById('chartTendenciaMensual').getContext('2d');
+        chartTendencia = new Chart(ctxTend, {
+            type: 'line',
+            data: {
+                labels: {{ meses_labels_json|safe }},
+                datasets: [
+                    {
+                        label: 'Solicitudes Recibidas',
+                        data: {{ solicitudes_mensuales_json|safe }},
+                        borderColor: '#4f46e5',
+                        backgroundColor: 'rgba(79, 70, 229, 0.1)',
+                        fill: true,
+                        tension: 0.3,
+                        borderWidth: 3
+                    },
+                    {
+                        label: 'Beneficios Entregados',
+                        data: {{ entregas_mensuales_json|safe }},
+                        borderColor: '#10b981',
+                        backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                        fill: true,
+                        tension: 0.3,
+                        borderWidth: 3
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { position: 'top' } },
+                scales: { y: { beginAtZero: true, ticks: { precision: 0 } } }
+            }
+        });
+    });
+
+    function filtrarEstadisticas(rango, btn) {
+        $('#grupoFiltroRango button').removeClass('active');
+        $(btn).addClass('active');
+
+        $.ajax({
+            url: "{% url 'api_estadisticas_filtradas' %}",
+            data: { 'rango': rango },
+            success: function(res) {
+                $('#kpiTotalSolicitudes').text(res.total_solicitudes);
+                $('#kpiTotalEntregas').text(res.total_entregas);
+                $('#kpiCntEvaluacion').text(res.cnt_en_evaluacion);
+                let tasa = res.total_solicitudes > 0 ? Math.round((res.total_entregas / res.total_solicitudes) * 100) : 100;
+                $('#kpiTasaAprobacion').text(tasa + '%');
+
+                chartCat.data.labels = res.cat_labels;
+                chartCat.data.datasets[0].data = res.cat_totals;
+                chartCat.update();
+
+                chartProd.data.labels = res.prod_labels;
+                chartProd.data.datasets[0].data = res.prod_totals;
+                chartProd.update();
+            }
+        });
+    }
+</script>
+{% endblock %}

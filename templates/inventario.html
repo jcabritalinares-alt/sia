@@ -1,0 +1,507 @@
+{% extends 'base.html' %}
+
+{% block style %}
+<style>
+    @media print {
+        .btn, .no-print, #buscadorInventario {
+            display: none !important;
+        }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { border: 1px solid #000; padding: 8px; }
+    }
+</style>
+{% endblock %}
+
+{% block contenido %}
+<form style="display: none;">
+    {% csrf_token %}
+</form>
+
+<div class="container-fluid px-0">
+    <!-- Encabezado -->
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-4 gap-3">
+        <div>
+            <h2 class="fw-extrabold text-dark mb-1">Inventario Disponible</h2>
+            <p class="text-muted small mb-0">Gestión y control de existencias de productos en almacén</p>
+        </div>
+        {% if request.user.is_superuser or request.user.perfil.puede_imprimir_inventario %}
+        <div class="d-flex flex-wrap gap-2">
+            <button type="button" class="btn btn-outline-primary no-print d-flex align-items-center gap-2 rounded-3 fw-semibold" data-bs-toggle="modal" data-bs-target="#modalImportarExcel">
+                <i class="bi bi-file-earmark-arrow-up-fill"></i> Importar Excel
+            </button>
+            <a href="{% url 'exportar_inventario_excel' %}" class="btn btn-outline-success no-print d-flex align-items-center gap-2 rounded-3 fw-semibold">
+                <i class="bi bi-file-earmark-excel-fill"></i> Exportar Excel
+            </a>
+            <a href="{% url 'reporte_pdf' %}" target="_blank" class="btn btn-outline-danger no-print d-flex align-items-center gap-2 rounded-3 fw-semibold">
+                <i class="bi bi-file-earmark-pdf-fill"></i> Descargar PDF
+            </a>
+            <button onclick="imprimirReporteInventario(this)" class="btn btn-primary-custom no-print d-flex align-items-center gap-2">
+                <i class="bi bi-printer-fill"></i> Imprimir Reporte
+            </button>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Buscador de inventario en tiempo real -->
+    <div class="row mb-4">
+        <div class="col-12 col-md-6 col-lg-5">
+            <div class="input-group shadow-sm rounded-3">
+                <span class="input-group-text bg-white border-end-0 text-muted">
+                    <i class="bi bi-search"></i>
+                </span>
+                <input type="text" id="buscadorInventario" class="form-control border-start-0 no-print" placeholder="🔍 Escribe para buscar código, descripción o almacén..." autocomplete="off">
+            </div>
+        </div>
+    </div>
+
+    <!-- Contenedor de Tabla -->
+    <div id="tabla-inventario-container" class="table-responsive rounded-4 border border-light bg-white p-3 shadow-sm">
+        <table id="tablaInventario" class="table table-hover align-middle mb-0">
+            <thead class="bg-light text-secondary small text-uppercase">
+                <tr>
+                    <th class="text-center" style="width: 120px;">Código</th>
+                    <th>Descripción</th>
+                    <th>Almacén</th>
+                    <th class="text-center">Presentación</th>
+                    <th class="text-center">Stock Disponible</th>
+                    <th class="no-print text-center" style="width: 170px;">Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for p in productos %}
+                <tr class="fila-inventario">
+                    <td class="text-center">
+                        <span class="badge bg-dark text-white font-monospace px-2.5 py-1.5 shadow-sm fs-6">{{ p.codigo }}</span>
+                    </td>
+                    <td class="fw-bold text-dark fs-6">{{ p.descripcion }}</td>
+                    <td><span class="text-muted fw-semibold"><i class="bi bi-geo-alt-fill text-primary me-1"></i>{{ p.almacen }}</span></td>
+                    
+                    <td class="text-center">
+                        {% if p.tipo_presentacion == 'caja' %}
+                            <span class="badge bg-warning text-dark px-3 py-1.5 fw-bold shadow-sm">
+                                📦 Caja / Paquete
+                            </span>
+                            <div class="small text-muted fw-semibold mt-1">({{ p.unidades_por_empaque }} u. c/u)</div>
+                        {% else %}
+                            <span class="badge bg-secondary text-white px-3 py-1.5 fw-bold shadow-sm">
+                                👤 Unidad Suelta
+                            </span>
+                        {% endif %}
+                    </td>
+
+                    <td class="text-center">
+                        {% if p.cantidad > 10 %}
+                            <span class="badge bg-success text-white px-3 py-2 fs-6 fw-extrabold shadow-sm" style="min-width: 80px; display: inline-block;">
+                                {{ p.cantidad }} u.
+                            </span>
+                        {% elif p.cantidad > 5 %}
+                            <span class="badge bg-warning text-dark px-3 py-2 fs-6 fw-extrabold shadow-sm" style="min-width: 80px; display: inline-block;">
+                                {{ p.cantidad }} u.
+                            </span>
+                        {% else %}
+                            <span class="badge bg-danger text-white px-3 py-2 fs-6 fw-extrabold shadow-sm" style="min-width: 80px; display: inline-block;">
+                                ⚠️ {{ p.cantidad }} u.
+                            </span>
+                        {% endif %}
+                    </td>
+
+                    <td class="no-print text-center">
+                        <div class="d-flex justify-content-center gap-1">
+                            <button class="btn btn-outline-success btn-sm rounded-circle p-2" onclick="abrirModalSumarStock('{{ p.codigo }}', '{{ p.descripcion }}', {{ p.cantidad }}, '{{ p.almacen }}')" title="➕ Sumar Stock Rápido" style="width: 36px; height: 36px; display: inline-flex; align-items: center; justify-content: center;">
+                                <i class="bi bi-plus-lg fs-6 fw-bold"></i>
+                            </button>
+
+                            <a href="{% url 'ficha_producto' p.id %}" class="btn btn-outline-info btn-sm rounded-circle p-2" title="👁️ Ver Ficha Técnica de Producto" style="width: 36px; height: 36px; display: inline-flex; align-items: center; justify-content: center;">
+                                <i class="bi bi-eye-fill"></i>
+                            </a>
+
+                            <button class="btn btn-outline-primary btn-sm rounded-circle p-2" onclick="generarEtiquetaQR('{{ p.codigo }}', '{{ p.descripcion }}', {{ p.id }})" title="Ver Código QR Digital" style="width: 36px; height: 36px; display: inline-flex; align-items: center; justify-content: center;">
+                                <i class="bi bi-qr-code-scan"></i>
+                            </button>
+
+                            <a href="{% url 'imprimir_etiquetas_producto' p.id %}" target="_blank" class="btn btn-outline-secondary btn-sm rounded-circle p-2" title="🏷️ Imprimir Etiquetas de Almacén (Planilla / Térmica)" style="width: 36px; height: 36px; display: inline-flex; align-items: center; justify-content: center;">
+                                <i class="bi bi-tag-fill text-warning"></i>
+                            </a>
+
+                            {% if request.user.is_superuser %}
+                                <button class="btn btn-outline-danger btn-sm rounded-circle p-2" onclick="confirmarEliminacionInventario('{% url 'eliminar_producto' p.codigo %}')" title="Eliminar Producto" style="width: 36px; height: 36px; display: inline-flex; align-items: center; justify-content: center;">
+                                    <i class="bi bi-trash3-fill"></i>
+                                </button>
+                            {% endif %}
+                        </div>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="6" class="text-center text-muted py-4 fst-italic">No hay productos registrados en el inventario.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Modal Flotante: Sumar Stock Rápido (Soporta Unidades y Cajas) -->
+<div class="modal fade" id="modalSumarStockRapido" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg rounded-4">
+            <form method="POST" action="{% url 'registrar_inventario' %}">
+                {% csrf_token %}
+                <input type="hidden" name="codigo" id="modalSumarCodigo">
+                <input type="hidden" name="descripcion" id="modalSumarDescripcion">
+                <input type="hidden" name="almacen" id="modalSumarAlmacen">
+
+                <div class="modal-header border-bottom">
+                    <h5 class="modal-title fw-bold text-dark"><i class="bi bi-plus-circle-fill text-success me-2"></i>Sumar Stock a Producto</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <div class="mb-3 text-center">
+                        <h6 id="lblModalProducto" class="fw-bold text-dark fs-5 mb-1"></h6>
+                        <span id="lblModalCodigo" class="badge bg-dark font-monospace px-3 py-1"></span>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold text-secondary small">¿Cómo viene el nuevo lote?</label>
+                        <select name="tipo_ingreso" id="modalTipoIngreso" class="form-select border-primary" onchange="cambiarPresentacionModal()">
+                            <option value="unidad">👤 Unidades Sueltas</option>
+                            <option value="caja">📦 Caja / Paquete / Bulto</option>
+                        </select>
+                    </div>
+
+                    <div class="row g-2 mb-3">
+                        <div class="col-12" id="colCantIngresada">
+                            <label id="lblCantIngresada" class="form-label fw-bold text-dark">Cantidad de Unidades a Sumar:</label>
+                            <input type="number" name="cantidad" id="cantASumar" class="form-control form-control-lg fw-bold text-center border-primary" min="1" value="1" required>
+                        </div>
+                        <div class="col-12" id="colUnidadesCaja" style="display: none;">
+                            <label class="form-label fw-semibold text-dark small">Unidades que trae cada caja:</label>
+                            <input type="number" name="unidades_por_caja" id="unidadesPorCajaModal" class="form-control fw-bold text-center" min="1" value="1">
+                        </div>
+                    </div>
+
+                    <div class="card bg-light border p-3 rounded-3 mb-3 text-center">
+                        <div class="row g-2 align-items-center">
+                            <div class="col-4">
+                                <span class="small text-muted d-block">Stock Actual</span>
+                                <span id="txtStockActual" class="fw-extrabold text-secondary fs-6">0 u.</span>
+                            </div>
+                            <div class="col-4 border-start border-end">
+                                <span class="small text-muted d-block">A Sumar</span>
+                                <span id="txtStockASumar" class="fw-extrabold text-success fs-6">+ 0 u.</span>
+                            </div>
+                            <div class="col-4">
+                                <span class="small text-muted d-block">Stock Resultante</span>
+                                <span id="txtStockResultante" class="fw-extrabold text-primary fs-5">0 u.</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer border-top justify-content-between">
+                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-success px-4 fw-bold">
+                        <i class="bi bi-check-circle-fill me-1"></i> Confirmar y Sumar Stock
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para Generar e Imprimir Etiquetas de Código QR y Código de Barras -->
+<div class="modal fade" id="modalEtiquetaQR" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg rounded-4 text-center">
+            <div class="modal-header border-bottom">
+                <h5 class="modal-title fw-bold text-dark"><i class="bi bi-qr-code text-primary me-2"></i>Etiqueta de Producto (QR / Barras)</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-4" id="contenedorEtiqueta">
+                <h6 id="qrProductoNombre" class="fw-bold text-dark mb-1"></h6>
+                <p id="qrProductoCodigo" class="text-muted font-monospace small mb-3"></p>
+                
+                <div class="d-flex justify-content-center mb-3">
+                    <div id="qrcodeCanvas"></div>
+                </div>
+
+                <div class="d-flex justify-content-center mb-2">
+                    <svg id="barcodeCanvas"></svg>
+                </div>
+            </div>
+            <div class="modal-footer border-top justify-content-center">
+                <button type="button" class="btn btn-primary-custom px-4" onclick="imprimirEtiquetaSticker()">
+                    <i class="bi bi-printer-fill me-1"></i> Imprimir Etiqueta Sticker
+                </button>
+            </div>
+<!-- Modal para Importación Masiva desde Excel -->
+<div class="modal fade" id="modalImportarExcel" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
+            <div class="modal-header bg-primary text-white py-3">
+                <h5 class="modal-title fw-bold d-flex align-items-center gap-2">
+                    <i class="bi bi-file-earmark-arrow-up-fill"></i> Importación Masiva de Inventario desde Excel
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form method="POST" action="{% url 'importar_inventario_excel' %}" enctype="multipart/form-data">
+                {% csrf_token %}
+                <div class="modal-body p-4">
+                    <p class="text-muted small mb-3">
+                        Suba un archivo de Excel (.xlsx) con el listado de productos para registrar o sumar existencias masivamente.
+                    </p>
+                    
+                    <div class="alert alert-info border border-info border-opacity-25 rounded-3 mb-3 d-flex align-items-center justify-content-between">
+                        <div class="small">
+                            <i class="bi bi-file-earmark-excel me-1 fw-bold"></i> ¿No tiene el formato adecuado?
+                        </div>
+                        <a href="{% url 'descargar_plantilla_excel' %}" class="btn btn-sm btn-light fw-bold text-primary shadow-sm border">
+                            <i class="bi bi-download me-1"></i> Descargar Plantilla .xlsx
+                        </a>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold text-dark">Seleccionar Archivo Excel (.xlsx):</label>
+                        <input type="file" name="archivo_excel" class="form-control form-control-lg border-primary" accept=".xlsx" required>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light border-top py-2 justify-content-between">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary-custom fw-bold shadow-sm px-4">
+                        <i class="bi bi-cloud-upload-fill me-1"></i> Iniciar Importación Masiva
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
+<script>
+    // --- MOTOR DE BÚSQUEDA EN TIEMPO REAL INSTANTÁNEO ---
+    document.addEventListener('DOMContentLoaded', function() {
+        const inputBuscador = document.getElementById('buscadorInventario');
+        const tabla = document.getElementById('tablaInventario');
+        
+        if (inputBuscador && tabla) {
+            const tbody = tabla.querySelector('tbody');
+            
+            function ejecutarFiltro() {
+                const query = inputBuscador.value.toLowerCase().trim();
+                const filas = tbody.querySelectorAll('tr.fila-inventario');
+                let encontrados = 0;
+
+                filas.forEach(fila => {
+                    const texto = fila.textContent.toLowerCase();
+                    if (texto.includes(query)) {
+                        fila.style.setProperty('display', '', 'important');
+                        encontrados++;
+                    } else {
+                        fila.style.setProperty('display', 'none', 'important');
+                    }
+                });
+
+                let filaSinResultados = tbody.querySelector('.no-results-row');
+                if (encontrados === 0 && filas.length > 0) {
+                    if (!filaSinResultados) {
+                        filaSinResultados = document.createElement('tr');
+                        filaSinResultados.className = 'no-results-row';
+                        filaSinResultados.innerHTML = `<td colspan="6" class="text-center text-muted py-4 fst-italic">No se encontraron productos que coincidan con "${query}".</td>`;
+                        tbody.appendChild(filaSinResultados);
+                    } else {
+                        filaSinResultados.style.display = '';
+                        filaSinResultados.querySelector('td').textContent = `No se encontraron productos que coincidan con "${query}".`;
+                    }
+                } else if (filaSinResultados) {
+                    filaSinResultados.style.display = 'none';
+                }
+            }
+
+            inputBuscador.addEventListener('input', ejecutarFiltro);
+            inputBuscador.addEventListener('keyup', ejecutarFiltro);
+            inputBuscador.addEventListener('change', ejecutarFiltro);
+        }
+    });
+
+    // --- MODAL DE SUMA RÁPIDA DE STOCK (UNIDADES O CAJAS) ---
+    let stockActualModal = 0;
+
+    function abrirModalSumarStock(codigo, descripcion, stockActual, almacen) {
+        stockActualModal = stockActual;
+        $('#modalSumarCodigo').val(codigo);
+        $('#modalSumarDescripcion').val(descripcion);
+        $('#modalSumarAlmacen').val(almacen || 'Principal');
+
+        $('#lblModalProducto').text(descripcion);
+        $('#lblModalCodigo').text(codigo);
+
+        $('#modalTipoIngreso').val('unidad');
+        $('#cantASumar').val(1);
+        $('#unidadesPorCajaModal').val(1);
+        cambiarPresentacionModal();
+
+        new bootstrap.Modal(document.getElementById('modalSumarStockRapido')).show();
+    }
+
+    function cambiarPresentacionModal() {
+        const tipo = $('#modalTipoIngreso').val();
+        if (tipo === 'caja') {
+            $('#colUnidadesCaja').slideDown();
+            $('#lblCantIngresada').text('Cantidad de Cajas a Sumar:');
+        } else {
+            $('#colUnidadesCaja').slideUp();
+            $('#lblCantIngresada').text('Cantidad de Unidades a Sumar:');
+            $('#unidadesPorCajaModal').val(1);
+        }
+        calcularSumaStockModal();
+    }
+
+    function calcularSumaStockModal() {
+        const cant = parseInt($('#cantASumar').val() || 0);
+        const tipo = $('#modalTipoIngreso').val();
+        const unidadesPorCaja = tipo === 'caja' ? parseInt($('#unidadesPorCajaModal').val() || 1) : 1;
+
+        const unidadesNetasASumar = cant * unidadesPorCaja;
+        const resultante = stockActualModal + unidadesNetasASumar;
+
+        $('#txtStockActual').text(stockActualModal + ' u.');
+        $('#txtStockASumar').text('+ ' + unidadesNetasASumar + ' u.');
+        $('#txtStockResultante').text(resultante + ' u.');
+    }
+
+    $('#cantASumar, #unidadesPorCajaModal').on('input keyup change', calcularSumaStockModal);
+
+    let qrcodeInstance = null;
+
+    function generarEtiquetaQR(codigo, descripcion, id) {
+        $('#qrProductoNombre').text(descripcion);
+        $('#qrProductoCodigo').text('Código: ' + codigo);
+
+        const qrUrl = window.location.origin + '/inventario/ficha/' + (id || '1') + '/';
+
+        $('#qrcodeCanvas').empty();
+        qrcodeInstance = new QRCode(document.getElementById("qrcodeCanvas"), {
+            text: qrUrl,
+            width: 160,
+            height: 160,
+            colorDark : "#0f172a",
+            colorLight : "#ffffff",
+            correctLevel : QRCode.CorrectLevel.H
+        });
+
+        JsBarcode("#barcodeCanvas", codigo, {
+            format: "CODE128",
+            width: 2,
+            height: 50,
+            displayValue: true,
+            fontSize: 14
+        });
+
+        new bootstrap.Modal(document.getElementById('modalEtiquetaQR')).show();
+    }
+
+    function imprimirEtiquetaSticker() {
+        const content = `
+            <!DOCTYPE html>
+            <html lang="es">
+            <head>
+                <meta charset="UTF-8">
+                <title>Etiqueta de Producto</title>
+                <style>
+                    @page { size: 4in 3in; margin: 0; }
+                    body { font-family: sans-serif; text-align: center; padding: 10px; margin: 0; }
+                    h4 { margin: 5px 0 2px 0; font-size: 14px; }
+                    p { margin: 0 0 8px 0; font-size: 11px; color: #555; }
+                    img, svg { margin: 5px auto; display: block; }
+                </style>
+            </head>
+            <body>
+                ${document.getElementById('contenedorEtiqueta').innerHTML}
+                <script>window.onload = function() { window.print(); };<\/script>
+            </body>
+            </html>
+        `;
+        const printWin = window.open('', '_blank');
+        printWin.document.write(content);
+        printWin.document.close();
+    }
+
+    function confirmarEliminacionInventario(url) {
+        Swal.fire({
+            title: '¿Seguro que deseas eliminar este producto?',
+            text: "Esta acción lo borrará permanentemente de la base de datos del inventario.",
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonText: 'Sí, eliminar',
+            cancelButtonText: 'Cancelar',
+            confirmButtonColor: '#ef4444'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                const csrfInputVal = document.querySelector('[name=csrfmiddlewaretoken]');
+                
+                if (!csrfInputVal) {
+                    alert('Error de seguridad: Token CSRF no encontrado en la página.');
+                    return;
+                }
+
+                const form = document.createElement('form');
+                form.method = 'POST';
+                form.action = url;
+                
+                const csrfInput = document.createElement('input');
+                csrfInput.type = 'hidden';
+                csrfInput.name = 'csrfmiddlewaretoken';
+                csrfInput.value = csrfInputVal.value;
+                
+                form.appendChild(csrfInput);
+                document.body.appendChild(form);
+                form.submit();
+            }
+        });
+    }
+
+    function imprimirReporteInventario(btn) {
+        const contenedorTemp = document.getElementById('tabla-inventario-container').cloneNode(true);
+        $(contenedorTemp).find('th:nth-child(6), td:nth-child(6)').remove();
+
+        const contenidoInventario = contenedorTemp.innerHTML;
+        
+        const content = `
+            <!DOCTYPE html>
+            <html lang="es">
+            <head>
+                <meta charset="UTF-8">
+                <title>Reporte de Inventario</title>
+                <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+                <style>
+                    @page { size: 8.5in 11in; margin: 15mm; }
+                    body { background-color: #ffffff; color: #212529; font-size: 13px; }
+                    .logo-encabezado { max-width: 75px; height: auto; }
+                    @media print { .no-print { display: none !important; } }
+                </style>
+            </head>
+            <body>
+                <div class="container p-4">
+                    <div class="d-flex justify-content-between align-items-center border-bottom pb-3 mb-4">
+                        <img src="https://res.cloudinary.com/tehn5bfb/image/upload/v1783630731/efad9adhn201uv8xemcn.jpg" class="logo-encabezado rounded" alt="Alcaldía">
+                        <div class="text-center flex-grow-1 px-2">
+                            <h4 class="text-primary mb-0 fw-bold">Reporte General de Inventario</h4>
+                            <p class="text-muted small mb-0">Sistema de Gestión - SIA Web</p>
+                        </div>
+                        <img src="https://res.cloudinary.com/tehn5bfb/image/upload/v1783630731/hgb44vfc0d8wirbnz2th.jpg" class="logo-encabezado rounded" alt="Valera Renace">
+                    </div>
+                    <div class="mb-3">${contenidoInventario}</div>
+                </div>
+            </body>
+            </html>
+        `;
+        
+        const printWindow = window.open('', '_blank');
+        printWindow.document.write(content);
+        printWindow.document.close();
+        printWindow.onload = function() { setTimeout(() => { printWindow.print(); }, 300); };
+    }
+</script>
+{% endblock %}

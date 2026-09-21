@@ -1,0 +1,128 @@
+{% extends 'base.html' %}
+
+{% block contenido %}
+<div class="container-fluid px-0">
+
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-4 gap-3">
+        <div>
+            <h2 class="fw-extrabold text-dark mb-1 d-flex align-items-center gap-2">
+                <i class="bi bi-building-gear text-primary"></i> Identidad y Datos Institucionales
+            </h2>
+            <p class="text-muted small mb-0">Configure el nombre oficial, RIF, dirección y logos para los membretes de reportes e impresiones</p>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <div class="col-12 col-lg-8">
+            <div class="card border border-light rounded-4 shadow-sm p-4 bg-white">
+                <form method="POST" enctype="multipart/form-data">
+                    {% csrf_token %}
+
+                    <h5 class="fw-bold text-dark mb-3 border-bottom pb-2 d-flex align-items-center gap-2">
+                        <i class="bi bi-info-circle-fill text-primary"></i> Información de la Institución
+                    </h5>
+
+                    <div class="row g-3 mb-4">
+                        <div class="col-12 col-md-8">
+                            <label class="form-label fw-semibold text-dark">Nombre de la Institución / Organismo:</label>
+                            <input type="text" name="nombre_institucion" value="{{ config.nombre_institucion }}" class="form-control form-control-lg border-primary" required>
+                        </div>
+                        <div class="col-12 col-md-4">
+                            <label class="form-label fw-semibold text-dark">RIF Institucional:</label>
+                            <input type="text" name="rif" value="{{ config.rif }}" class="form-control form-control-lg font-monospace" placeholder="G-20000000-0" required>
+                        </div>
+
+                        <div class="col-12">
+                            <label class="form-label fw-semibold text-dark">Subtítulo / Eslogan del Sistema (Membrete):</label>
+                            <input type="text" name="subtitulo_institucion" value="{{ config.subtitulo_institucion }}" class="form-control" required>
+                        </div>
+
+                        <div class="col-12">
+                            <label class="form-label fw-semibold text-dark">Dirección Fiscal / Sede Central:</label>
+                            <textarea name="direccion" class="form-control" rows="2" required>{{ config.direccion }}</textarea>
+                        </div>
+
+                        <div class="col-12 col-md-6">
+                            <label class="form-label fw-semibold text-dark">Teléfonos de Contacto:</label>
+                            <input type="text" name="telefono" value="{{ config.telefono }}" class="form-control" required>
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <label class="form-label fw-semibold text-dark">Correo Electrónico Institucional:</label>
+                            <input type="email" name="email" value="{{ config.email }}" class="form-control" required>
+                        </div>
+                    </div>
+
+                    <h5 class="fw-bold text-dark mb-3 border-bottom pb-2 d-flex align-items-center gap-2">
+                        <i class="bi bi-image-fill text-success"></i> Cargar Logos para Membrete y Reportes
+                    </h5>
+
+                    <div class="row g-3 mb-4">
+                        <div class="col-12 col-md-6">
+                            <div class="border rounded-3 p-3 text-center bg-light">
+                                <label class="form-label fw-bold text-dark mb-2">Logo Principal (Izquierda):</label>
+                                {% if config.logo_principal %}
+                                <div class="mb-2">
+                                    <img src="{{ config.logo_principal.url }}" height="70" class="rounded shadow-sm border p-1 bg-white">
+                                </div>
+                                {% else %}
+                                <div class="mb-2 text-muted small">Usando logo predeterminado (Alcaldía)</div>
+                                {% endif %}
+                                <input type="file" name="logo_principal" class="form-control form-control-sm" accept="image/*">
+                            </div>
+                        </div>
+
+                        <div class="col-12 col-md-6">
+                            <div class="border rounded-3 p-3 text-center bg-light">
+                                <label class="form-label fw-bold text-dark mb-2">Logo Secundario (Derecha):</label>
+                                {% if config.logo_secundario %}
+                                <div class="mb-2">
+                                    <img src="{{ config.logo_secundario.url }}" height="70" class="rounded shadow-sm border p-1 bg-white">
+                                </div>
+                                {% else %}
+                                <div class="mb-2 text-muted small">Usando logo predeterminado (Gestión)</div>
+                                {% endif %}
+                                <input type="file" name="logo_secundario" class="form-control form-control-sm" accept="image/*">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="d-flex justify-content-end gap-2 pt-3 border-top">
+                        <a href="{% url 'dashboard' %}" class="btn btn-outline-secondary">Cancelar</a>
+                        <button type="submit" class="btn btn-primary-custom fw-bold shadow-sm px-4">
+                            <i class="bi bi-floppy-fill me-1"></i> Guardar Cambios Institucionales
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <div class="col-12 col-lg-4">
+            <div class="card border border-light rounded-4 shadow-sm p-4 bg-white h-100">
+                <h5 class="fw-bold text-dark mb-3 border-bottom pb-2 d-flex align-items-center gap-2">
+                    <i class="bi bi-eye-fill text-info"></i> Vista Previa de Membrete
+                </h5>
+                
+                <div class="border rounded-3 p-3 bg-light text-center shadow-sm">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span class="badge bg-primary px-2 py-1" style="font-size: 0.65rem;">LOGO 1</span>
+                        <span class="badge bg-success px-2 py-1" style="font-size: 0.65rem;">LOGO 2</span>
+                    </div>
+                    
+                    <h6 class="fw-extrabold text-dark mb-1 text-uppercase small">{{ config.nombre_institucion }}</h6>
+                    <p class="text-primary fw-bold mb-1" style="font-size: 0.75rem;">{{ config.subtitulo_institucion }}</p>
+                    <p class="text-muted mb-2 font-monospace" style="font-size: 0.7rem;">RIF: {{ config.rif }}</p>
+                    
+                    <hr class="my-2">
+                    <small class="text-muted d-block" style="font-size: 0.7rem;"><i class="bi bi-geo-alt-fill me-1"></i> {{ config.direccion }}</small>
+                    <small class="text-muted d-block" style="font-size: 0.7rem;"><i class="bi bi-telephone-fill me-1"></i> {{ config.telefono }}</small>
+                </div>
+
+                <div class="alert alert-info border border-info border-opacity-25 rounded-3 mt-4 small mb-0">
+                    <i class="bi bi-shield-check me-1 fw-bold"></i> Los datos guardados aquí se aplicarán automáticamente a todas las planillas, constancias PDF, reportes y comprobantes de impresión del sistema.
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+{% endblock %}

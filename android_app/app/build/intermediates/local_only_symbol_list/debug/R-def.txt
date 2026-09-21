@@ -1,0 +1,32 @@
+R_DEF: Internal format may change without notice
+local
+color accent
+color background
+color black
+color primary
+color primary_dark
+color white
+drawable ic_launcher_background
+drawable ic_launcher_foreground
+id btnChangeUrl
+id btnRetry
+id fabSettings
+id layoutOffline
+id progressBar
+id swipeRefreshLayout
+id tvErrorDesc
+id tvErrorTitle
+id tvErrorUrl
+id webView
+layout activity_main
+mipmap ic_launcher
+mipmap ic_launcher_round
+string app_name
+string btn_cancel
+string btn_save
+string msg_enter_url
+string title_config_server
+style Theme.SIA_Inventario
+xml backup_rules
+xml data_extraction_rules
+xml file_paths

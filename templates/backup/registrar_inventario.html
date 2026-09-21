@@ -1,0 +1,136 @@
+{% extends 'base.html' %}
+
+{% block contenido %}
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card shadow">
+                <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                    <h4 class="mb-0">➕ Registrar Nuevo Producto</h4>
+                    <button type="button" class="btn btn-light btn-sm" data-bs-toggle="modal" data-bs-target="#modalInventario">
+                        🔍 Buscar Producto
+                    </button>
+                </div>
+                <div class="card-body">
+                    <form method="POST" id="formInventario" autocomplete="off">
+                        {% csrf_token %}
+                        <div class="row">
+                            <div class="col-md-4 mb-3">
+                                <label>Código</label>
+                                <input type="text" name="codigo" id="codigo" class="form-control" required>
+                            </div>
+                            <div class="col-md-8 mb-3">
+                                <label>Descripción</label>
+                                <input type="text" name="descripcion" class="form-control" required>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label>Almacén</label>
+                                <select name="almacen" class="form-select" required>
+                                    <option value="">Seleccione un almacén...</option>
+                                    <option value="Almacén 1">Almacén 1</option>
+                                    <option value="Almacén 2">Almacén 2</option>
+                                    <option value="Principal">Principal</option>
+                                    <option value="Galpon">Galpón</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label>Cantidad</label>
+                                <input type="number" name="cantidad" class="form-control" required>
+                            </div>
+                        </div>
+                        <button type="submit" class="btn btn-success w-100">Guardar en Inventario</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="modalInventario" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Seleccionar Producto</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <input type="text" id="buscadorInventario" class="form-control mb-3" placeholder="🔍 Escribe para filtrar...">
+                <table class="table table-hover">
+                    <thead><tr><th>Código</th><th>Descripción</th><th>Acción</th></tr></thead>
+                    <tbody id="tablaInventario"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    const form = document.getElementById('formInventario');
+
+    // 1. Limpieza al enviar
+    form.addEventListener('submit', function() {
+        $('select[name="almacen"]').prop('disabled', false); // Habilitar select antes de enviar
+        setTimeout(() => {
+            form.reset();
+            document.getElementById('codigo').focus();
+        }, 500);
+    });
+
+    // 2. Autocompletado al perder foco en código
+    $('#codigo').on('blur', function() {
+        let codigo = $(this).val();
+        if (codigo.length > 0) {
+            $.ajax({
+                url: "{% url 'verificar_producto' %}",
+                data: { 'codigo': codigo },
+                success: function(data) {
+                    if (data.existe) {
+                        $('input[name="descripcion"]').val(data.descripcion).prop('readonly', true);
+                        $('select[name="almacen"]').val(data.almacen).prop('disabled', true);
+                    } else {
+                        $('input[name="descripcion"]').val('').prop('readonly', false);
+                        $('select[name="almacen"]').val('').prop('disabled', false);
+                    }
+                }
+            });
+        }
+    });
+
+    // 3. Carga de datos en el modal
+    $('#modalInventario').on('show.bs.modal', function() {
+        $.get("{% url 'obtener_todo_inventario' %}", function(data) {
+            let rows = '';
+            data.productos.forEach(p => {
+                rows += `<tr><td>${p.codigo}</td><td>${p.descripcion}</td>
+                         <td><button class="btn btn-sm btn-primary" onclick="seleccionar('${p.codigo}', '${p.descripcion}', '${p.almacen}')" data-bs-dismiss="modal">Seleccionar</button></td></tr>`;
+            });
+            $('#tablaInventario').html(rows);
+        });
+    });
+
+    // 4. Búsqueda en tiempo real
+    $('#buscadorInventario').on('keyup', function() {
+        let valor = $(this).val().toLowerCase();
+        $("#tablaInventario tr").filter(function() {
+            $(this).toggle($(this).text().toLowerCase().indexOf(valor) > -1);
+        });
+    });
+
+    // 5. Limpieza al cerrar el modal
+    $('#modalInventario').on('hidden.bs.modal', function () {
+        $('#buscadorInventario').val('');
+        $("#tablaInventario tr").show();
+    });
+
+    // 6. Selección de producto
+    function seleccionar(codigo, desc, almacen) {
+        $('#codigo').val(codigo);
+        $('input[name="descripcion"]').val(desc).prop('readonly', true);
+        $('select[name="almacen"]').val(almacen).prop('disabled', true);
+    }
+</script>
+{% endblock %}

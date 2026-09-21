@@ -1,0 +1,13 @@
+venv/
+__pycache__/
+*.pyc
+.env
+serviceAccountKey.json
+db.sqlite3
+*.log
+*.sql
+codigos importantes.txt
+backups/
+*.msi
+*.exe
+.active_tunnel

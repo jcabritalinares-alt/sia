@@ -1,0 +1,697 @@
+{% extends 'base.html' %}
+
+{% block contenido %}
+<div class="container-fluid px-0">
+    <!-- Encabezado -->
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-4 gap-3">
+        <div>
+            <h2 class="fw-extrabold text-dark mb-1 d-flex align-items-center gap-2">
+                <i class="bi bi-people-fill text-primary"></i> Gestión de Usuarios y Permisos Manuales
+            </h2>
+            <p class="text-muted small mb-0">Control manual individual de roles, accesos a módulos y acciones (leer, crear, editar, eliminar, exportar) por usuario</p>
+        </div>
+    </div>
+
+    <!-- Datalist global para sugerencias de roles -->
+    <datalist id="roles_sugeridos">
+        <option value="Personalizado">
+        <option value="Administrador">
+        <option value="Coordinador de Almacén">
+        <option value="Operador de Entregas">
+        <option value="Atención al Ciudadano">
+        <option value="Auditor de Operaciones">
+        <option value="Supervisor General">
+        <option value="Asistente Social">
+        <option value="Analista de Inventario">
+    </datalist>
+
+    <div class="row g-4 mb-4">
+        <!-- Formulario para Crear Nuevo Usuario -->
+        <div class="col-12 col-lg-5 col-xl-4">
+            <div class="card border border-light shadow-sm rounded-4 p-4 h-100">
+                <h5 class="fw-bold text-dark mb-3 border-bottom pb-2 d-flex align-items-center gap-2">
+                    <i class="bi bi-person-plus-fill text-primary"></i> Registrar Nuevo Usuario
+                </h5>
+
+                <form method="POST" action="{% url 'registrar_usuario' %}" id="formCrearUsuario" autocomplete="off">
+                    {% csrf_token %}
+                    
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold text-secondary small">Nombre de Usuario (Login) <span class="text-danger">*</span></label>
+                        <div class="input-group">
+                            <span class="input-group-text bg-light text-muted border-end-0"><i class="bi bi-person"></i></span>
+                            <input type="text" name="username" class="form-control border-start-0" placeholder="Ej: operador_valera" required>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold text-secondary small">Contraseña <span class="text-danger">*</span></label>
+                        <div class="input-group">
+                            <span class="input-group-text bg-light text-muted border-end-0"><i class="bi bi-key"></i></span>
+                            <input type="password" name="password" class="form-control border-start-0" placeholder="••••••••" required>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold text-secondary small">Rol / Cargo Asignado <span class="text-danger">*</span></label>
+                        <div class="input-group">
+                            <span class="input-group-text bg-light text-muted border-end-0"><i class="bi bi-person-badge-fill text-primary"></i></span>
+                            <input type="text" name="rol" class="form-control border-start-0 fw-bold" list="roles_sugeridos" value="Personalizado" placeholder="Ej: Coordinador, Auditor, etc." required>
+                        </div>
+                        <div class="form-text small" style="font-size: 0.75rem;">Ingresa cualquier título descriptivo para identificar al usuario.</div>
+                    </div>
+
+                    {% if request.user.is_superuser %}
+                    <div class="mb-3 p-2 bg-danger bg-opacity-10 border border-danger border-opacity-25 rounded-3">
+                        <div class="form-check form-switch mb-0">
+                            <input class="form-check-input" type="checkbox" name="es_superuser" id="crear_es_superuser">
+                            <label class="form-check-label small fw-bold text-danger" for="crear_es_superuser">
+                                👑 Rango Superusuario (Acceso Total Django)
+                            </label>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <!-- Bloque de Selección Rápida de Módulos al Crear -->
+                    <div class="mb-4">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <label class="form-label fw-bold text-dark mb-0 small"><i class="bi bi-sliders text-primary me-1"></i> Módulos Habilitados:</label>
+                            <div class="btn-group btn-group-sm">
+                                <button type="button" class="btn btn-outline-primary btn-sm py-0 px-2" style="font-size: 0.72rem;" onclick="marcarTodosCrear(true)">Todos</button>
+                                <button type="button" class="btn btn-outline-secondary btn-sm py-0 px-2" style="font-size: 0.72rem;" onclick="marcarTodosCrear(false)">Ninguno</button>
+                            </div>
+                        </div>
+
+                        <div class="bg-light p-3 rounded-3 border" style="max-height: 250px; overflow-y: auto;">
+                            <div class="form-check form-switch mb-2">
+                                <input class="form-check-input crear-permiso-check" type="checkbox" name="permiso_dashboard" id="c_dash" checked>
+                                <label class="form-check-label small fw-semibold text-dark" for="c_dash">📊 Dashboard e Indicadores</label>
+                            </div>
+                            <div class="form-check form-switch mb-2">
+                                <input class="form-check-input crear-permiso-check" type="checkbox" name="permiso_estadisticas" id="c_est">
+                                <label class="form-check-label small fw-semibold text-dark" for="c_est">📈 Estadísticas Sociales</label>
+                            </div>
+                            <div class="form-check form-switch mb-2">
+                                <input class="form-check-input crear-permiso-check" type="checkbox" name="permiso_inventario" id="c_inv">
+                                <label class="form-check-label small fw-semibold text-dark" for="c_inv">📦 Inventario y Almacén</label>
+                            </div>
+                            <div class="form-check form-switch mb-2">
+                                <input class="form-check-input crear-permiso-check" type="checkbox" name="permiso_entradas" id="c_ent_in">
+                                <label class="form-check-label small fw-semibold text-dark" for="c_ent_in">🚚 Recepción de Entradas</label>
+                            </div>
+                            <div class="form-check form-switch mb-2">
+                                <input class="form-check-input crear-permiso-check" type="checkbox" name="permiso_atencion_ciudadano" id="c_aten" checked>
+                                <label class="form-check-label small fw-semibold text-dark" for="c_aten">🏛️ Atención al Ciudadano</label>
+                            </div>
+                            <div class="form-check form-switch mb-1">
+                                <input class="form-check-input crear-permiso-check" type="checkbox" name="permiso_entregas" id="c_ent" checked>
+                                <label class="form-check-label small fw-semibold text-dark" for="c_ent">🎁 Entregas de Beneficios</label>
+                            </div>
+                            <div class="form-check form-switch ms-3 mb-2 ps-4 py-1 bg-light rounded border border-warning border-opacity-25">
+                                <input class="form-check-input" type="checkbox" name="permiso_entregas_editar" id="c_ent_edit">
+                                <label class="form-check-label small fw-semibold text-dark" for="c_ent_edit" title="Habilitar permiso exclusivo para modificar cédula y datos del beneficiario en el historial">
+                                    ✏️ Permitir Editar Beneficiario
+                                </label>
+                            </div>
+                            <div class="form-check form-switch mb-2">
+                                <input class="form-check-input crear-permiso-check" type="checkbox" name="permiso_asignaciones_especiales" id="c_asig">
+                                <label class="form-check-label small fw-semibold text-dark" for="c_asig">🏢 Asignaciones Especiales</label>
+                            </div>
+                            <div class="form-check form-switch mb-2">
+                                <input class="form-check-input crear-permiso-check" type="checkbox" name="permiso_usuarios" id="c_usr">
+                                <label class="form-check-label small fw-semibold text-dark" for="c_usr">👥 Gestión de Usuarios</label>
+                            </div>
+                            <div class="form-check form-switch mb-2">
+                                <input class="form-check-input crear-permiso-check" type="checkbox" name="permiso_auditoria" id="c_aud">
+                                <label class="form-check-label small fw-semibold text-dark" for="c_aud">🛡️ Auditoría del Sistema</label>
+                            </div>
+                            <div class="form-check form-switch mb-0">
+                                <input class="form-check-input crear-permiso-check" type="checkbox" name="permiso_respaldos" id="c_resp">
+                                <label class="form-check-label small fw-semibold text-dark" for="c_resp">💾 Respaldos de Base de Datos</label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary-custom w-100 py-3 fs-6 d-flex align-items-center justify-content-center gap-2 fw-bold shadow-sm">
+                        <i class="bi bi-check-circle-fill fs-5"></i> Crear Usuario con Permisos
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Tabla de Usuarios Registrados y Roles -->
+        <div class="col-12 col-lg-7 col-xl-8">
+            <div class="card border border-light shadow-sm rounded-4 p-4 h-100">
+                <h5 class="fw-bold text-dark mb-3 border-bottom pb-2 d-flex align-items-center gap-2">
+                    <i class="bi bi-person-badge-fill text-primary"></i> Cuentas Registradas y Accesos
+                </h5>
+
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="bg-light text-secondary small text-uppercase fw-bold">
+                            <tr>
+                                <th>Usuario</th>
+                                <th class="text-center">Rol Asignado</th>
+                                <th class="text-center">Módulos Habilitados</th>
+                                <th class="text-center">Estado</th>
+                                <th class="text-end pe-3">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for u in usuarios %}
+                            <tr>
+                                <td>
+                                    <div class="fw-bold text-dark d-flex align-items-center gap-2">
+                                        <i class="bi bi-person-circle text-primary fs-5"></i> {{ u.username }}
+                                        {% if u.id == request.user.id %}
+                                            <span class="badge bg-primary bg-opacity-10 text-primary border border-primary px-2 py-0.5" style="font-size: 0.7rem;">Tú</span>
+                                        {% endif %}
+                                    </div>
+                                    <div class="small text-muted font-monospace" style="font-size: 0.75rem;">ID: #{{ u.id }}</div>
+                                </td>
+
+                                <td class="text-center">
+                                    {% if u.is_superuser %}
+                                        <span class="badge bg-danger text-white px-2.5 py-1.5 rounded-pill shadow-sm fw-bold">
+                                            👑 Superusuario
+                                        </span>
+                                        {% if u.rol and u.rol != 'Administrador' %}
+                                            <div class="small text-muted mt-1 fw-semibold" style="font-size: 0.72rem;">{{ u.rol }}</div>
+                                        {% endif %}
+                                    {% else %}
+                                        <span class="badge bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25 px-2.5 py-1.5 rounded-pill shadow-sm fw-bold">
+                                            {{ u.rol }}
+                                        </span>
+                                        <div class="mt-1">
+                                            {% if u.perfil.puede_editar_entregas %}
+                                                <span class="badge bg-warning bg-opacity-25 text-dark border border-warning border-opacity-50 px-2 py-0.5" style="font-size: 0.68rem;" title="Autorizado para modificar datos de beneficiarios en historial de entregas">
+                                                    <i class="bi bi-pencil-fill me-1"></i>Editor Beneficiarios
+                                                </span>
+                                            {% else %}
+                                                <span class="badge bg-light text-muted border px-1.5 py-0.5" style="font-size: 0.68rem;" title="Sin permiso para modificar entregas">
+                                                    <i class="bi bi-lock-fill me-1"></i>Sin Edición Entregas
+                                                </span>
+                                            {% endif %}
+                                        </div>
+                                    {% endif %}
+                                </td>
+
+                                <!-- Módulos Habilitados (Insignias de los 10 módulos) -->
+                                <td class="text-center">
+                                    {% if u.is_superuser %}
+                                        <span class="badge bg-dark text-white px-2.5 py-1.5 rounded-3 shadow-sm">Todos (10/10)</span>
+                                    {% else %}
+                                        <div class="d-flex flex-wrap gap-1 justify-content-center" style="max-width: 250px; margin: 0 auto;">
+                                            {% for cod, nom, ico, activo in u.perfil.lista_modulos_activos %}
+                                                {% if activo %}
+                                                    <span class="badge bg-light text-dark border px-1.5 py-1" style="font-size: 0.72rem;" title="{{ nom }}">
+                                                        {{ ico }} {{ nom }}
+                                                    </span>
+                                                {% endif %}
+                                            {% endfor %}
+                                        </div>
+                                        <div class="small text-muted font-monospace mt-1" style="font-size: 0.7rem;">
+                                            {{ u.perfil.total_modulos_activos }}/10 módulos
+                                        </div>
+                                    {% endif %}
+                                </td>
+
+                                <td class="text-center">
+                                    {% if u.is_active %}
+                                        <span class="badge bg-success bg-opacity-10 text-success fw-bold px-2.5 py-1 rounded-pill">
+                                            <i class="bi bi-check-circle-fill me-1"></i> Activo
+                                        </span>
+                                    {% else %}
+                                        <span class="badge bg-secondary bg-opacity-10 text-secondary fw-bold px-2.5 py-1 rounded-pill">
+                                            <i class="bi bi-x-circle-fill me-1"></i> Inactivo
+                                        </span>
+                                    {% endif %}
+                                </td>
+
+                                <td class="text-end pe-3">
+                                    <div class="d-flex justify-content-end gap-1">
+                                        <!-- 1. Modificar Permisos de Módulos -->
+                                        <button class="btn btn-sm btn-outline-primary rounded-3 p-1" style="width: 32px; height: 32px;" data-bs-toggle="modal" data-bs-target="#modalPermisos{{ u.id }}" title="Gestionar Permisos por Módulo y Acciones">
+                                            <i class="bi bi-sliders"></i>
+                                        </button>
+
+                                        <!-- 2. Cambiar Contraseña -->
+                                        <button class="btn btn-sm btn-outline-dark rounded-3 p-1" style="width: 32px; height: 32px;" data-bs-toggle="modal" data-bs-target="#modalPassword{{ u.id }}" title="Cambiar Contraseña">
+                                            <i class="bi bi-key-fill"></i>
+                                        </button>
+
+                                        <!-- 3. Activar/Desactivar Cuenta -->
+                                        {% if u.id != request.user.id %}
+                                            <form method="POST" action="{% url 'alternar_estado_usuario' u.id %}" class="d-inline">
+                                                {% csrf_token %}
+                                                <button type="submit" class="btn btn-sm {% if u.is_active %}btn-outline-warning{% else %}btn-outline-success{% endif %} rounded-3 p-1" style="width: 32px; height: 32px;" title="{% if u.is_active %}Desactivar Cuenta{% else %}Activar Cuenta{% endif %}">
+                                                    <i class="bi {% if u.is_active %}bi-person-x-fill{% else %}bi-person-check-fill{% endif %}"></i>
+                                                </button>
+                                            </form>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="5" class="text-center text-muted py-4">No hay usuarios registrados.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modales por Usuario -->
+{% for u in usuarios %}
+
+<!-- 1. Modal Cambiar Contraseña -->
+<div class="modal fade" id="modalPassword{{ u.id }}" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg rounded-4">
+            <form method="POST" action="{% url 'cambiar_password_usuario' u.id %}">
+                {% csrf_token %}
+                <div class="modal-header border-bottom">
+                    <h5 class="modal-title fw-bold text-dark"><i class="bi bi-key-fill text-primary me-2"></i>Cambiar Contraseña de {{ u.username }}</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold text-secondary small">Nueva Contraseña <span class="text-danger">*</span></label>
+                        <input type="password" name="nueva_password" class="form-control" placeholder="••••••••" required autofocus>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold text-secondary small">Confirmar Nueva Contraseña <span class="text-danger">*</span></label>
+                        <input type="password" name="confirmar_password" class="form-control" placeholder="••••••••" required>
+                    </div>
+                </div>
+                <div class="modal-footer border-top justify-content-between">
+                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary-custom px-4 fw-bold shadow-sm">
+                        <i class="bi bi-check-circle-fill me-1"></i> Guardar Nueva Contraseña
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- 2. Modal Permisos Granulares y Rol Manual por Usuario -->
+<div class="modal fade" id="modalPermisos{{ u.id }}" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content border-0 shadow-lg rounded-4">
+            <form method="POST" action="{% url 'actualizar_permisos_usuario' u.id %}">
+                {% csrf_token %}
+                <div class="modal-header border-bottom">
+                    <h5 class="modal-title fw-bold text-dark"><i class="bi bi-shield-check text-primary me-2"></i>Configuración Manual de Permisos — {{ u.username }}</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <!-- Configuración de Rol / Título y Atajos Rápidos -->
+                    <div class="p-3 bg-light rounded-4 border mb-4">
+                        <div class="row align-items-center g-3">
+                            <div class="col-12 col-md-6">
+                                <label class="form-label fw-bold text-dark small mb-1"><i class="bi bi-person-badge text-primary me-1"></i> Rol / Cargo Personalizado:</label>
+                                <input type="text" name="rol" class="form-control fw-bold border-primary" list="roles_sugeridos" value="{{ u.rol }}" placeholder="Ej: Coordinador de Almacén, Auditor, etc." required>
+                            </div>
+                            <div class="col-12 col-md-6 text-md-end">
+                                <label class="form-label fw-semibold text-muted small d-block mb-1">Acciones Rápidas:</label>
+                                <div class="btn-group btn-group-sm shadow-sm">
+                                    <button type="button" class="btn btn-outline-primary" onclick="toggleModalCheckboxes('{{ u.id }}', true)">
+                                        <i class="bi bi-check-all me-1"></i>Marcar Todos
+                                    </button>
+                                    <button type="button" class="btn btn-outline-secondary" onclick="toggleModalCheckboxes('{{ u.id }}', false)">
+                                        <i class="bi bi-x me-1"></i>Desmarcar
+                                    </button>
+                                    <button type="button" class="btn btn-outline-info" onclick="soloLecturaModalCheckboxes('{{ u.id }}')">
+                                        <i class="bi bi-eye me-1"></i>Solo Lectura
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        {% if request.user.is_superuser %}
+                        <div class="mt-3 pt-2 border-top">
+                            <div class="form-check form-switch mb-0">
+                                <input class="form-check-input" type="checkbox" name="es_superuser" id="sup{{ u.id }}" {% if u.is_superuser %}checked{% endif %}>
+                                <label class="form-check-label small fw-bold text-danger" for="sup{{ u.id }}">
+                                    👑 Asignar Rango Superusuario (Root Admin Django - Acceso Maestro)
+                                </label>
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    <h6 class="fw-bold text-secondary border-bottom pb-2 mb-3 d-flex justify-content-between align-items-center">
+                        <span><i class="bi bi-sliders me-1 text-primary"></i> Permisos Granulares por Módulo y Acciones</span>
+                        <small class="text-muted fw-normal" style="font-size: 0.75rem;">(Activa el módulo y selecciona qué acciones puede realizar el usuario)</small>
+                    </h6>
+
+                    <div class="row g-3">
+                        <!-- Módulo 1: Dashboard -->
+                        <div class="col-12 col-md-6">
+                            <div class="card p-3 border rounded-3 bg-light h-100 shadow-sm">
+                                <div class="form-check form-switch mb-1">
+                                    <input class="form-check-input mod-switch-{{ u.id }}" type="checkbox" name="permiso_dashboard" id="dash{{ u.id }}" {% if u.perfil.permisos_detalle.dashboard.activo or u.perfil.permiso_dashboard or u.is_superuser %}checked{% endif %}>
+                                    <label class="form-check-label fw-bold text-dark" for="dash{{ u.id }}">
+                                        📊 Dashboard e Indicadores
+                                    </label>
+                                </div>
+                                <div class="small text-muted mb-2" style="font-size: 0.78rem;">Panel resumen de control y métricas globales.</div>
+                                <div class="bg-white p-2 rounded border">
+                                    <div class="d-flex flex-wrap gap-2">
+                                        <div class="form-check form-check-inline me-2 mb-0">
+                                            <input class="form-check-input mod-action-leer-{{ u.id }}" type="checkbox" name="permiso_dashboard_leer" id="dash_leer{{ u.id }}" {% if u.is_superuser or u.perfil.permisos_detalle.dashboard.leer != False %}checked{% endif %}>
+                                            <label class="form-check-label small fw-semibold text-dark" for="dash_leer{{ u.id }}" style="font-size: 0.76rem;">👁️ Ver Panel</label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Módulo 2: Estadísticas Avanzadas -->
+                        <div class="col-12 col-md-6">
+                            <div class="card p-3 border rounded-3 bg-light h-100 shadow-sm">
+                                <div class="form-check form-switch mb-1">
+                                    <input class="form-check-input mod-switch-{{ u.id }}" type="checkbox" name="permiso_estadisticas" id="est{{ u.id }}" {% if u.perfil.permisos_detalle.estadisticas.activo or u.perfil.permiso_estadisticas or u.is_superuser %}checked{% endif %}>
+                                    <label class="form-check-label fw-bold text-dark" for="est{{ u.id }}">
+                                        📈 Estadísticas e Inteligencia Social
+                                    </label>
+                                </div>
+                                <div class="small text-muted mb-2" style="font-size: 0.78rem;">Gráficos interactivos y análisis de datos.</div>
+                                <div class="bg-white p-2 rounded border">
+                                    <div class="d-flex flex-wrap gap-2">
+                                        <div class="form-check form-check-inline me-2 mb-0">
+                                            <input class="form-check-input mod-action-leer-{{ u.id }}" type="checkbox" name="permiso_estadisticas_leer" id="est_leer{{ u.id }}" {% if u.is_superuser or u.perfil.permisos_detalle.estadisticas.leer != False %}checked{% endif %}>
+                                            <label class="form-check-label small fw-semibold text-dark" for="est_leer{{ u.id }}" style="font-size: 0.76rem;">👁️ Ver Gráficos</label>
+                                        </div>
+                                        <div class="form-check form-check-inline mb-0">
+                                            <input class="form-check-input mod-action-other-{{ u.id }}" type="checkbox" name="permiso_estadisticas_imprimir" id="est_imp{{ u.id }}" {% if u.is_superuser or u.perfil.puede_imprimir_estadisticas %}checked{% endif %}>
+                                            <label class="form-check-label small fw-semibold text-primary" for="est_imp{{ u.id }}" style="font-size: 0.76rem;">🖨️ Reporte PDF</label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Módulo 3: Inventario y Almacén -->
+                        <div class="col-12 col-md-6">
+                            <div class="card p-3 border rounded-3 bg-light h-100 shadow-sm">
+                                <div class="form-check form-switch mb-1">
+                                    <input class="form-check-input mod-switch-{{ u.id }}" type="checkbox" name="permiso_inventario" id="inv{{ u.id }}" {% if u.perfil.permisos_detalle.inventario.activo or u.perfil.permiso_inventario or u.is_superuser %}checked{% endif %}>
+                                    <label class="form-check-label fw-bold text-dark" for="inv{{ u.id }}">
+                                        📦 Inventario y Almacén
+                                    </label>
+                                </div>
+                                <div class="small text-muted mb-2" style="font-size: 0.78rem;">Catálogo de existencias y productos.</div>
+                                <div class="bg-white p-2 rounded border">
+                                    <div class="d-flex flex-wrap gap-2">
+                                        <div class="form-check me-2 mb-0">
+                                            <input class="form-check-input mod-action-leer-{{ u.id }}" type="checkbox" name="permiso_inventario_leer" id="inv_leer{{ u.id }}" {% if u.is_superuser or u.perfil.permisos_detalle.inventario.leer != False %}checked{% endif %}>
+                                            <label class="form-check-label small fw-semibold text-dark" for="inv_leer{{ u.id }}" style="font-size: 0.76rem;">👁️ Leer/Ver</label>
+                                        </div>
+                                        <div class="form-check me-2 mb-0">
+                                            <input class="form-check-input mod-action-other-{{ u.id }}" type="checkbox" name="permiso_inventario_crear" id="inv_crear{{ u.id }}" {% if u.is_superuser or u.perfil.permisos_detalle.inventario.crear %}checked{% endif %}>
+                                            <label class="form-check-label small fw-semibold text-dark" for="inv_crear{{ u.id }}" style="font-size: 0.76rem;">➕ Crear</label>
+                                        </div>
+                                        <div class="form-check me-2 mb-0">
+                                            <input class="form-check-input mod-action-other-{{ u.id }}" type="checkbox" name="permiso_inventario_editar" id="inv_editar{{ u.id }}" {% if u.is_superuser or u.perfil.permisos_detalle.inventario.editar %}checked{% endif %}>
+                                            <label class="form-check-label small fw-semibold text-dark" for="inv_editar{{ u.id }}" style="font-size: 0.76rem;">✏️ Editar/Guardar</label>
+                                        </div>
+                                        <div class="form-check me-2 mb-0">
+                                            <input class="form-check-input mod-action-other-{{ u.id }}" type="checkbox" name="permiso_inventario_imprimir" id="inv_imp{{ u.id }}" {% if u.is_superuser or u.perfil.puede_imprimir_inventario %}checked{% endif %}>
+                                            <label class="form-check-label small fw-semibold text-primary" for="inv_imp{{ u.id }}" style="font-size: 0.76rem;">🖨️ Exportar Excel</label>
+                                        </div>
+                                        <div class="form-check mb-0">
+                                            <input class="form-check-input mod-action-other-{{ u.id }}" type="checkbox" name="permiso_inventario_eliminar" id="inv_eliminar{{ u.id }}" {% if u.is_superuser or u.perfil.permisos_detalle.inventario.eliminar %}checked{% endif %}>
+                                            <label class="form-check-label small fw-semibold text-danger" for="inv_eliminar{{ u.id }}" style="font-size: 0.76rem;">🗑️ Eliminar</label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Módulo 4: Recepciones y Entradas -->
+                        <div class="col-12 col-md-6">
+                            <div class="card p-3 border rounded-3 bg-light h-100 shadow-sm">
+                                <div class="form-check form-switch mb-1">
+                                    <input class="form-check-input mod-switch-{{ u.id }}" type="checkbox" name="permiso_entradas" id="ent_in{{ u.id }}" {% if u.perfil.permisos_detalle.entradas.activo or u.perfil.permiso_entradas or u.is_superuser %}checked{% endif %}>
+                                    <label class="form-check-label fw-bold text-dark" for="ent_in{{ u.id }}">
+                                        🚚 Recepción de Entradas
+                                    </label>
+                                </div>
+                                <div class="small text-muted mb-2" style="font-size: 0.78rem;">Ingreso y carga de mercancía de proveedores.</div>
+                                <div class="bg-white p-2 rounded border">
+                                    <div class="d-flex flex-wrap gap-2">
+                                        <div class="form-check me-2 mb-0">
+                                            <input class="form-check-input mod-action-leer-{{ u.id }}" type="checkbox" name="permiso_entradas_leer" id="ent_in_leer{{ u.id }}" {% if u.is_superuser or u.perfil.permisos_detalle.entradas.leer != False %}checked{% endif %}>
+                                            <label class="form-check-label small fw-semibold text-dark" for="ent_in_leer{{ u.id }}" style="font-size: 0.76rem;">👁️ Leer/Ver</label>
+                                        </div>
+                                        <div class="form-check me-2 mb-0">
+                                            <input class="form-check-input mod-action-other-{{ u.id }}" type="checkbox" name="permiso_entradas_crear" id="ent_in_crear{{ u.id }}" {% if u.is_superuser or u.perfil.permisos_detalle.entradas.crear %}checked{% endif %}>
+                                            <label class="form-check-label small fw-semibold text-dark" for="ent_in_crear{{ u.id }}" style="font-size: 0.76rem;">➕ Registrar Entrada</label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Módulo 5: Atención al Ciudadano -->
+                        <div class="col-12 col-md-6">
+                            <div class="card p-3 border rounded-3 bg-light h-100 shadow-sm">
+                                <div class="form-check form-switch mb-1">
+                                    <input class="form-check-input mod-switch-{{ u.id }}" type="checkbox" name="permiso_atencion_ciudadano" id="aten{{ u.id }}" {% if u.perfil.permisos_detalle.atencion_ciudadano.activo or u.perfil.permiso_atencion_ciudadano or u.is_superuser %}checked{% endif %}>
+                                    <label class="form-check-label fw-bold text-dark" for="aten{{ u.id }}">
+                                        🏛️ Atención al Ciudadano
+                                    </label>
+                                </div>
+                                <div class="small text-muted mb-2" style="font-size: 0.78rem;">Solicitudes sociales de apoyo y seguimiento.</div>
+                                <div class="bg-white p-2 rounded border">
+                                    <div class="d-flex flex-wrap gap-2">
+                                        <div class="form-check me-2 mb-0">
+                                            <input class="form-check-input mod-action-leer-{{ u.id }}" type="checkbox" name="permiso_atencion_ciudadano_leer" id="aten_leer{{ u.id }}" {% if u.is_superuser or u.perfil.permisos_detalle.atencion_ciudadano.leer != False %}checked{% endif %}>
+                                            <label class="form-check-label small fw-semibold text-dark" for="aten_leer{{ u.id }}" style="font-size: 0.76rem;">👁️ Leer/Ver</label>
+                                        </div>
+                                        <div class="form-check me-2 mb-0">
+                                            <input class="form-check-input mod-action-other-{{ u.id }}" type="checkbox" name="permiso_atencion_ciudadano_crear" id="aten_crear{{ u.id }}" {% if u.is_superuser or u.perfil.permisos_detalle.atencion_ciudadano.crear %}checked{% endif %}>
+                                            <label class="form-check-label small fw-semibold text-dark" for="aten_crear{{ u.id }}" style="font-size: 0.76rem;">➕ Crear</label>
+                                        </div>
+                                        <div class="form-check me-2 mb-0">
+                                            <input class="form-check-input mod-action-other-{{ u.id }}" type="checkbox" name="permiso_atencion_ciudadano_editar" id="aten_editar{{ u.id }}" {% if u.is_superuser or u.perfil.permisos_detalle.atencion_ciudadano.editar %}checked{% endif %}>
+                                            <label class="form-check-label small fw-semibold text-dark" for="aten_editar{{ u.id }}" style="font-size: 0.76rem;">✏️ Editar/Guardar</label>
+                                        </div>
+                                        <div class="form-check me-2 mb-0">
+                                            <input class="form-check-input mod-action-other-{{ u.id }}" type="checkbox" name="permiso_atencion_ciudadano_imprimir" id="aten_imp{{ u.id }}" {% if u.is_superuser or u.perfil.puede_imprimir_atencion %}checked{% endif %}>
+                                            <label class="form-check-label small fw-semibold text-primary" for="aten_imp{{ u.id }}" style="font-size: 0.76rem;">🖨️ Imprimir / PDF</label>
+                                        </div>
+                                        <div class="form-check mb-0">
+                                            <input class="form-check-input mod-action-other-{{ u.id }}" type="checkbox" name="permiso_atencion_ciudadano_eliminar" id="aten_eliminar{{ u.id }}" {% if u.is_superuser or u.perfil.permisos_detalle.atencion_ciudadano.eliminar %}checked{% endif %}>
+                                            <label class="form-check-label small fw-semibold text-danger" for="aten_eliminar{{ u.id }}" style="font-size: 0.76rem;">🗑️ Eliminar</label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Módulo 6: Entregas de Beneficios -->
+                        <div class="col-12 col-md-6">
+                            <div class="card p-3 border rounded-3 bg-light h-100 shadow-sm">
+                                <div class="form-check form-switch mb-1">
+                                    <input class="form-check-input mod-switch-{{ u.id }}" type="checkbox" name="permiso_entregas" id="ent{{ u.id }}" {% if u.perfil.permisos_detalle.entregas.activo or u.perfil.permiso_entregas or u.is_superuser %}checked{% endif %}>
+                                    <label class="form-check-label fw-bold text-dark" for="ent{{ u.id }}">
+                                        🎁 Entregas de Beneficios
+                                    </label>
+                                </div>
+                                <div class="small text-muted mb-2" style="font-size: 0.78rem;">Despacho directo, firma digital y tickets.</div>
+                                <div class="bg-white p-2 rounded border">
+                                    <div class="d-flex flex-wrap gap-2">
+                                        <div class="form-check me-2 mb-0">
+                                            <input class="form-check-input mod-action-leer-{{ u.id }}" type="checkbox" name="permiso_entregas_leer" id="ent_leer{{ u.id }}" {% if u.is_superuser or u.perfil.permisos_detalle.entregas.leer != False %}checked{% endif %}>
+                                            <label class="form-check-label small fw-semibold text-dark" for="ent_leer{{ u.id }}" style="font-size: 0.76rem;">👁️ Leer/Ver</label>
+                                        </div>
+                                        <div class="form-check me-2 mb-0">
+                                            <input class="form-check-input mod-action-other-{{ u.id }}" type="checkbox" name="permiso_entregas_crear" id="ent_crear{{ u.id }}" {% if u.is_superuser or u.perfil.permisos_detalle.entregas.crear %}checked{% endif %}>
+                                            <label class="form-check-label small fw-semibold text-dark" for="ent_crear{{ u.id }}" style="font-size: 0.76rem;">➕ Registrar Entrega</label>
+                                        </div>
+                                        <div class="form-check me-2 mb-0">
+                                            <input class="form-check-input mod-action-other-{{ u.id }}" type="checkbox" name="permiso_entregas_editar" id="ent_editar{{ u.id }}" {% if u.is_superuser or u.perfil.puede_editar_entregas %}checked{% endif %}>
+                                            <label class="form-check-label small fw-bold text-warning-emphasis bg-warning bg-opacity-25 px-1.5 py-0.5 rounded border border-warning border-opacity-50" for="ent_editar{{ u.id }}" style="font-size: 0.76rem;" title="Permite modificar la cédula, nombre, teléfono y dirección del beneficiario en el historial">
+                                                ✏️ Editar Beneficiario
+                                            </label>
+                                        </div>
+                                        <div class="form-check me-2 mb-0">
+                                            <input class="form-check-input mod-action-other-{{ u.id }}" type="checkbox" name="permiso_entregas_cambiar_estatus" id="ent_estatus{{ u.id }}" {% if u.is_superuser or u.perfil.puede_cambiar_estatus_entregas %}checked{% endif %}>
+                                            <label class="form-check-label small fw-semibold text-dark" for="ent_estatus{{ u.id }}" style="font-size: 0.76rem;" title="Permite cambiar estado entre Pendiente y Entregado">
+                                                🔄 Cambiar Estatus
+                                            </label>
+                                        </div>
+                                        <div class="form-check me-2 mb-0">
+                                            <input class="form-check-input mod-action-other-{{ u.id }}" type="checkbox" name="permiso_entregas_imprimir" id="ent_imp{{ u.id }}" {% if u.is_superuser or u.perfil.puede_imprimir_entregas %}checked{% endif %}>
+                                            <label class="form-check-label small fw-semibold text-primary" for="ent_imp{{ u.id }}" style="font-size: 0.76rem;">🖨️ Imprimir Tickets</label>
+                                        </div>
+                                        <div class="form-check mb-0">
+                                            <input class="form-check-input mod-action-other-{{ u.id }}" type="checkbox" name="permiso_entregas_eliminar" id="ent_eliminar{{ u.id }}" {% if u.is_superuser or u.perfil.permisos_detalle.entregas.eliminar %}checked{% endif %}>
+                                            <label class="form-check-label small fw-semibold text-danger" for="ent_eliminar{{ u.id }}" style="font-size: 0.76rem;">🗑️ Eliminar</label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Módulo 7: Asignaciones Especiales -->
+                        <div class="col-12 col-md-6">
+                            <div class="card p-3 border rounded-3 bg-light h-100 shadow-sm">
+                                <div class="form-check form-switch mb-1">
+                                    <input class="form-check-input mod-switch-{{ u.id }}" type="checkbox" name="permiso_asignaciones_especiales" id="asig{{ u.id }}" {% if u.perfil.permisos_detalle.asignaciones_especiales.activo or u.perfil.permiso_asignaciones_especiales or u.is_superuser %}checked{% endif %}>
+                                    <label class="form-check-label fw-bold text-dark" for="asig{{ u.id }}">
+                                        🏢 Asignaciones Especiales
+                                    </label>
+                                </div>
+                                <div class="small text-muted mb-2" style="font-size: 0.78rem;">Salidas a dependencias e instituciones.</div>
+                                <div class="bg-white p-2 rounded border">
+                                    <div class="d-flex flex-wrap gap-2">
+                                        <div class="form-check me-2 mb-0">
+                                            <input class="form-check-input mod-action-leer-{{ u.id }}" type="checkbox" name="permiso_asignaciones_especiales_leer" id="asig_leer{{ u.id }}" {% if u.is_superuser or u.perfil.permisos_detalle.asignaciones_especiales.leer != False %}checked{% endif %}>
+                                            <label class="form-check-label small fw-semibold text-dark" for="asig_leer{{ u.id }}" style="font-size: 0.76rem;">👁️ Leer/Ver</label>
+                                        </div>
+                                        <div class="form-check me-2 mb-0">
+                                            <input class="form-check-input mod-action-other-{{ u.id }}" type="checkbox" name="permiso_asignaciones_especiales_crear" id="asig_crear{{ u.id }}" {% if u.is_superuser or u.perfil.permisos_detalle.asignaciones_especiales.crear %}checked{% endif %}>
+                                            <label class="form-check-label small fw-semibold text-dark" for="asig_crear{{ u.id }}" style="font-size: 0.76rem;">➕ Registrar</label>
+                                        </div>
+                                        <div class="form-check me-2 mb-0">
+                                            <input class="form-check-input mod-action-other-{{ u.id }}" type="checkbox" name="permiso_asignaciones_especiales_imprimir" id="asig_imp{{ u.id }}" {% if u.is_superuser or u.perfil.puede_imprimir_asignaciones %}checked{% endif %}>
+                                            <label class="form-check-label small fw-semibold text-primary" for="asig_imp{{ u.id }}" style="font-size: 0.76rem;">🖨️ Comprobante PDF</label>
+                                        </div>
+                                        <div class="form-check mb-0">
+                                            <input class="form-check-input mod-action-other-{{ u.id }}" type="checkbox" name="permiso_asignaciones_especiales_eliminar" id="asig_eliminar{{ u.id }}" {% if u.is_superuser or u.perfil.permisos_detalle.asignaciones_especiales.eliminar %}checked{% endif %}>
+                                            <label class="form-check-label small fw-semibold text-danger" for="asig_eliminar{{ u.id }}" style="font-size: 0.76rem;">🗑️ Eliminar</label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Módulo 8: Gestión de Usuarios -->
+                        <div class="col-12 col-md-6">
+                            <div class="card p-3 border rounded-3 bg-light h-100 shadow-sm">
+                                <div class="form-check form-switch mb-1">
+                                    <input class="form-check-input mod-switch-{{ u.id }}" type="checkbox" name="permiso_usuarios" id="usr{{ u.id }}" {% if u.perfil.permisos_detalle.usuarios.activo or u.perfil.permiso_usuarios or u.is_superuser %}checked{% endif %}>
+                                    <label class="form-check-label fw-bold text-dark" for="usr{{ u.id }}">
+                                        👥 Gestión de Usuarios y Permisos
+                                    </label>
+                                </div>
+                                <div class="small text-muted mb-2" style="font-size: 0.78rem;">Creación de cuentas, claves y asignación de roles.</div>
+                                <div class="bg-white p-2 rounded border">
+                                    <div class="d-flex flex-wrap gap-2">
+                                        <div class="form-check me-2 mb-0">
+                                            <input class="form-check-input mod-action-leer-{{ u.id }}" type="checkbox" name="permiso_usuarios_leer" id="usr_leer{{ u.id }}" {% if u.is_superuser or u.perfil.permisos_detalle.usuarios.leer != False %}checked{% endif %}>
+                                            <label class="form-check-label small fw-semibold text-dark" for="usr_leer{{ u.id }}" style="font-size: 0.76rem;">👁️ Leer/Ver</label>
+                                        </div>
+                                        <div class="form-check me-2 mb-0">
+                                            <input class="form-check-input mod-action-other-{{ u.id }}" type="checkbox" name="permiso_usuarios_crear" id="usr_crear{{ u.id }}" {% if u.is_superuser or u.perfil.permisos_detalle.usuarios.crear %}checked{% endif %}>
+                                            <label class="form-check-label small fw-semibold text-dark" for="usr_crear{{ u.id }}" style="font-size: 0.76rem;">➕ Crear Cuentas</label>
+                                        </div>
+                                        <div class="form-check mb-0">
+                                            <input class="form-check-input mod-action-other-{{ u.id }}" type="checkbox" name="permiso_usuarios_editar" id="usr_editar{{ u.id }}" {% if u.is_superuser or u.perfil.permisos_detalle.usuarios.editar %}checked{% endif %}>
+                                            <label class="form-check-label small fw-semibold text-dark" for="usr_editar{{ u.id }}" style="font-size: 0.76rem;">✏️ Modificar Permisos</label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Módulo 9: Auditoría del Sistema -->
+                        <div class="col-12 col-md-6">
+                            <div class="card p-3 border rounded-3 bg-light h-100 shadow-sm">
+                                <div class="form-check form-switch mb-1">
+                                    <input class="form-check-input mod-switch-{{ u.id }}" type="checkbox" name="permiso_auditoria" id="aud{{ u.id }}" {% if u.perfil.permisos_detalle.auditoria.activo or u.perfil.permiso_auditoria or u.is_superuser %}checked{% endif %}>
+                                    <label class="form-check-label fw-bold text-dark" for="aud{{ u.id }}">
+                                        🛡️ Auditoría del Sistema
+                                    </label>
+                                </div>
+                                <div class="small text-muted mb-2" style="font-size: 0.78rem;">Logs inalterables de eventos y accesos.</div>
+                                <div class="bg-white p-2 rounded border">
+                                    <div class="d-flex flex-wrap gap-2">
+                                        <div class="form-check me-2 mb-0">
+                                            <input class="form-check-input mod-action-leer-{{ u.id }}" type="checkbox" name="permiso_auditoria_leer" id="aud_leer{{ u.id }}" {% if u.is_superuser or u.perfil.permisos_detalle.auditoria.leer != False %}checked{% endif %}>
+                                            <label class="form-check-label small fw-semibold text-dark" for="aud_leer{{ u.id }}" style="font-size: 0.76rem;">👁️ Ver Logs Auditoría</label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Módulo 10: Respaldos de Base de Datos -->
+                        <div class="col-12 col-md-6">
+                            <div class="card p-3 border rounded-3 bg-light h-100 shadow-sm">
+                                <div class="form-check form-switch mb-1">
+                                    <input class="form-check-input mod-switch-{{ u.id }}" type="checkbox" name="permiso_respaldos" id="resp{{ u.id }}" {% if u.perfil.permisos_detalle.respaldos.activo or u.perfil.permiso_respaldos or u.is_superuser %}checked{% endif %}>
+                                    <label class="form-check-label fw-bold text-dark" for="resp{{ u.id }}">
+                                        💾 Respaldos de Base de Datos
+                                    </label>
+                                </div>
+                                <div class="small text-muted mb-2" style="font-size: 0.78rem;">Copias de seguridad y restauración.</div>
+                                <div class="bg-white p-2 rounded border">
+                                    <div class="d-flex flex-wrap gap-2">
+                                        <div class="form-check me-2 mb-0">
+                                            <input class="form-check-input mod-action-other-{{ u.id }}" type="checkbox" name="permiso_respaldos_crear" id="resp_crear{{ u.id }}" {% if u.is_superuser or u.perfil.permisos_detalle.respaldos.crear %}checked{% endif %}>
+                                            <label class="form-check-label small fw-semibold text-dark" for="resp_crear{{ u.id }}" style="font-size: 0.76rem;">💾 Crear Copias BD</label>
+                                        </div>
+                                        <div class="form-check mb-0">
+                                            <input class="form-check-input mod-action-other-{{ u.id }}" type="checkbox" name="permiso_respaldos_eliminar" id="resp_eliminar{{ u.id }}" {% if u.is_superuser or u.perfil.permisos_detalle.respaldos.eliminar %}checked{% endif %}>
+                                            <label class="form-check-label small fw-semibold text-danger" for="resp_eliminar{{ u.id }}" style="font-size: 0.76rem;">🗑️ Eliminar Copias</label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+                <div class="modal-footer border-top justify-content-between">
+                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary-custom px-4 fw-bold shadow-sm">
+                        <i class="bi bi-shield-check me-1"></i> Guardar Permisos Manuales
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endfor %}
+
+<!-- Script para control manual rápido de casillas -->
+<script>
+function toggleModalCheckboxes(userId, checked) {
+    const modal = document.getElementById('modalPermisos' + userId);
+    if (!modal) return;
+    const checkboxes = modal.querySelectorAll('input[type="checkbox"]');
+    checkboxes.forEach(cb => {
+        if (cb.name !== 'es_superuser') {
+            cb.checked = checked;
+        }
+    });
+}
+
+function soloLecturaModalCheckboxes(userId) {
+    const modal = document.getElementById('modalPermisos' + userId);
+    if (!modal) return;
+    // Activar los switches de módulos y casillas de lectura, apagar el resto
+    modal.querySelectorAll('.mod-switch-' + userId).forEach(sw => sw.checked = true);
+    modal.querySelectorAll('.mod-action-leer-' + userId).forEach(cb => cb.checked = true);
+    modal.querySelectorAll('.mod-action-other-' + userId).forEach(cb => cb.checked = false);
+}
+
+function marcarTodosCrear(checked) {
+    const form = document.getElementById('formCrearUsuario');
+    if (!form) return;
+    form.querySelectorAll('.crear-permiso-check').forEach(cb => {
+        cb.checked = checked;
+    });
+}
+</script>
+{% endblock %}

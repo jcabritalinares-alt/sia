@@ -1,0 +1,31 @@
+query GetProductsByCategory($categoryId: UUID!) @auth(level: PUBLIC) {
+  products(where: {categoryId: {eq: $categoryId}}) {
+    name
+    sku
+    unitPrice
+  }
+}
+
+mutation CreateProduct($name: String!, $sku: String!, $unitPrice: Float!, $categoryId: UUID!) @auth(level: USER) {
+  product_insert(data: {
+    name: $name,
+    sku: $sku,
+    unitPrice: $unitPrice,
+    categoryId: $categoryId,
+    currentQuantity: 0
+  })
+}
+
+mutation UpdateStock($id: UUID!, $quantity: Int!) @auth(level: USER) {
+  product_update(id: $id, data: {currentQuantity: $quantity})
+}
+
+mutation LogTransaction($productId: UUID!, $quantity: Int!, $type: String!, $notes: String) @auth(level: USER) {
+  stockTransaction_insert(data: {
+    productId: $productId,
+    quantityChange: $quantity,
+    type: $type,
+    notes: $notes,
+    timestamp_expr: "request.time"
+  })
+}

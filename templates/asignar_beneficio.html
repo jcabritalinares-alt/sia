@@ -1,0 +1,1598 @@
+{% extends 'base.html' %}
+
+{% block style %}
+<style>
+    .autocomplete-items {
+        position: absolute;
+        border: 1px solid #cbd5e1;
+        border-top: none;
+        z-index: 99;
+        top: 100%;
+        left: 0;
+        right: 0;
+        background-color: #ffffff;
+        border-radius: 0 0 10px 10px;
+        box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+        max-height: 200px;
+        overflow-y: auto;
+    }
+    .autocomplete-item {
+        padding: 10px 14px;
+        cursor: pointer;
+        font-size: 0.9rem;
+        transition: background 0.15s ease;
+    }
+    .autocomplete-item:hover {
+        background-color: #eef2ff;
+        color: #4f46e5;
+    }
+    #signatureCanvas {
+        border: 2px dashed #cbd5e1;
+        border-radius: 12px;
+        background-color: #fafafa;
+        touch-action: none;
+        cursor: crosshair;
+    }
+</style>
+{% endblock %}
+
+{% block contenido %}
+<div class="container-fluid px-0">
+    <!-- Encabezado -->
+    <div class="mb-4">
+        <h2 class="fw-extrabold text-dark mb-1 d-flex align-items-center gap-2">
+            <i class="bi bi-heart-pulse-fill text-danger"></i> Registrar Entrega de Beneficio
+        </h2>
+        <p class="text-muted small mb-0">Asignación de ayuda con firma digital del beneficiario y descuento automático de inventario</p>
+    </div>
+    
+    {% if solicitud_id %}
+    <!-- Banner de Solicitud Vinculada -->
+    <div class="alert alert-primary border-primary border-opacity-25 rounded-4 shadow-sm p-3.5 mb-4 d-flex align-items-center gap-3">
+        <div class="fs-2 text-primary"><i class="bi bi-box-arrow-right"></i></div>
+        <div>
+            <h6 class="fw-bold text-dark mb-1">Vinculado a Solicitud de Atención al Ciudadano #{{ solicitud_id }}</h6>
+            <div class="small text-secondary">
+                <strong>Tipo de Requerimiento Solicitado:</strong> <span class="badge bg-primary px-2.5 py-1 text-white ms-1">{{ tipo_solicitud|default:"Atención Social" }}</span>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Alerta Flotante de Verificación de Beneficio Previo -->
+    <div id="msgBloqueoBeneficio" class="alert rounded-4 p-3.5 mb-4 border-0 align-items-center gap-3 shadow-sm" style="display: none;">
+        <i id="msgBloqueoIcono" class="bi bi-shield-slash-fill fs-2"></i>
+        <div class="flex-grow-1">
+            <h6 id="msgBloqueoTitulo" class="fw-bold mb-1">Verificación de Beneficio</h6>
+            <div id="msgBloqueoTexto" class="small fw-semibold"></div>
+        </div>
+    </div>
+
+    <form method="POST" action="{% url 'asignar_beneficio' %}" id="formRegistro" enctype="multipart/form-data">
+        {% csrf_token %}
+        <input type="hidden" name="firma_data" id="firmaData">
+        <input type="hidden" name="huella_data" id="huellaData">
+        <input type="hidden" name="solicitud_id" value="{{ solicitud_id|default:'' }}">
+        
+        <!-- Sección 1: Datos del Beneficiario -->
+        <div class="card border border-light rounded-4 p-3.5 mb-4 shadow-sm">
+            <h5 class="fw-bold text-dark mb-3 border-bottom pb-2 d-flex align-items-center gap-2">
+                <i class="bi bi-person-vcard text-primary"></i> Información del Beneficiario
+            </h5>
+
+            <div class="row g-3">
+                <div class="col-12 col-md-6 position-relative">
+                    <label class="form-label fw-semibold text-secondary small">Cédula de Identidad <span class="text-danger fw-bold">*</span></label>
+                    <div class="input-group">
+                        <span class="input-group-text bg-light text-muted border-end-0"><i class="bi bi-card-heading"></i></span>
+                        <input type="text" name="cedula" id="cedula" class="form-control border-start-0 border-end-0 enter-next" data-next="#nombre" placeholder="Escribe número de cédula..." autocomplete="off" required>
+                        <button type="button" class="btn btn-primary px-3 d-flex align-items-center gap-1 shadow-none" id="btnBuscarCNE" title="Consultar en sistemaspnp.com (CNE)">
+                            <i class="bi bi-search" id="iconBuscarCNE"></i>
+                            <span id="spinnerBuscarCNE" class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
+                            <span class="d-none d-sm-inline small fw-semibold">Consultar</span>
+                        </button>
+                    </div>
+                    <div id="cedulaAutocompleteList" class="autocomplete-items" style="display:none;"></div>
+                    <div id="msgAutoFill" class="form-text text-success fw-semibold small mt-1" style="display: none;">
+                        <span id="txtAutoFill"><i class="bi bi-check-circle-fill me-1"></i> Beneficiario encontrado.</span>
+                        <button type="button" id="btnVerHistorialPrevio" class="btn btn-link text-primary p-0 ms-2 text-decoration-none fw-bold small">
+                            <i class="bi bi-clock-history me-1"></i> Ver Historial Previo
+                        </button>
+                    </div>
+                    <div id="msgBuscandoCNE" class="form-text text-primary fw-semibold small mt-1" style="display: none;">
+                        <i class="bi bi-hourglass-split me-1"></i> Consultando datos en sistemaspnp.com (CNE)...
+                    </div>
+                    <div id="msgCneNoEncontrado" class="form-text text-muted small mt-1" style="display: none;">
+                        <i class="bi bi-info-circle me-1"></i> No se hallaron datos automáticos. Ingrese el nombre manualmente.
+                    </div>
+                </div>
+
+                <div class="col-12 col-md-6">
+                    <label class="form-label fw-semibold text-secondary small">Nombre Completo <span class="text-danger fw-bold">*</span></label>
+                    <div class="input-group">
+                        <span class="input-group-text bg-light text-muted border-end-0"><i class="bi bi-person"></i></span>
+                        <input type="text" name="nombre_beneficiario" id="nombre" class="form-control border-start-0 enter-next" data-next="#direccion" placeholder="Nombre y Apellido" required>
+                    </div>
+                </div>
+
+                <div class="col-12 col-md-8">
+                    <label class="form-label fw-semibold text-secondary small">Dirección de Habitación <span class="text-danger fw-bold">*</span></label>
+                    <div class="input-group">
+                        <span class="input-group-text bg-light text-muted border-end-0"><i class="bi bi-geo-alt"></i></span>
+                        <input type="text" name="direccion" id="direccion" class="form-control border-start-0 enter-next" data-next="#telefono" placeholder="Sector / Comunidad / Dirección exacta" required>
+                    </div>
+                </div>
+
+                <div class="col-12 col-md-4">
+                    <label class="form-label fw-semibold text-secondary small">Teléfono de Contacto <span class="text-danger fw-bold">*</span></label>
+                    <div class="input-group">
+                        <span class="input-group-text bg-light text-muted border-end-0"><i class="bi bi-telephone"></i></span>
+                        <input type="text" name="telefono" id="telefono" class="form-control border-start-0 enter-next" data-next="#codigoProdSelect" placeholder="Ej: 04141234567" required>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sección 2: Detalle del Beneficio -->
+        <div class="card border border-light rounded-4 p-3.5 mb-4 shadow-sm">
+            <h5 class="fw-bold text-dark mb-3 border-bottom pb-2 d-flex align-items-center gap-2">
+                <i class="bi bi-box-seam text-primary"></i> Detalle del Producto y Estado
+            </h5>
+
+            <div class="row g-3">
+                <div class="col-12 col-md-6">
+                    <label class="form-label fw-semibold text-secondary small">Producto Seleccionado <span class="text-danger fw-bold">*</span></label>
+                    <div class="input-group">
+                        <span class="input-group-text bg-light text-muted border-end-0"><i class="bi bi-box"></i></span>
+                        <select name="codigo_prod" id="codigoProdSelect" class="form-select border-start-0 enter-next" data-next="#cantidadDada" required>
+                            <option value="">Seleccione un producto...</option>
+                            {% for p in inventario %}
+                            <option value="{{ p.id }}" data-codigo="{{ p.codigo }}" data-nombre="{{ p.descripcion }}" data-stock="{{ p.cantidad }}">{{ p.descripcion }} — (Stock actual: {{ p.cantidad }} u.)</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+
+                <div class="col-12 col-md-3">
+                    <label class="form-label fw-semibold text-secondary small">Cantidad Entregada <span class="text-danger fw-bold">*</span></label>
+                    <input type="number" name="cantidad_dada" id="cantidadDada" class="form-control fw-bold enter-next" data-next="#statusSelect" min="1" placeholder="1" required>
+                </div>
+
+                <div class="col-12 col-md-3">
+                    <label class="form-label fw-semibold text-secondary small">Estado de Entrega <span class="text-danger fw-bold">*</span></label>
+                    <select name="status" id="statusSelect" class="form-select enter-next" data-next="#via" required>
+                        <option value="Pendiente">Pendiente</option>
+                        <option value="Entregado">Entregado</option>
+                    </select>
+                </div>
+
+                <!-- Bloque dinámico de Evidencias -->
+                <div class="col-12 border-top pt-3 mt-3" id="divEvidencia" style="display:none;">
+                    <div class="d-flex flex-wrap justify-content-between align-items-center mb-2 gap-2">
+                        <label class="form-label fw-semibold text-dark mb-0 d-flex align-items-center" id="lblEvidenciaTitulo">
+                            <i class="bi bi-camera-fill text-primary me-1.5" id="iconEvidencia"></i> 
+                            <span id="txtEvidenciaTitulo">Evidencias Fotográficas</span>
+                        </label>
+                        <span class="text-muted small" id="txtEvidenciaSub">(Opcional - Hasta 3 imágenes de respaldo)</span>
+                    </div>
+                    <div class="row g-3" id="rowEvidencias">
+                        <div class="col-12 col-md-4" id="colEvidencia1">
+                            <div class="drop-zone border border-2 border-dashed rounded-4 p-3 text-center bg-light position-relative h-100 d-flex flex-column justify-content-center align-items-center" id="dropZone1" style="min-height: 120px; cursor: pointer; border-color: #cbd5e1 !important;">
+                                <i class="bi bi-cloud-arrow-up-fill fs-2 text-primary d-block mb-1"></i>
+                                <span class="small fw-bold text-dark d-block" id="lblFoto1">Foto Evidencia #1</span>
+                                <span class="small text-muted d-block text-center" style="font-size: 0.75rem;">Arrastra o haz clic para buscar</span>
+                                <input type="file" name="evidencia1" id="evidencia1Input" class="position-absolute top-0 start-0 w-100 h-100 opacity-0 cursor-pointer" accept="image/*">
+                                <img id="previewEvidencia1" src="" class="img-thumbnail mt-2 rounded shadow-sm" style="display:none; max-height: 100px; object-fit: cover;">
+                            </div>
+                        </div>
+                        <div class="col-12 col-md-4" id="colEvidencia2">
+                            <div class="drop-zone border border-2 border-dashed rounded-4 p-3 text-center bg-light position-relative h-100 d-flex flex-column justify-content-center align-items-center" id="dropZone2" style="min-height: 120px; cursor: pointer; border-color: #cbd5e1 !important;">
+                                <i class="bi bi-cloud-arrow-up-fill fs-2 text-primary d-block mb-1"></i>
+                                <span class="small fw-bold text-dark d-block">Foto Evidencia #2</span>
+                                <span class="small text-muted d-block text-center" style="font-size: 0.75rem;">Arrastra o haz clic para buscar</span>
+                                <input type="file" name="evidencia2" id="evidencia2Input" class="position-absolute top-0 start-0 w-100 h-100 opacity-0 cursor-pointer" accept="image/*">
+                                <img id="previewEvidencia2" src="" class="img-thumbnail mt-2 rounded shadow-sm" style="display:none; max-height: 100px; object-fit: cover;">
+                            </div>
+                        </div>
+                        <div class="col-12 col-md-4" id="colEvidencia3">
+                            <div class="drop-zone border border-2 border-dashed rounded-4 p-3 text-center bg-light position-relative h-100 d-flex flex-column justify-content-center align-items-center" id="dropZone3" style="min-height: 120px; cursor: pointer; border-color: #cbd5e1 !important;">
+                                <i class="bi bi-cloud-arrow-up-fill fs-2 text-primary d-block mb-1"></i>
+                                <span class="small fw-bold text-dark d-block">Foto Evidencia #3</span>
+                                <span class="small text-muted d-block text-center" style="font-size: 0.75rem;">Arrastra o haz clic para buscar</span>
+                                <input type="file" name="evidencia3" id="evidencia3Input" class="position-absolute top-0 start-0 w-100 h-100 opacity-0 cursor-pointer" accept="image/*">
+                                <img id="previewEvidencia3" src="" class="img-thumbnail mt-2 rounded shadow-sm" style="display:none; max-height: 100px; object-fit: cover;">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-12 col-md-6" id="colVia">
+                    <label class="form-label fw-semibold text-secondary small">Observaciones / Vía <span class="text-danger fw-bold">*</span></label>
+                    <input type="text" name="via" id="via" class="form-control enter-next" data-next="#btnIniciarGuardado" placeholder="Ej: Solicitud directa / Jornada / Canal de atención" required>
+                </div>
+
+                <div class="col-12 col-md-3" id="colFechaRegistro">
+                    <label class="form-label fw-semibold text-secondary small">Fecha de Registro <span class="text-danger fw-bold">*</span></label>
+                    <input type="date" name="fecha" id="fecha" class="form-control" value="{{ hoy }}" required>
+                </div>
+
+                <div class="col-12 col-md-3" id="divFechaEntrega" style="display: none;">
+                    <label class="form-label fw-semibold text-success small">
+                        <i class="bi bi-calendar2-check-fill me-1"></i> Fecha de Entrega <span class="text-danger fw-bold">*</span>
+                    </label>
+                    <input type="date" name="fecha_entrega" id="fechaEntrega" class="form-control border-success">
+                </div>
+            </div>
+        </div>
+
+        <!-- Sección 3: Recuadro de Firma Digital del Beneficiario -->
+        <div class="card border border-light rounded-4 p-3.5 mb-4 shadow-sm">
+            <div class="d-flex flex-wrap justify-content-between align-items-center mb-2 border-bottom pb-2 gap-2">
+                <h5 class="fw-bold text-dark mb-0 d-flex align-items-center gap-2">
+                    <i class="bi bi-pen-fill text-primary"></i> Firma Digital del Beneficiario (Opcional)
+                </h5>
+                <div class="d-flex gap-2">
+                    <button type="button" class="btn btn-sm btn-outline-primary rounded-3" data-bs-toggle="modal" data-bs-target="#modalFirmaFull">
+                        <i class="bi bi-arrows-fullscreen me-1"></i> Pantalla Completa
+                    </button>
+                    <button type="button" class="btn btn-sm btn-outline-secondary rounded-3" onclick="limpiarFirma()">
+                        <i class="bi bi-eraser-fill"></i> Limpiar
+                    </button>
+                </div>
+            </div>
+            <p class="text-muted small mb-3">Firme con el dedo (en pantallas táctiles) o usando el ratón dentro del recuadro a continuación:</p>
+            <div class="text-center">
+                <canvas id="signatureCanvas" width="600" height="180" class="w-100"></canvas>
+            </div>
+        </div>
+
+        <!-- Sección 4: Registro Biométrico de Huella Dactilar (Cámara Móvil / Touchless) -->
+        <div class="card border border-light rounded-4 p-3.5 mb-4 shadow-sm">
+            <div class="d-flex flex-wrap justify-content-between align-items-center mb-2 border-bottom pb-2 gap-2">
+                <div class="d-flex align-items-center gap-2">
+                    <div class="bg-success bg-opacity-10 text-success rounded-circle p-2 d-flex align-items-center justify-content-center" style="width: 38px; height: 38px;">
+                        <i class="bi bi-fingerprint fs-4"></i>
+                    </div>
+                    <div>
+                        <h5 class="fw-bold text-dark mb-0">Registro Biométrico de Huella Dactilar (Opcional)</h5>
+                        <small class="text-muted">Captura fotográfica touchless de crestas papilares con cámara móvil</small>
+                    </div>
+                </div>
+                <span class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25 px-2.5 py-1.5 rounded-pill small fw-semibold">
+                    <i class="bi bi-camera-fill me-1"></i> Cámara Móvil Touchless
+                </span>
+            </div>
+
+            <!-- Estado Inicial: Sin Huella Registrada -->
+            <div id="panelHuellaVacia" class="text-center py-4 px-3 bg-light rounded-4 border border-2 border-dashed" style="border-color: #cbd5e1 !important;">
+                <div class="mb-3">
+                    <span class="d-inline-flex align-items-center justify-content-center rounded-circle bg-white shadow-sm border p-3" style="width: 70px; height: 70px;">
+                        <i class="bi bi-fingerprint text-success fs-1"></i>
+                    </span>
+                </div>
+                <h6 class="fw-bold text-dark mb-1">Escanear Huella Dactilar del Ciudadano</h6>
+                <p class="text-muted small mx-auto mb-3" style="max-width: 520px;">
+                    Encuadre la yema del pulgar o índice con la cámara trasera de su teléfono o cargue una foto nítida. El sistema filtrará y realzará las líneas dactilares automáticamente para estamparlas en el comprobante oficial.
+                </p>
+                <div class="d-flex flex-wrap justify-content-center gap-2">
+                    <button type="button" class="btn btn-success fw-bold px-3.5 py-2.5 rounded-3 d-inline-flex align-items-center gap-2 shadow-sm" onclick="iniciarCapturaHuellaCamara()">
+                        <i class="bi bi-camera-fill fs-5"></i> Capturar Huella con Cámara
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary px-3.5 py-2.5 rounded-3 d-inline-flex align-items-center gap-2" onclick="document.getElementById('fileHuellaInput').click()">
+                        <i class="bi bi-upload"></i> Subir Foto de Huella
+                    </button>
+                </div>
+                <div class="text-muted small mt-3 fst-italic" style="font-size: 0.76rem;">
+                    <i class="bi bi-lightbulb-fill text-warning me-1"></i> Recomendación: Acerque la cámara a unos 10 cm con buena luz o linterna activa para enfocar las crestas del dedo.
+                </div>
+            </div>
+
+            <!-- Inputs ocultos para captura -->
+            <input type="file" id="cameraHuellaInput" accept="image/*" capture="environment" style="display:none;" onchange="procesarArchivoHuella(this)">
+            <input type="file" id="fileHuellaInput" accept="image/*" style="display:none;" onchange="procesarArchivoHuella(this)">
+
+            <!-- Estado Activo: Huella Capturada y Procesada -->
+            <div id="panelHuellaCapturada" class="bg-white border border-success border-opacity-50 rounded-4 p-3 shadow-sm" style="display:none;">
+                <div class="d-flex flex-column flex-sm-row align-items-center gap-3">
+                    <div class="position-relative">
+                        <img id="previewHuellaStamp" src="" class="rounded-3 border border-dark shadow-sm bg-white" style="height: 105px; width: 85px; object-fit: contain; padding: 2px;" alt="Sello Dactilar">
+                        <span class="position-absolute bottom-0 end-0 badge bg-success rounded-pill p-1 border border-white" title="Huella validada">
+                            <i class="bi bi-check-lg" style="font-size: 0.75rem;"></i>
+                        </span>
+                    </div>
+                    <div class="flex-grow-1 text-center text-sm-start">
+                        <div class="d-flex align-items-center justify-content-center justify-content-sm-start gap-2 mb-1">
+                            <span class="badge bg-success px-2 py-1"><i class="bi bi-shield-check me-1"></i> BIOMETRÍA REGISTRADA</span>
+                            <span class="text-muted small" id="lblHuellaTimestamp"></span>
+                        </div>
+                        <h6 class="fw-bold text-dark mb-1">Sello Dactiloscópico Vinculado Exitosamente</h6>
+                        <p class="text-secondary small mb-0">
+                            Las crestas papilares han sido realzadas y enmarcadas. Se incluirán en el comprobante oficial en PDF y en la verificación pública QR.
+                        </p>
+                    </div>
+                    <div class="d-flex flex-sm-column gap-2 w-100 w-sm-auto justify-content-center">
+                        <button type="button" class="btn btn-sm btn-outline-primary rounded-3 d-inline-flex align-items-center justify-content-center gap-1" onclick="iniciarCapturaHuellaCamara()">
+                            <i class="bi bi-arrow-repeat"></i> Recapturar
+                        </button>
+                        <button type="button" class="btn btn-sm btn-outline-danger rounded-3 d-inline-flex align-items-center justify-content-center gap-1" onclick="descartarHuellaCapturada()">
+                            <i class="bi bi-trash3-fill"></i> Descartar
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Botones de Acción Duales -->
+        <div class="d-flex flex-column flex-md-row gap-3">
+            <button type="button" id="btnIniciarGuardado" class="btn btn-primary-custom flex-grow-1 py-3 fs-6 d-flex align-items-center justify-content-center gap-2">
+                <i class="bi bi-check-circle-fill fs-5"></i> Guardar Registro de Entrega
+            </button>
+            <button type="button" id="btnGuardarYOtro" class="btn btn-outline-primary py-3 px-4 fs-6 fw-bold d-flex align-items-center justify-content-center gap-2" title="Guardar este registro y limpiar para registrar otra persona inmediatamente">
+                <i class="bi bi-person-plus-fill fs-5"></i> Guardar y Registrar Otro
+            </button>
+        </div>
+    </form>
+</div>
+
+<!-- Modal Historial Previo del Beneficiario -->
+<div class="modal fade" id="modalHistorialBeneficiario" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content border-0 shadow-lg rounded-4">
+            <div class="modal-header border-bottom">
+                <h5 class="modal-title fw-bold text-dark"><i class="bi bi-clock-history text-primary me-2"></i>Historial de Beneficios Anteriores</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-4">
+                <div id="contenidoHistorialBeneficiario">
+                    <p class="text-muted text-center py-3">Cargando historial...</p>
+                </div>
+            </div>
+            <div class="modal-footer border-top">
+                <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cerrar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Firma Pantalla Completa Móvil/Tablet -->
+<div class="modal fade" id="modalFirmaFull" tabindex="-1">
+    <div class="modal-dialog modal-fullscreen">
+        <div class="modal-content border-0">
+            <div class="modal-header bg-dark text-white">
+                <h5 class="modal-title fw-bold"><i class="bi bi-pen-fill text-primary me-2"></i>Firma Digital en Pantalla Completa</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body bg-light d-flex flex-column justify-content-center align-items-center p-3">
+                <p class="text-muted small mb-2 text-center">Utilice la pantalla completa para realizar el trazo de firma en dispositivos móviles:</p>
+                <canvas id="canvasFull" class="bg-white border rounded-3 shadow-sm w-100" style="height: 60vh; touch-action: none; cursor: crosshair;"></canvas>
+            </div>
+            <div class="modal-footer bg-white border-top justify-content-between">
+                <button type="button" class="btn btn-outline-secondary" onclick="limpiarFirmaFull()">Limpiar Trazo</button>
+                <button type="button" class="btn btn-primary-custom px-4" onclick="aplicarFirmaFull()">Aplicar Firma</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de Confirmación Visual Previa antes de Guardar -->
+<div class="modal fade" id="modalConfirmacionPrevia" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg rounded-4">
+            <div class="modal-header border-bottom">
+                <h5 class="modal-title fw-bold text-dark"><i class="bi bi-shield-check text-success me-2"></i>Confirmar Resumen de Entrega</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-4">
+                <div class="card bg-light border p-3 rounded-3 mb-3">
+                    <h6 class="fw-bold text-dark border-bottom pb-2 mb-2"><i class="bi bi-person me-1"></i> Beneficiario:</h6>
+                    <div id="prevNombre" class="fs-6 fw-bold text-primary"></div>
+                    <div id="prevCedula" class="small text-muted font-monospace"></div>
+                </div>
+
+                <div class="card bg-light border p-3 rounded-3 mb-3">
+                    <h6 class="fw-bold text-dark border-bottom pb-2 mb-2"><i class="bi bi-box-seam me-1"></i> Detalle del Producto:</h6>
+                    <div id="prevProducto" class="fs-6 fw-semibold text-dark"></div>
+                    <div class="d-flex justify-content-between align-items-center mt-2 pt-2 border-top">
+                        <span class="small text-muted">Cantidad a entregar:</span>
+                        <span id="prevCantidad" class="badge bg-primary text-white fs-6"></span>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center mt-1">
+                        <span class="small text-muted">Stock actual disponible:</span>
+                        <span id="prevStockActual" class="badge bg-secondary text-white"></span>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center mt-1">
+                        <span class="small fw-bold text-dark">Stock resultante después de entregar:</span>
+                        <span id="prevStockResultante" class="badge bg-success text-white"></span>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center mt-2 pt-2 border-top" id="prevFilaFechaEntrega" style="display: none;">
+                        <span class="small fw-bold text-success"><i class="bi bi-calendar2-check-fill me-1"></i>Fecha Efectiva de Entrega:</span>
+                        <span id="prevFechaEntrega" class="badge bg-success text-white"></span>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center mt-1 pt-1 border-top" id="prevFilaEvidencias">
+                        <span class="small text-muted"><i class="bi bi-camera-fill me-1"></i>Evidencia(s) adjunta(s):</span>
+                        <span id="prevEvidencias" class="badge bg-secondary text-white">Ninguna</span>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer border-top justify-content-between">
+                <button type="button" class="btn btn-light" data-bs-dismiss="modal">Revisar / Modificar</button>
+                <button type="button" id="btnConfirmarFinal" class="btn btn-primary-custom px-4">
+                    <i class="bi bi-check-circle-fill me-1"></i> Confirmar y Guardar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Procesando -->
+<div class="modal fade" id="modalProcesando" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content text-center py-4 border-0 shadow-lg rounded-4">
+            <div class="modal-body">
+                <div class="spinner-border text-primary mb-3" style="width: 3.5rem; height: 3.5rem;" role="status"></div>
+                <h5 class="fw-bold text-dark">Procesando entrega...</h5>
+                <p class="text-muted small mb-0">Guardando información, firma y descontando inventario en PostgreSQL.</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Interactivo de Procesamiento y Encuadre Dactilar -->
+<div class="modal fade" id="modalProcesarHuella" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
+            <div class="modal-header bg-dark text-white border-bottom border-secondary">
+                <h5 class="modal-title fw-bold d-flex align-items-center gap-2">
+                    <i class="bi bi-fingerprint text-success"></i> Encuadre y Realce Dactiloscópico
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-3 p-md-4 bg-light">
+                <div class="row g-3">
+                    <!-- Visor de Encuadre con Óvalo Biométrico -->
+                    <div class="col-12 col-md-7">
+                        <div class="position-relative bg-black rounded-4 overflow-hidden d-flex align-items-center justify-content-center shadow-inner" style="height: 380px; touch-action: none;">
+                            <canvas id="canvasHuellaInteractivo" width="300" height="400" style="max-height: 100%; max-width: 100%; cursor: grab; background: #000;"></canvas>
+                            <!-- Guía Biométrico Oval Flotante -->
+                            <div class="position-absolute top-50 start-50 translate-middle text-center" style="pointer-events: none; width: 200px; height: 270px; border: 2.5px dashed #22c55e; border-radius: 50%; box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.45);">
+                                <div class="position-absolute top-0 start-50 translate-middle badge bg-success text-white px-2 py-0.5" style="font-size: 0.68rem; letter-spacing: 0.5px;">
+                                    ZONA DACTILAR
+                                </div>
+                                <div class="position-absolute bottom-0 start-50 translate-middle badge bg-dark text-white border border-secondary px-2 py-0.5" style="font-size: 0.65rem;">
+                                    CENTRE EL PULGAR
+                                </div>
+                            </div>
+                        </div>
+                        <div class="text-center text-muted small mt-1" style="font-size: 0.74rem;">
+                            <i class="bi bi-arrows-move me-1"></i> Arrastre la imagen con el dedo o ratón para centrar el núcleo de la huella
+                        </div>
+                    </div>
+
+                    <!-- Panel de Controles y Calibración -->
+                    <div class="col-12 col-md-5 d-flex flex-column justify-content-between">
+                        <div class="bg-white p-3 rounded-4 border shadow-sm mb-3">
+                            <h6 class="fw-bold text-dark border-bottom pb-2 mb-3 d-flex align-items-center gap-1.5">
+                                <i class="bi bi-sliders text-primary"></i> Ajustes de Calibración
+                            </h6>
+
+                            <!-- Zoom -->
+                            <div class="mb-3">
+                                <div class="d-flex justify-content-between align-items-center mb-1">
+                                    <label class="small fw-bold text-secondary">Zoom / Escala</label>
+                                    <span id="lblZoomHuella" class="badge bg-light text-dark border small">1.0x</span>
+                                </div>
+                                <input type="range" class="form-range" id="sliderZoomHuella" min="0.5" max="3.5" step="0.05" value="1.0">
+                            </div>
+
+                            <!-- Rotación -->
+                            <div class="mb-3">
+                                <div class="d-flex justify-content-between align-items-center mb-1">
+                                    <label class="small fw-bold text-secondary">Rotación</label>
+                                    <span id="lblRotacionHuella" class="badge bg-light text-dark border small">0°</span>
+                                </div>
+                                <div class="d-flex align-items-center gap-2">
+                                    <button type="button" class="btn btn-sm btn-outline-secondary px-2" onclick="rotarHuellaRelativo(-90)" title="Girar 90° izquierda"><i class="bi bi-arrow-counterclockwise"></i></button>
+                                    <input type="range" class="form-range flex-grow-1" id="sliderRotacionHuella" min="-180" max="180" step="5" value="0">
+                                    <button type="button" class="btn btn-sm btn-outline-secondary px-2" onclick="rotarHuellaRelativo(90)" title="Girar 90° derecha"><i class="bi bi-arrow-clockwise"></i></button>
+                                </div>
+                            </div>
+
+                            <!-- Contraste de Crestas -->
+                            <div class="mb-3">
+                                <div class="d-flex justify-content-between align-items-center mb-1">
+                                    <label class="small fw-bold text-secondary">Realce de Crestas (Contraste)</label>
+                                    <span id="lblContrasteHuella" class="badge bg-light text-dark border small">1.4x</span>
+                                </div>
+                                <input type="range" class="form-range" id="sliderContrasteHuella" min="0.8" max="2.8" step="0.1" value="1.4">
+                            </div>
+
+                            <!-- Tono de Tinta -->
+                            <div>
+                                <label class="small fw-bold text-secondary d-block mb-1">Color de Sello Oficial</label>
+                                <div class="btn-group w-100" role="group">
+                                    <input type="radio" class="btn-check" name="estiloTintaHuella" id="tintaAzul" value="azul" checked>
+                                    <label class="btn btn-sm btn-outline-primary" for="tintaAzul"><i class="bi bi-droplet-fill me-1" style="color: #1e3a8a;"></i> Azul Notarial</label>
+
+                                    <input type="radio" class="btn-check" name="estiloTintaHuella" id="tintaNegra" value="negro">
+                                    <label class="btn btn-sm btn-outline-dark" for="tintaNegra"><i class="bi bi-droplet-fill me-1" style="color: #0f172a;"></i> Negro Tinta</label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Previsualización Miniatura del Sello Final -->
+                        <div class="bg-white p-2.5 rounded-4 border shadow-sm text-center">
+                            <small class="text-muted fw-semibold d-block mb-1.5" style="font-size: 0.72rem;">VISTA PREVIA DEL SELLO DACTILOSCÓPICO</small>
+                            <canvas id="canvasHuellaStampFinal" width="180" height="240" style="height: 110px; width: 82px; border: 1.5px solid #0f172a; border-radius: 6px; background: #fff;"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer bg-white border-top justify-content-between">
+                <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-success fw-bold px-4 d-inline-flex align-items-center gap-2" onclick="aplicarHuellaBiometrizada()">
+                    <i class="bi bi-check-circle-fill"></i> Aceptar y Vincular Huella
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    let estaBloqueadoPorDuplicidad = false;
+    let mensajeBloqueoActual = '';
+
+    // --- LÓGICA DE FIRMA DIGITAL (CANVAS) ---
+    const canvas = document.getElementById('signatureCanvas');
+    const ctx = canvas ? canvas.getContext('2d') : null;
+    let drawing = false;
+
+    function resizeCanvas() {
+        if (!canvas) return;
+        const rect = canvas.getBoundingClientRect();
+        canvas.width = rect.width;
+        canvas.height = 180;
+        if (ctx) {
+            ctx.lineWidth = 2.5;
+            ctx.lineCap = 'round';
+            ctx.strokeStyle = '#0f172a';
+        }
+    }
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
+
+    function getPos(e) {
+        const rect = canvas.getBoundingClientRect();
+        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+        const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+        return {
+            x: clientX - rect.left,
+            y: clientY - rect.top
+        };
+    }
+
+    function startDraw(e) {
+        drawing = true;
+        const pos = getPos(e);
+        if (ctx) {
+            ctx.beginPath();
+            ctx.moveTo(pos.x, pos.y);
+        }
+        e.preventDefault();
+    }
+
+    function draw(e) {
+        if (!drawing || !ctx) return;
+        const pos = getPos(e);
+        ctx.lineTo(pos.x, pos.y);
+        ctx.stroke();
+        e.preventDefault();
+    }
+
+    function stopDraw() {
+        drawing = false;
+    }
+
+    if (canvas) {
+        canvas.addEventListener('mousedown', startDraw);
+        canvas.addEventListener('mousemove', draw);
+        canvas.addEventListener('mouseup', stopDraw);
+        canvas.addEventListener('mouseleave', stopDraw);
+
+        canvas.addEventListener('touchstart', startDraw);
+        canvas.addEventListener('touchmove', draw);
+        canvas.addEventListener('touchend', stopDraw);
+    }
+
+    function limpiarFirma() {
+        if (ctx && canvas) {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+        }
+        const firmaInput = document.getElementById('firmaData');
+        if (firmaInput) firmaInput.value = '';
+    }
+
+    function isCanvasBlank(canvasElement) {
+        if (!canvasElement) return true;
+        const blank = document.createElement('canvas');
+        blank.width = canvasElement.width;
+        blank.height = canvasElement.height;
+        return canvasElement.toDataURL() === blank.toDataURL();
+    }
+
+    // --- VALIDACIÓN EN TIEMPO REAL POR CÉDULA / TELÉFONO DUPLICADO CON AUTO-LIMPIEZA ---
+    let timerLimpiarCamposDuplicados = null;
+
+    function verificarBeneficioBloqueo() {
+        const cedula = $('#cedula').val() ? $('#cedula').val().trim() : '';
+        const telefono = $('#telefono').val() ? $('#telefono').val().trim() : '';
+
+        if (!cedula && !telefono) {
+            $('#msgBloqueoBeneficio').stop(true, true).slideUp();
+            estaBloqueadoPorDuplicidad = false;
+            mensajeBloqueoActual = '';
+            if (timerLimpiarCamposDuplicados) clearTimeout(timerLimpiarCamposDuplicados);
+            return;
+        }
+
+        if (cedula.length < 2 && telefono.length < 5) {
+            $('#msgBloqueoBeneficio').stop(true, true).slideUp();
+            estaBloqueadoPorDuplicidad = false;
+            mensajeBloqueoActual = '';
+            if (timerLimpiarCamposDuplicados) clearTimeout(timerLimpiarCamposDuplicados);
+            return;
+        }
+
+        $.ajax({
+            url: "{% url 'verificar_beneficio' %}",
+            data: { 'cedula': cedula, 'telefono': telefono },
+            success: function(res) {
+                const alertContainer = $('#msgBloqueoBeneficio');
+                const icono = $('#msgBloqueoIcono');
+                const titulo = $('#msgBloqueoTitulo');
+                const texto = $('#msgBloqueoTexto');
+
+                if (res.bloqueado) {
+                    // OPERADOR NO ADMINISTRADOR: BLOQUEO ESTRICTO
+                    alertContainer.removeClass().addClass('alert alert-danger shadow-sm rounded-4 p-3.5 mb-4 border-0 d-flex align-items-center gap-3');
+                    icono.removeClass().addClass('bi bi-shield-slash-fill fs-2 text-danger');
+                    titulo.text('🛑 ACCESO RESTRINGIDO - REQUIERE AUTORIZACIÓN DE ADMINISTRADOR');
+                    texto.text(res.mensaje);
+                    alertContainer.stop(true, true).hide().slideDown();
+                    estaBloqueadoPorDuplicidad = true;
+                    mensajeBloqueoActual = res.mensaje;
+
+                    if (timerLimpiarCamposDuplicados) clearTimeout(timerLimpiarCamposDuplicados);
+
+                    timerLimpiarCamposDuplicados = setTimeout(function() {
+                        $('#cedula').val('');
+                        $('#nombre').val('');
+                        $('#direccion').val('');
+                        $('#telefono').val('');
+                        $('#msgAutoFill').hide();
+                        alertContainer.stop(true, true).slideUp();
+                        estaBloqueadoPorDuplicidad = false;
+                        mensajeBloqueoActual = '';
+                    }, 3500);
+                } else if (res.ya_tiene_beneficio && res.es_admin) {
+                    // ADMINISTRADOR: PERMITIDO CON AUTORIZACIÓN ACTIVA
+                    alertContainer.removeClass().addClass('alert alert-warning bg-warning bg-opacity-10 border border-warning border-opacity-50 text-dark shadow-sm rounded-4 p-3.5 mb-4 d-flex align-items-center gap-3');
+                    icono.removeClass().addClass('bi bi-award-fill fs-2 text-warning');
+                    titulo.text('👑 AUTORIZACIÓN DE ADMINISTRADOR ACTIVA');
+                    texto.text(res.mensaje);
+                    alertContainer.stop(true, true).hide().slideDown();
+                    estaBloqueadoPorDuplicidad = false;
+                    mensajeBloqueoActual = '';
+                    if (timerLimpiarCamposDuplicados) clearTimeout(timerLimpiarCamposDuplicados);
+                } else {
+                    alertContainer.stop(true, true).slideUp();
+                    estaBloqueadoPorDuplicidad = false;
+                    mensajeBloqueoActual = '';
+                    if (timerLimpiarCamposDuplicados) clearTimeout(timerLimpiarCamposDuplicados);
+                }
+            }
+        });
+    }
+
+    $('#cedula, #telefono').on('blur change input', function() {
+        verificarBeneficioBloqueo();
+    });
+
+    // --- NAVEGACIÓN SECUENCIAL CON TECLA ENTER EN CADA CAMPO ---
+    $('.enter-next').on('keydown', function(e) {
+        if (e.key === 'Enter' || e.keyCode === 13) {
+            e.preventDefault();
+            const nextSelector = $(this).data('next');
+            if (nextSelector) {
+                if (nextSelector === '#btnIniciarGuardado') {
+                    $('#btnIniciarGuardado').click();
+                } else {
+                    $(nextSelector).focus();
+                }
+            }
+        }
+    });
+
+    // --- FUNCIÓN CENTRAL DE BÚSQUEDA DE BENEFICIARIO (LOCAL + SISTEMASPNP.COM / CNE) ---
+    let buscandoCedulaEnCurso = false;
+    let ultimaCedulaBuscada = '';
+    let historialBeneficiarioActual = [];
+    let timerBusquedaDebounce = null;
+
+    function limpiarCamposBeneficiario(mantenerAlerta = false) {
+        $('#nombre').val('');
+        $('#direccion').val('');
+        $('#telefono').val('');
+        historialBeneficiarioActual = [];
+        if (!mantenerAlerta) {
+            $('#msgAutoFill').hide();
+            $('#msgCneNoEncontrado').hide();
+            $('#msgBloqueoBeneficio').stop(true, true).slideUp();
+            estaBloqueadoPorDuplicidad = false;
+            mensajeBloqueoActual = '';
+        }
+    }
+
+    function ejecutarBusquedaBeneficiario(forzarCNE = false, moverFoco = false) {
+        let cedula = $('#cedula').val() ? $('#cedula').val().trim() : '';
+        let cedulaNumerica = cedula.replace(/\D/g, '');
+        if (!cedulaNumerica || cedulaNumerica.length < 4) {
+            if (forzarCNE) {
+                alert('Por favor ingrese un número de cédula válido (mínimo 4 dígitos).');
+            }
+            limpiarCamposBeneficiario();
+            return;
+        }
+
+        if (buscandoCedulaEnCurso) return;
+        buscandoCedulaEnCurso = true;
+
+        // UI Estados de carga
+        $('#iconBuscarCNE').addClass('d-none');
+        $('#spinnerBuscarCNE').removeClass('d-none');
+        $('#btnBuscarCNE').prop('disabled', true);
+        $('#msgBuscandoCNE').fadeIn();
+        $('#msgAutoFill').hide();
+        $('#msgCneNoEncontrado').hide();
+
+        $.ajax({
+            url: "{% url 'buscar_beneficiario' %}",
+            data: { 
+                'cedula': cedulaNumerica,
+                'forzar_cne': forzarCNE ? 'true' : 'false'
+            },
+            timeout: 10000,
+            success: function(res) {
+                if (res.existe) {
+                    ultimaCedulaBuscada = cedulaNumerica;
+                    // Rellenar únicamente con los datos encontrados de la nueva persona
+                    // y los campos que la persona no posea quedan limpios/vacíos
+                    $('#nombre').val(res.nombre_apellido || '');
+                    $('#direccion').val(res.direccion || '');
+                    $('#telefono').val(res.telefono || '');
+
+                    // Personalizar el mensaje según origen de datos
+                    if (res.origen === 'sistemaspnp') {
+                        let cneInfo = '';
+                        if (res.datos_cne && res.datos_cne.centro_electoral) {
+                            cneInfo = ` <span class="badge bg-primary-subtle text-primary border ms-1"><i class="bi bi-geo-alt"></i> ${res.datos_cne.centro_electoral}</span>`;
+                        }
+                        $('#txtAutoFill').html(`<i class="bi bi-cloud-check-fill text-primary me-1"></i> <strong>Datos CNE (sistemaspnp.com):</strong> Nombre autocompletado.${cneInfo}`);
+                    } else {
+                        $('#txtAutoFill').html(`<i class="bi bi-check-circle-fill text-success me-1"></i> Beneficiario registrado en base de datos local.`);
+                    }
+
+                    $('#msgAutoFill').fadeIn();
+                    $('#msgCneNoEncontrado').hide();
+                    historialBeneficiarioActual = res.historial_previo || [];
+                    verificarBeneficioBloqueo();
+
+                    if (moverFoco) {
+                        if (!$('#direccion').val()) {
+                            $('#direccion').focus();
+                        } else if (!$('#telefono').val()) {
+                            $('#telefono').focus();
+                        } else {
+                            $('#codigoProdSelect').focus();
+                        }
+                    }
+                } else {
+                    // Si no se encuentra, borrar los campos de la persona anterior para evitar inconsistencias
+                    limpiarCamposBeneficiario(true);
+                    $('#msgAutoFill').hide();
+                    $('#msgCneNoEncontrado').fadeIn();
+                    verificarBeneficioBloqueo();
+                    if (moverFoco) $('#nombre').focus();
+                }
+            },
+            error: function() {
+                limpiarCamposBeneficiario(true);
+                $('#msgAutoFill').hide();
+                $('#msgCneNoEncontrado').fadeIn();
+            },
+            complete: function() {
+                buscandoCedulaEnCurso = false;
+                $('#iconBuscarCNE').removeClass('d-none');
+                $('#spinnerBuscarCNE').addClass('d-none');
+                $('#btnBuscarCNE').prop('disabled', false);
+                $('#msgBuscandoCNE').hide();
+            }
+        });
+    }
+
+    // Limpieza inmediata y búsqueda reactiva al retroceder o cambiar la cédula
+    $('#cedula').on('input', function() {
+        const valActual = $(this).val() ? $(this).val().trim().replace(/\D/g, '') : '';
+        
+        // Si el usuario modificó o retrocedió la cédula respecto a la última buscada,
+        // limpiar de inmediato los datos mostrados de la persona anterior
+        if (ultimaCedulaBuscada && valActual !== ultimaCedulaBuscada) {
+            limpiarCamposBeneficiario();
+            ultimaCedulaBuscada = '';
+        }
+
+        // Si la cédula quedó vacía o menor a 4 dígitos, mantener campos limpios
+        if (!valActual || valActual.length < 4) {
+            limpiarCamposBeneficiario();
+            if (timerBusquedaDebounce) clearTimeout(timerBusquedaDebounce);
+            return;
+        }
+
+        // Búsqueda predictiva con debounce de 550ms al terminar de tipear >= 6 dígitos
+        if (timerBusquedaDebounce) clearTimeout(timerBusquedaDebounce);
+        if (valActual.length >= 6) {
+            timerBusquedaDebounce = setTimeout(function() {
+                if (!buscandoCedulaEnCurso && valActual !== ultimaCedulaBuscada) {
+                    ejecutarBusquedaBeneficiario(false, false);
+                }
+            }, 550);
+        }
+    });
+
+    // Botón manual de búsqueda CNE
+    $('#btnBuscarCNE').on('click', function(e) {
+        e.preventDefault();
+        ejecutarBusquedaBeneficiario(true, true);
+    });
+
+    // Búsqueda al presionar Enter o Tab en cédula
+    $('#cedula').on('keydown', function(e) {
+        if (e.key === 'Enter' || e.keyCode === 13 || e.key === 'Tab' || e.keyCode === 9) {
+            const cedula = $(this).val() ? $(this).val().trim() : '';
+            if (!cedula) return;
+
+            if (e.key === 'Enter' || e.keyCode === 13) {
+                e.preventDefault();
+            }
+            ejecutarBusquedaBeneficiario(false, true);
+        }
+    });
+
+    // Búsqueda al perder el foco (blur) si el nombre está vacío
+    $('#cedula').on('blur', function() {
+        const cedula = $(this).val() ? $(this).val().trim() : '';
+        const nombre = $('#nombre').val() ? $('#nombre').val().trim() : '';
+        if (cedula && !nombre && !buscandoCedulaEnCurso) {
+            ejecutarBusquedaBeneficiario(false, false);
+        }
+    });
+
+    {% if cedula_param %}
+    $(document).ready(function() {
+        $('#cedula').val('{{ cedula_param }}');
+        {% if solicitud_id %}
+            $('#via').val('Solicitud #{{ solicitud_id }} - {{ tipo_solicitud }}');
+        {% endif %}
+        setTimeout(function() {
+            const ev = $.Event('keydown');
+            ev.key = 'Enter';
+            ev.keyCode = 13;
+            $('#cedula').trigger(ev);
+        }, 200);
+    });
+    {% endif %}
+
+    // --- POPUP DE HISTORIAL PREVIO DEL BENEFICIARIO ---
+
+    $(document).on('click', '#btnVerHistorialPrevio', function() {
+        let contenedor = $('#contenidoHistorialBeneficiario');
+        contenedor.empty();
+
+        if (historialBeneficiarioActual && historialBeneficiarioActual.length > 0) {
+            let tabla = `<div class="table-responsive"><table class="table table-hover align-middle mb-0">
+                <thead class="bg-light small text-uppercase">
+                    <tr>
+                        <th>Fecha</th>
+                        <th>Producto Beneficio</th>
+                        <th class="text-center">Cantidad</th>
+                        <th class="text-center">Estado</th>
+                    </tr>
+                </thead>
+                <tbody>`;
+
+            historialBeneficiarioActual.forEach(h => {
+                tabla += `<tr>
+                    <td class="small font-monospace">${h.fecha_str}</td>
+                    <td class="fw-bold text-dark">${h.descripcion_prod}</td>
+                    <td class="text-center fw-bold text-primary">${h.cantidad_dada} u.</td>
+                    <td class="text-center">
+                        <span class="badge ${h.status === 'Entregado' ? 'bg-success' : 'bg-warning text-dark'} px-2 py-1">${h.status}</span>
+                    </td>
+                </tr>`;
+            });
+
+            tabla += `</tbody></table></div>`;
+            contenedor.html(tabla);
+        } else {
+            contenedor.html('<div class="text-center text-muted py-4"><i class="bi bi-info-circle fs-3 d-block mb-2"></i>No hay registros de entregas anteriores para este beneficiario.</div>');
+        }
+
+        new bootstrap.Modal(document.getElementById('modalHistorialBeneficiario')).show();
+    });
+
+    // --- FIRMA DIGITAL PANTALLA COMPLETA ---
+    const canvasFull = document.getElementById('canvasFull');
+    const ctxFull = canvasFull ? canvasFull.getContext('2d') : null;
+    let drawingFull = false;
+
+    $('#modalFirmaFull').on('shown.bs.modal', function() {
+        if (!canvasFull) return;
+        const rect = canvasFull.getBoundingClientRect();
+        canvasFull.width = rect.width;
+        canvasFull.height = rect.height;
+        if (ctxFull) {
+            ctxFull.lineWidth = 3.5;
+            ctxFull.lineCap = 'round';
+            ctxFull.strokeStyle = '#0f172a';
+        }
+    });
+
+    function getPosFull(e) {
+        const rect = canvasFull.getBoundingClientRect();
+        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+        const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+        return { x: clientX - rect.left, y: clientY - rect.top };
+    }
+
+    if (canvasFull) {
+        canvasFull.addEventListener('mousedown', function(e) { drawingFull = true; ctxFull.beginPath(); ctxFull.moveTo(getPosFull(e).x, getPosFull(e).y); });
+        canvasFull.addEventListener('mousemove', function(e) { if (drawingFull) { ctxFull.lineTo(getPosFull(e).x, getPosFull(e).y); ctxFull.stroke(); } });
+        canvasFull.addEventListener('mouseup', function() { drawingFull = false; });
+        canvasFull.addEventListener('touchstart', function(e) { drawingFull = true; ctxFull.beginPath(); ctxFull.moveTo(getPosFull(e).x, getPosFull(e).y); e.preventDefault(); });
+        canvasFull.addEventListener('touchmove', function(e) { if (drawingFull) { ctxFull.lineTo(getPosFull(e).x, getPosFull(e).y); ctxFull.stroke(); } e.preventDefault(); });
+        canvasFull.addEventListener('touchend', function() { drawingFull = false; });
+    }
+
+    function limpiarFirmaFull() {
+        if (ctxFull && canvasFull) {
+            ctxFull.clearRect(0, 0, canvasFull.width, canvasFull.height);
+        }
+    }
+
+    function aplicarFirmaFull() {
+        if (!isCanvasBlank(canvasFull)) {
+            const dataUrl = canvasFull.toDataURL('image/png');
+            const img = new Image();
+            img.onload = function() {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+            };
+            img.src = dataUrl;
+        }
+        bootstrap.Modal.getInstance(document.getElementById('modalFirmaFull')).hide();
+    }
+
+    // --- ACCIÓN GUARDAR Y REGISTRAR OTRO ---
+    let modoRegistrarOtro = false;
+
+    $('#btnGuardarYOtro').on('click', function() {
+        modoRegistrarOtro = true;
+        $('#btnIniciarGuardado').click();
+    });
+
+    // --- AUTOCOMPLETADO INTELIGENTE (LIVE SEARCH AJAX) ---
+    $('#cedula').on('input', function() {
+        let q = $(this).val() ? $(this).val().trim() : '';
+        let listContainer = $('#cedulaAutocompleteList');
+
+        if (q.length < 2) {
+            listContainer.hide().empty();
+            return;
+        }
+
+        $.ajax({
+            url: "{% url 'api_buscar_beneficiario_autocomplete' %}",
+            data: { 'q': q },
+            success: function(res) {
+                listContainer.empty();
+                if (res.resultados && res.resultados.length > 0) {
+                    res.resultados.forEach(b => {
+                        let item = `<div class="autocomplete-item" data-cedula="${b.cedula}" data-nombre="${b.nombre_apellido}" data-direccion="${b.direccion}" data-telefono="${b.telefono || ''}">
+                            <strong>${b.cedula}</strong> — ${b.nombre_apellido}
+                        </div>`;
+                        listContainer.append(item);
+                    });
+                    listContainer.show();
+                } else {
+                    listContainer.hide();
+                }
+            }
+        });
+    });
+
+    $(document).on('click', '.autocomplete-item', function() {
+        $('#cedula').val($(this).data('cedula'));
+        $('#nombre').val($(this).data('nombre'));
+        $('#direccion').val($(this).data('direccion'));
+        $('#telefono').val($(this).data('telefono'));
+        $('#cedulaAutocompleteList').hide().empty();
+        $('#msgAutoFill').fadeIn();
+        verificarBeneficioBloqueo();
+    });
+
+    $(document).on('click', function(e) {
+        if (!$(e.target).closest('#cedula, #cedulaAutocompleteList').length) {
+            $('#cedulaAutocompleteList').hide();
+        }
+    });
+
+    // --- MOSTRAR / OCULTAR EVIDENCIA FOTOGRÁFICA Y FECHA DE ENTREGA SEGÚN ESTADO ---
+    $('#statusSelect').on('change', function() {
+        const val = $(this).val();
+        if (val === 'Entregado') {
+            $('#divEvidencia').slideDown();
+            $('#txtEvidenciaTitulo').html('Evidencias Fotográficas <span class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25 px-2 py-0.5 ms-1 fw-semibold small">Entregado: Hasta 3 fotos</span>');
+            $('#txtEvidenciaSub').text('(Opcional - Hasta 3 imágenes de respaldo)');
+            $('#lblFoto1').text('Foto Evidencia #1');
+            $('#iconEvidencia').removeClass('text-warning').addClass('text-primary');
+
+            $('#colEvidencia1').removeClass('col-md-6 col-md-8 col-md-12').addClass('col-md-4');
+            $('#colEvidencia2').fadeIn();
+            $('#colEvidencia3').fadeIn();
+            $('#evidencia2Input').prop('disabled', false);
+            $('#evidencia3Input').prop('disabled', false);
+
+            $('#divFechaEntrega').slideDown();
+            // Tomar la fecha del equipo (dispositivo del usuario)
+            const hoyEquipo = new Date().toLocaleDateString('en-CA');
+            if (!$('#fechaEntrega').val()) {
+                $('#fechaEntrega').val(hoyEquipo);
+            }
+        } else if (val === 'Pendiente') {
+            $('#divEvidencia').slideDown();
+            $('#txtEvidenciaTitulo').html('Evidencia Fotográfica <span class="badge bg-warning bg-opacity-10 text-dark border border-warning border-opacity-50 px-2 py-0.5 ms-1 fw-semibold small">Pendiente: 1 foto permitida</span>');
+            $('#txtEvidenciaSub').text('(Opcional - 1 imagen de respaldo para trámite pendiente)');
+            $('#lblFoto1').text('Foto de Evidencia');
+            $('#iconEvidencia').removeClass('text-primary').addClass('text-warning');
+
+            // Mostrar únicamente Evidencia #1 ocupando un ancho cómodo
+            $('#colEvidencia1').removeClass('col-md-4 col-md-8 col-md-12').addClass('col-md-6');
+            
+            // Ocultar y limpiar Evidencias 2 y 3
+            $('#colEvidencia2').hide();
+            $('#colEvidencia3').hide();
+            $('#evidencia2Input').val('').prop('disabled', true);
+            $('#previewEvidencia2').hide().attr('src', '');
+            $('#evidencia3Input').val('').prop('disabled', true);
+            $('#previewEvidencia3').hide().attr('src', '');
+
+            $('#divFechaEntrega').slideUp();
+            $('#fechaEntrega').val('');
+        } else {
+            $('#divEvidencia').slideUp();
+            $('#divFechaEntrega').slideUp();
+            $('#fechaEntrega').val('');
+        }
+    }).trigger('change');
+
+    // --- VENTANA DE CONFIRMACIÓN PREVIA VISUAL ---
+    $('#btnIniciarGuardado').on('click', function() {
+        const cedula = $('#cedula').val() ? $('#cedula').val().trim() : '';
+        const nombre = $('#nombre').val() ? $('#nombre').val().trim() : '';
+        const direccion = $('#direccion').val() ? $('#direccion').val().trim() : '';
+        const telefono = $('#telefono').val() ? $('#telefono').val().trim() : '';
+        const prodSelect = document.getElementById('codigoProdSelect');
+        const cantidadDada = parseInt($('#cantidadDada').val() || 0);
+        const statusVal = $('#statusSelect').val();
+        const via = $('#via').val() ? $('#via').val().trim() : '';
+        const fecha = $('#fecha').val();
+        const fechaEntrega = $('#fechaEntrega').val();
+
+        if (estaBloqueadoPorDuplicidad) {
+            Swal.fire('Registro Bloqueado', mensajeBloqueoActual, 'error');
+            return;
+        }
+
+        if (!cedula || !nombre || !direccion || !telefono || !prodSelect || !prodSelect.value || cantidadDada <= 0 || !statusVal || !via || !fecha) {
+            Swal.fire('Campos Obligatorios Vacíos', 'Por favor completa todos los campos obligatorios del formulario (marcados con *). Únicamente la firma digital y las fotos de evidencia son opcionales.', 'warning');
+            return;
+        }
+
+        if (statusVal === 'Entregado' && !fechaEntrega) {
+            // Si está vacío, asignar automáticamente la fecha actual del equipo
+            const hoyEquipo = new Date().toLocaleDateString('en-CA');
+            $('#fechaEntrega').val(hoyEquipo);
+        }
+
+        const selectedOption = prodSelect.options[prodSelect.selectedIndex];
+        const prodNombre = selectedOption.getAttribute('data-nombre');
+        const stockActual = parseInt(selectedOption.getAttribute('data-stock') || 0);
+
+        let stockResultante = stockActual;
+        if (statusVal === 'Entregado') {
+            if (cantidadDada > stockActual) {
+                Swal.fire('Stock Insuficiente', `No hay suficiente stock para entregar ${cantidadDada} u. de ${prodNombre} (Disponible: ${stockActual} u.).`, 'error');
+                return;
+            }
+            stockResultante = stockActual - cantidadDada;
+        }
+
+        $('#prevNombre').text(nombre);
+        $('#prevCedula').text('C.I. ' + cedula);
+        $('#prevProducto').text(prodNombre);
+        $('#prevCantidad').text(cantidadDada + ' u.');
+        $('#prevStockActual').text(stockActual + ' u.');
+        $('#prevStockResultante').text(stockResultante + ' u.');
+
+        if (statusVal === 'Entregado') {
+            const fechaEntVal = $('#fechaEntrega').val() || new Date().toLocaleDateString('en-CA');
+            // Formatear a DD/MM/AAAA para visualización clara
+            const partes = fechaEntVal.split('-');
+            const legible = partes.length === 3 ? `${partes[2]}/${partes[1]}/${partes[0]}` : fechaEntVal;
+            $('#prevFechaEntrega').text(legible);
+            $('#prevFilaFechaEntrega').show();
+        } else {
+            $('#prevFilaFechaEntrega').hide();
+        }
+
+        // Resumen de evidencias seleccionadas según estado
+        let cantEvidencias = 0;
+        const inp1 = document.getElementById('evidencia1Input');
+        if (inp1 && inp1.files && inp1.files.length > 0) cantEvidencias++;
+        if (statusVal === 'Entregado') {
+            const inp2 = document.getElementById('evidencia2Input');
+            if (inp2 && inp2.files && inp2.files.length > 0) cantEvidencias++;
+            const inp3 = document.getElementById('evidencia3Input');
+            if (inp3 && inp3.files && inp3.files.length > 0) cantEvidencias++;
+        }
+        if (cantEvidencias > 0) {
+            $('#prevEvidencias').text(`${cantEvidencias} foto(s)`).removeClass('bg-secondary').addClass('bg-info text-dark');
+        } else {
+            $('#prevEvidencias').text('Ninguna').removeClass('bg-info text-dark').addClass('bg-secondary text-white');
+        }
+
+        new bootstrap.Modal(document.getElementById('modalConfirmacionPrevia')).show();
+    });
+
+    $('#btnConfirmarFinal').on('click', async function() {
+        if (estaBloqueadoPorDuplicidad) {
+            Swal.fire('Registro Bloqueado', mensajeBloqueoActual, 'error');
+            return;
+        }
+
+        bootstrap.Modal.getInstance(document.getElementById('modalConfirmacionPrevia')).hide();
+        
+        if (!isCanvasBlank(canvas)) {
+            document.getElementById('firmaData').value = canvas.toDataURL('image/png');
+        }
+
+        new bootstrap.Modal(document.getElementById('modalProcesando')).show();
+
+        // Asegurar que las imágenes estén comprimidas antes de enviar para no saturar la red ni el túnel
+        const statusValSubmit = $('#statusSelect').val();
+        if (statusValSubmit === 'Pendiente') {
+            const inp2 = document.getElementById('evidencia2Input');
+            if (inp2) { inp2.value = ''; inp2.disabled = true; }
+            const inp3 = document.getElementById('evidencia3Input');
+            if (inp3) { inp3.value = ''; inp3.disabled = true; }
+        }
+
+        const inputs = statusValSubmit === 'Entregado' 
+            ? ['evidencia1Input', 'evidencia2Input', 'evidencia3Input'] 
+            : ['evidencia1Input'];
+
+        for (const id of inputs) {
+            const inp = document.getElementById(id);
+            if (inp && inp.files && inp.files[0] && inp.files[0].size > 400 * 1024 && window.compressImageFile && window.DataTransfer) {
+                try {
+                    const comp = await window.compressImageFile(inp.files[0], 1280, 1280, 0.82);
+                    const dt = new DataTransfer();
+                    dt.items.add(comp);
+                    inp.files = dt.files;
+                } catch (err) {}
+            }
+        }
+
+        document.getElementById('formRegistro').submit();
+    });
+
+    // --- PREVISUALIZACIÓN INSTANTÁNEA Y DRAG & DROP EVIDENCIAS CON AUTO-COMPRESIÓN ---
+    function setupDragAndDropPreview(inputId, previewId, dropZoneId) {
+        const input = document.getElementById(inputId);
+        const preview = document.getElementById(previewId);
+        const dropZone = document.getElementById(dropZoneId);
+
+        if (!input || !preview || !dropZone) return;
+
+        async function procesarArchivo(file) {
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(evt) {
+                preview.src = evt.target.result;
+                preview.style.display = 'inline-block';
+            };
+            reader.readAsDataURL(file);
+
+            if (window.compressImageFile) {
+                try {
+                    const compressed = await window.compressImageFile(file, 1280, 1280, 0.82);
+                    if (compressed && window.DataTransfer) {
+                        const dt = new DataTransfer();
+                        dt.items.add(compressed);
+                        input.files = dt.files;
+                    }
+                } catch (err) {
+                    console.warn("Compresión no aplicada:", err);
+                }
+            }
+        }
+
+        input.addEventListener('change', function(e) {
+            if (e.target.files && e.target.files[0]) {
+                procesarArchivo(e.target.files[0]);
+            }
+        });
+
+        ['dragenter', 'dragover'].forEach(evtName => {
+            dropZone.addEventListener(evtName, (e) => {
+                e.preventDefault();
+                dropZone.style.borderColor = '#4f46e5';
+                dropZone.style.backgroundColor = 'rgba(79, 70, 229, 0.05)';
+            });
+        });
+
+        ['dragleave'].forEach(evtName => {
+            dropZone.addEventListener(evtName, (e) => {
+                e.preventDefault();
+                dropZone.style.borderColor = '#cbd5e1';
+                dropZone.style.backgroundColor = '';
+            });
+        });
+
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.style.borderColor = '#cbd5e1';
+            dropZone.style.backgroundColor = '';
+            if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0]) {
+                procesarArchivo(e.dataTransfer.files[0]);
+            }
+        });
+    }
+
+    setupDragAndDropPreview('evidencia1Input', 'previewEvidencia1', 'dropZone1');
+    setupDragAndDropPreview('evidencia2Input', 'previewEvidencia2', 'dropZone2');
+    setupDragAndDropPreview('evidencia3Input', 'previewEvidencia3', 'dropZone3');
+
+    // ==========================================
+    // LÓGICA DE CAPTURA BIOMÉTRICA DE HUELLA DACTILAR (OPCIÓN A - TOUCHLESS)
+    // ==========================================
+    let imgOriginalHuella = null;
+    let posHuella = { x: 0, y: 0 };
+    let zoomHuella = 1.0;
+    let rotacionHuella = 0;
+    let contrasteHuella = 1.4;
+    let estiloTintaHuella = 'azul';
+    let isDraggingHuella = false;
+    let dragStartHuella = { x: 0, y: 0 };
+
+    const canvasInteractivo = document.getElementById('canvasHuellaInteractivo');
+    const ctxInteractivo = canvasInteractivo ? canvasInteractivo.getContext('2d') : null;
+
+    const canvasStampFinal = document.getElementById('canvasHuellaStampFinal');
+    const ctxStampFinal = canvasStampFinal ? canvasStampFinal.getContext('2d') : null;
+
+    function iniciarCapturaHuellaCamara() {
+        const inputCam = document.getElementById('cameraHuellaInput');
+        if (inputCam) inputCam.click();
+    }
+
+    function procesarArchivoHuella(inputElement) {
+        if (!inputElement || !inputElement.files || !inputElement.files[0]) return;
+        const file = inputElement.files[0];
+
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const img = new Image();
+            img.onload = function() {
+                imgOriginalHuella = img;
+                posHuella = { x: 0, y: 0 };
+                zoomHuella = 1.0;
+                rotacionHuella = 0;
+                contrasteHuella = 1.4;
+                estiloTintaHuella = document.querySelector('input[name="estiloTintaHuella"]:checked')?.value || 'azul';
+
+                $('#sliderZoomHuella').val(1.0);
+                $('#lblZoomHuella').text('1.0x');
+                $('#sliderRotacionHuella').val(0);
+                $('#lblRotacionHuella').text('0°');
+                $('#sliderContrasteHuella').val(1.4);
+                $('#lblContrasteHuella').text('1.4x');
+
+                actualizarLienzosHuella();
+
+                const modalEl = document.getElementById('modalProcesarHuella');
+                if (modalEl) {
+                    const modal = new bootstrap.Modal(modalEl);
+                    modal.show();
+                }
+            };
+            img.src = e.target.result;
+        };
+        reader.readAsDataURL(file);
+    }
+
+    function rotarHuellaRelativo(grados) {
+        let actual = parseInt($('#sliderRotacionHuella').val() || 0);
+        actual = (actual + grados) % 360;
+        if (actual > 180) actual -= 360;
+        if (actual < -180) actual += 360;
+        $('#sliderRotacionHuella').val(actual);
+        rotacionHuella = actual;
+        $('#lblRotacionHuella').text(actual + '°');
+        actualizarLienzosHuella();
+    }
+
+    $('#sliderZoomHuella').on('input', function() {
+        zoomHuella = parseFloat($(this).val());
+        $('#lblZoomHuella').text(zoomHuella.toFixed(2) + 'x');
+        actualizarLienzosHuella();
+    });
+
+    $('#sliderRotacionHuella').on('input', function() {
+        rotacionHuella = parseInt($(this).val());
+        $('#lblRotacionHuella').text(rotacionHuella + '°');
+        actualizarLienzosHuella();
+    });
+
+    $('#sliderContrasteHuella').on('input', function() {
+        contrasteHuella = parseFloat($(this).val());
+        $('#lblContrasteHuella').text(contrasteHuella.toFixed(1) + 'x');
+        actualizarLienzosHuella();
+    });
+
+    $('input[name="estiloTintaHuella"]').on('change', function() {
+        estiloTintaHuella = $(this).val();
+        actualizarLienzosHuella();
+    });
+
+    if (canvasInteractivo) {
+        function getCanvasPoint(evt) {
+            const rect = canvasInteractivo.getBoundingClientRect();
+            const clientX = evt.touches ? evt.touches[0].clientX : evt.clientX;
+            const clientY = evt.touches ? evt.touches[0].clientY : evt.clientY;
+            return {
+                x: (clientX - rect.left) * (canvasInteractivo.width / rect.width),
+                y: (clientY - rect.top) * (canvasInteractivo.height / rect.height)
+            };
+        }
+
+        function startDragHuella(evt) {
+            isDraggingHuella = true;
+            const pt = getCanvasPoint(evt);
+            dragStartHuella = { x: pt.x - posHuella.x, y: pt.y - posHuella.y };
+            canvasInteractivo.style.cursor = 'grabbing';
+            if (evt.cancelable && evt.type.startsWith('touch')) evt.preventDefault();
+        }
+
+        function dragHuella(evt) {
+            if (!isDraggingHuella) return;
+            const pt = getCanvasPoint(evt);
+            posHuella.x = pt.x - dragStartHuella.x;
+            posHuella.y = pt.y - dragStartHuella.y;
+            actualizarLienzosHuella();
+            if (evt.cancelable && evt.type.startsWith('touch')) evt.preventDefault();
+        }
+
+        function stopDragHuella() {
+            isDraggingHuella = false;
+            canvasInteractivo.style.cursor = 'grab';
+        }
+
+        canvasInteractivo.addEventListener('mousedown', startDragHuella);
+        window.addEventListener('mousemove', dragHuella);
+        window.addEventListener('mouseup', stopDragHuella);
+
+        canvasInteractivo.addEventListener('touchstart', startDragHuella, { passive: false });
+        window.addEventListener('touchmove', dragHuella, { passive: false });
+        window.addEventListener('touchend', stopDragHuella);
+    }
+
+    function actualizarLienzosHuella() {
+        if (!imgOriginalHuella || !ctxInteractivo) return;
+
+        const cw = canvasInteractivo.width;
+        const ch = canvasInteractivo.height;
+
+        ctxInteractivo.save();
+        ctxInteractivo.clearRect(0, 0, cw, ch);
+        ctxInteractivo.fillStyle = '#0f172a';
+        ctxInteractivo.fillRect(0, 0, cw, ch);
+
+        ctxInteractivo.translate(cw / 2 + posHuella.x, ch / 2 + posHuella.y);
+        ctxInteractivo.rotate((rotacionHuella * Math.PI) / 180);
+        ctxInteractivo.scale(zoomHuella, zoomHuella);
+
+        const aspect = imgOriginalHuella.width / imgOriginalHuella.height;
+        let dw = cw * 0.9;
+        let dh = dw / aspect;
+        ctxInteractivo.drawImage(imgOriginalHuella, -dw / 2, -dh / 2, dw, dh);
+        ctxInteractivo.restore();
+
+        generarSelloBiometricoFinal();
+    }
+
+    function generarSelloBiometricoFinal() {
+        if (!imgOriginalHuella || !ctxStampFinal) return;
+
+        const sw = canvasStampFinal.width;
+        const sh = canvasStampFinal.height;
+
+        ctxStampFinal.clearRect(0, 0, sw, sh);
+        ctxStampFinal.fillStyle = '#ffffff';
+        ctxStampFinal.fillRect(0, 0, sw, sh);
+
+        const tempCanvas = document.createElement('canvas');
+        tempCanvas.width = sw;
+        tempCanvas.height = sh;
+        const tempCtx = tempCanvas.getContext('2d');
+
+        tempCtx.save();
+        tempCtx.fillStyle = '#ffffff';
+        tempCtx.fillRect(0, 0, sw, sh);
+
+        const escalaRelativa = sw / canvasInteractivo.width;
+        tempCtx.translate(sw / 2 + posHuella.x * escalaRelativa, (sh / 2 - 10) + posHuella.y * escalaRelativa);
+        tempCtx.rotate((rotacionHuella * Math.PI) / 180);
+        tempCtx.scale(zoomHuella * escalaRelativa, zoomHuella * escalaRelativa);
+
+        const aspect = imgOriginalHuella.width / imgOriginalHuella.height;
+        let dw = canvasInteractivo.width * 0.9;
+        let dh = dw / aspect;
+        tempCtx.drawImage(imgOriginalHuella, -dw / 2, -dh / 2, dw, dh);
+        tempCtx.restore();
+
+        // Procesamiento de Crestas
+        const imgData = tempCtx.getImageData(0, 0, sw, sh);
+        const data = imgData.data;
+        const grays = new Float32Array(sw * sh);
+
+        for (let i = 0, j = 0; i < data.length; i += 4, j++) {
+            grays[j] = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
+        }
+
+        const sharpened = new Float32Array(sw * sh);
+        for (let y = 1; y < sh - 1; y++) {
+            for (let x = 1; x < sw - 1; x++) {
+                const idx = y * sw + x;
+                const v = 5 * grays[idx] - grays[idx - 1] - grays[idx + 1] - grays[idx - sw] - grays[idx + sw];
+                sharpened[idx] = Math.min(255, Math.max(0, v));
+            }
+        }
+
+        const inkR = estiloTintaHuella === 'azul' ? 30 : 15;
+        const inkG = estiloTintaHuella === 'azul' ? 58 : 23;
+        const inkB = estiloTintaHuella === 'azul' ? 138 : 42;
+
+        const factor = (259 * (contrasteHuella * 75 + 255)) / (255 * (259 - contrasteHuella * 75));
+
+        for (let y = 0; y < sh; y++) {
+            for (let x = 0; x < sw; x++) {
+                const pIdx = y * sw + x;
+                const bIdx = pIdx * 4;
+
+                let g = (y > 0 && y < sh - 1 && x > 0 && x < sw - 1) ? sharpened[pIdx] : grays[pIdx];
+                let adj = factor * (g - 128) + 128;
+                adj = Math.min(255, Math.max(0, adj));
+
+                let t = Math.pow(adj / 255, 1.35);
+
+                data[bIdx] = Math.round(inkR + (255 - inkR) * t);
+                data[bIdx + 1] = Math.round(inkG + (255 - inkG) * t);
+                data[bIdx + 2] = Math.round(inkB + (255 - inkB) * t);
+                data[bIdx + 3] = 255;
+            }
+        }
+        tempCtx.putImageData(imgData, 0, 0);
+
+        // Encuadre y estampado en canvas final
+        ctxStampFinal.save();
+        const centerX = sw / 2;
+        const centerY = sh / 2 - 12;
+        const radiusX = sw * 0.38;
+        const radiusY = sh * 0.40;
+
+        ctxStampFinal.beginPath();
+        ctxStampFinal.ellipse(centerX, centerY, radiusX, radiusY, 0, 0, 2 * Math.PI);
+        ctxStampFinal.clip();
+        ctxStampFinal.drawImage(tempCanvas, 0, 0);
+        ctxStampFinal.restore();
+
+        // Borde exterior
+        ctxStampFinal.save();
+        ctxStampFinal.strokeStyle = estiloTintaHuella === 'azul' ? '#1e3a8a' : '#0f172a';
+        ctxStampFinal.lineWidth = 2.5;
+        ctxStampFinal.beginPath();
+        ctxStampFinal.ellipse(centerX, centerY, radiusX, radiusY, 0, 0, 2 * Math.PI);
+        ctxStampFinal.stroke();
+
+        ctxStampFinal.strokeStyle = estiloTintaHuella === 'azul' ? 'rgba(30, 58, 138, 0.4)' : 'rgba(15, 23, 42, 0.4)';
+        ctxStampFinal.lineWidth = 1;
+        ctxStampFinal.beginPath();
+        ctxStampFinal.ellipse(centerX, centerY, radiusX - 4, radiusY - 4, 0, 0, 2 * Math.PI);
+        ctxStampFinal.stroke();
+
+        // Leyendas
+        ctxStampFinal.fillStyle = estiloTintaHuella === 'azul' ? '#1e3a8a' : '#0f172a';
+        ctxStampFinal.font = 'bold 8px system-ui, sans-serif';
+        ctxStampFinal.textAlign = 'center';
+        ctxStampFinal.fillText('SIA • REGISTRO DACTILAR', centerX, 18);
+
+        ctxStampFinal.fillStyle = estiloTintaHuella === 'azul' ? '#1e3a8a' : '#0f172a';
+        ctxStampFinal.fillRect(10, sh - 28, sw - 20, 20);
+        ctxStampFinal.fillStyle = '#ffffff';
+        ctxStampFinal.font = 'bold 8.5px system-ui, sans-serif';
+        ctxStampFinal.fillText('PULGAR DERECHO', centerX, sh - 15);
+        ctxStampFinal.restore();
+    }
+
+    function aplicarHuellaBiometrizada() {
+        if (!canvasStampFinal) return;
+        const dataUrl = canvasStampFinal.toDataURL('image/png');
+
+        const inputHuella = document.getElementById('huellaData');
+        if (inputHuella) inputHuella.value = dataUrl;
+
+        const previewImg = document.getElementById('previewHuellaStamp');
+        if (previewImg) previewImg.src = dataUrl;
+
+        const lblTime = document.getElementById('lblHuellaTimestamp');
+        if (lblTime) {
+            const ahora = new Date();
+            lblTime.textContent = 'Registrado a las ' + ahora.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        }
+
+        $('#panelHuellaVacia').hide();
+        $('#panelHuellaCapturada').fadeIn();
+
+        const modalEl = document.getElementById('modalProcesarHuella');
+        if (modalEl) {
+            const modal = bootstrap.Modal.getInstance(modalEl);
+            if (modal) modal.hide();
+        }
+
+        Swal.fire({
+            icon: 'success',
+            title: '¡Huella Dactilar Vinculada!',
+            text: 'El sello dactiloscópico fue procesado y enlazado a esta entrega correctamente.',
+            timer: 2000,
+            showConfirmButton: false
+        });
+    }
+
+    function descartarHuellaCapturada() {
+        const inputHuella = document.getElementById('huellaData');
+        if (inputHuella) inputHuella.value = '';
+
+        const camInput = document.getElementById('cameraHuellaInput');
+        if (camInput) camInput.value = '';
+
+        const fileInput = document.getElementById('fileHuellaInput');
+        if (fileInput) fileInput.value = '';
+
+        imgOriginalHuella = null;
+        $('#panelHuellaCapturada').hide();
+        $('#panelHuellaVacia').fadeIn();
+    }
+</script>
+{% endblock %}

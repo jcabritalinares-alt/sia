@@ -1,0 +1,187 @@
+{% extends 'base.html' %}
+
+{% block contenido %}
+<div class="container-fluid px-0">
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-4 gap-3">
+        <div>
+            <h2 class="fw-extrabold text-dark mb-1 d-flex align-items-center gap-2">
+                <i class="bi bi-building-fill-add text-primary"></i> Registrar Asignación Especial
+            </h2>
+            <p class="text-muted small mb-0">Despacho múltiple de artículos a departamentos o instituciones</p>
+        </div>
+        <div>
+            <a href="{% url 'lista_asignaciones_especiales' %}" class="btn btn-outline-secondary d-flex align-items-center gap-2 rounded-3 fw-semibold">
+                <i class="bi bi-arrow-left"></i> Volver a la Lista
+            </a>
+        </div>
+    </div>
+
+    <form method="POST" action="{% url 'registrar_asignacion' %}" id="formAsignacion">
+        {% csrf_token %}
+        
+        <!-- Datos del Receptor -->
+        <div class="card border border-light rounded-4 p-4 mb-4 shadow-sm">
+            <h5 class="fw-bold text-dark mb-3 border-bottom pb-2 d-flex align-items-center gap-2">
+                <i class="bi bi-person-badge text-primary"></i> Datos del Receptor / Institución
+            </h5>
+
+            <div class="row g-3">
+                <div class="col-12 col-md-6">
+                    <label class="form-label fw-semibold text-secondary small">Nombre del Receptor / Jefe</label>
+                    <div class="input-group">
+                        <span class="input-group-text bg-light text-muted border-end-0"><i class="bi bi-person"></i></span>
+                        <input type="text" name="nombre_receptor" class="form-control border-start-0" placeholder="Nombre completo del receptor" required>
+                    </div>
+                </div>
+
+                <div class="col-12 col-md-6">
+                    <label class="form-label fw-semibold text-secondary small">Cargo / Departamento</label>
+                    <div class="input-group">
+                        <span class="input-group-text bg-light text-muted border-end-0"><i class="bi bi-briefcase"></i></span>
+                        <input type="text" name="departamento_o_cargo" class="form-control border-start-0" placeholder="Ej: Dirección de Salud / Despacho">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Selección e Inclusión Dinámica de Artículos -->
+        <div class="card border border-light rounded-4 p-4 mb-4 shadow-sm">
+            <h5 class="fw-bold text-dark mb-3 border-bottom pb-2 d-flex align-items-center gap-2">
+                <i class="bi bi-boxes text-primary"></i> Selección de Artículos a Despachar
+            </h5>
+
+            <div class="row g-3 align-items-end mb-4">
+                <div class="col-12 col-md-6">
+                    <label class="form-label fw-semibold text-secondary small">Producto del Inventario</label>
+                    <select id="selectProducto" class="form-select">
+                        <option value="" disabled selected>-- Seleccione un producto --</option>
+                        {% for p in productos %}
+                            <option value="{{ p.id }}" data-nombre="{{ p.descripcion }}" data-stock="{{ p.cantidad }}">
+                                {{ p.descripcion }} — (Disponibles: {{ p.cantidad }} u.)
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <div class="col-12 col-md-3">
+                    <label class="form-label fw-semibold text-secondary small">Cantidad a Asignar</label>
+                    <input type="number" id="inputCantidad" class="form-control fw-bold" min="1" value="1">
+                </div>
+
+                <div class="col-12 col-md-3">
+                    <button type="button" id="btnAgregar" class="btn btn-success w-100 py-2.5 d-flex align-items-center justify-content-center gap-2 fw-semibold">
+                        <i class="bi bi-plus-circle-fill"></i> Agregar a la Lista
+                    </button>
+                </div>
+            </div>
+
+            <!-- Tabla dinámica -->
+            <div class="table-responsive rounded-3 border bg-white p-2">
+                <table class="table table-hover align-middle mb-0" id="tablaArticulos">
+                    <thead class="bg-light text-secondary small text-uppercase">
+                        <tr>
+                            <th>Producto Seleccionado</th>
+                            <th style="width: 150px;">Cantidad</th>
+                            <th style="width: 100px;" class="text-center">Acción</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr id="filaVacia">
+                            <td colspan="3" class="text-center text-muted py-4 fst-italic">No hay productos agregados todavía a esta asignación.</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <button type="submit" class="btn btn-primary-custom w-100 py-3 fs-6 d-flex align-items-center justify-content-center gap-2">
+            <i class="bi bi-check-circle-fill fs-5"></i> Guardar y Procesar Asignación Especial
+        </button>
+    </form>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.getElementById('btnAgregar').addEventListener('click', function() {
+        const select = document.getElementById('selectProducto');
+        const inputCantidad = document.getElementById('inputCantidad');
+        
+        const prodId = select.value;
+        const prodOption = select.options[select.selectedIndex];
+        const prodNombre = prodOption.getAttribute('data-nombre');
+        const stockDisponible = parseInt(prodOption.getAttribute('data-stock'));
+        const cantidad = parseInt(inputCantidad.value);
+
+        if (!prodId) {
+            Swal.fire('Atención', 'Por favor seleccione un producto del inventario.', 'warning');
+            return;
+        }
+
+        if (isNaN(cantidad) || cantidad <= 0) {
+            Swal.fire('Atención', 'Ingrese una cantidad válida.', 'warning');
+            return;
+        }
+
+        if (cantidad > stockDisponible) {
+            Swal.fire('Stock Insuficiente', `La cantidad solicitada (${cantidad}) excede el stock disponible (${stockDisponible}).`, 'error');
+            return;
+        }
+
+        const filaVacia = document.getElementById('filaVacia');
+        if (filaVacia) {
+            filaVacia.remove();
+        }
+
+        let existente = document.querySelector(`#tablaArticulos input[value="${prodId}"]`);
+        if (existente) {
+            Swal.fire('Producto Duplicado', 'Este producto ya está en la lista. Puedes eliminarlo si deseas cambiar la cantidad.', 'info');
+            return;
+        }
+
+        const tbody = document.querySelector('#tablaArticulos tbody');
+        const nuevaFila = document.createElement('tr');
+        
+        nuevaFila.innerHTML = `
+            <td class="fw-semibold text-dark">
+                ${prodNombre}
+                <input type="hidden" name="productos[]" value="${prodId}">
+            </td>
+            <td>
+                <span class="badge bg-primary text-white fs-6 fw-bold px-3 py-1">${cantidad} u.</span>
+                <input type="hidden" name="cantidades[]" value="${cantidad}">
+            </td>
+            <td class="text-center">
+                <button type="button" class="btn btn-outline-danger btn-sm rounded-circle btn-eliminar-fila p-2" title="Eliminar" style="width: 32px; height: 32px; display: inline-flex; align-items: center; justify-content: center;">
+                    <i class="bi bi-x-lg"></i>
+                </button>
+            </td>
+        `;
+
+        tbody.appendChild(nuevaFila);
+
+        select.value = "";
+        inputCantidad.value = 1;
+    });
+
+    document.addEventListener('click', function(e) {
+        if (e.target && (e.target.classList.contains('btn-eliminar-fila') || e.target.closest('.btn-eliminar-fila'))) {
+            const btn = e.target.classList.contains('btn-eliminar-fila') ? e.target : e.target.closest('.btn-eliminar-fila');
+            btn.closest('tr').remove();
+            
+            const tbody = document.querySelector('#tablaArticulos tbody');
+            if (tbody.children.length === 0) {
+                tbody.innerHTML = `<tr id="filaVacia"><td colspan="3" class="text-center text-muted py-4 fst-italic">No hay productos agregados todavía a esta asignación.</td></tr>`;
+            }
+        }
+    });
+
+    document.getElementById('formAsignacion').addEventListener('submit', function(e) {
+        const inputsProductos = document.querySelectorAll('input[name="productos[]"]');
+        if (inputsProductos.length === 0) {
+            e.preventDefault();
+            Swal.fire('Atención', 'Debe agregar al menos un artículo a la lista antes de guardar la asignación.', 'warning');
+        }
+    });
+</script>
+{% endblock %}

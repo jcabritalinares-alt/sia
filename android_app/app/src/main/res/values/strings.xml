@@ -1,0 +1,7 @@
+<resources>
+    <string name="app_name">SIA Móvil</string>
+    <string name="title_config_server">Configuración de Servidor SIA</string>
+    <string name="msg_enter_url">Ingrese la dirección IP o URL del servidor Django (ej. http://192.168.1.10:8000 o https://xxx.trycloudflare.com):</string>
+    <string name="btn_save">Conectar / Guardar</string>
+    <string name="btn_cancel">Cancelar</string>
+</resources>

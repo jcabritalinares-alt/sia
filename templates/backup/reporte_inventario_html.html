@@ -1,0 +1,79 @@
+{% extends 'base.html' %}
+
+<style>
+    .dataTables_filter { display: none !important; }
+
+    @media print {
+        .no-print, .btn, #buscadorInventario, header, footer, nav { display: none !important; }
+        .print-header {
+            display: flex !important;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { border: 1px solid #000; padding: 5px; text-align: left; }
+    }
+</style>
+
+{% block contenido %}
+<div class="container mt-4">
+    
+    <div class="print-header" style="display: none;">
+        <img src="https://res.cloudinary.com/tehn5bfb/image/upload/v1783630731/efad9adhn201uv8xemcn.jpg" style="width: 60px;">
+        <div class="text-center">
+            <h4 class="fw-bold m-0">Reporte de Inventario</h4>
+            <small class="text-muted">Fecha: {% now "d/m/Y" %}</small>
+        </div>
+        <img src="https://res.cloudinary.com/tehn5bfb/image/upload/v1783630731/hgb44vfc0d8wirbnz2th.jpg" style="width: 60px;">
+    </div>
+
+    <div class="d-flex justify-content-between mb-4 no-print">
+        <h2>Inventario Disponible</h2>
+        <a href="{% url 'registrar_inventario' %}" class="btn btn-primary">➕ Registrar</a>
+    </div>
+
+    <div class="mb-4 no-print">
+        <input type="text" id="buscadorInventario" class="form-control" placeholder="🔍 Buscar producto...">
+    </div>
+
+    <table id="tablaInventario" class="table table-hover">
+        <thead>
+            <tr>
+                <th>Código</th>
+                <th>Descripción</th>
+                <th>Almacén</th>
+                <th>Cantidad</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for p in productos %}
+            <tr>
+                <td>{{ p.codigo }}</td>
+                <td>{{ p.descripcion }}</td>
+                <td>{{ p.almacen }}</td>
+                <td>
+                    <span class="badge {% if p.cantidad > 10 %}bg-success{% else %}bg-danger{% endif %}">
+                        {{ p.cantidad }}
+                    </span>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <div class="text-center mt-3 no-print">
+        <button onclick="window.print()" class="btn btn-success">📄 Guardar como PDF</button>
+        <a href="{% url 'inventario' %}" class="btn btn-info">📦 Volver al Inventario</a>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    $(document).ready(function() {
+        var tabla = $('#tablaInventario').DataTable({ "searching": true, "paging": false, "info": false });
+        $('#buscadorInventario').on('keyup', function() { tabla.search(this.value).draw(); });
+    });
+</script>
+{% endblock %}

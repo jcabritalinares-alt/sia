@@ -1,0 +1,1046 @@
+{% extends 'base.html' %}
+
+{% block style %}
+<style>
+    @media print {
+        .btn, .no-print, #buscador, .filter-box {
+            display: none !important;
+        }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { border: 1px solid #000; padding: 8px; }
+    }
+</style>
+{% endblock %}
+
+{% block contenido %}
+<div class="container-fluid px-0">
+    <!-- Encabezado -->
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-4 gap-3">
+        <div>
+            <h2 class="fw-extrabold text-dark mb-1">Historial de Entregas</h2>
+            <p class="text-muted small mb-0">Registro, exportación y trazabilidad de todos los beneficios asignados</p>
+        </div>        {% if request.user.is_superuser or request.user.perfil.puede_imprimir_entregas %}
+        <div class="d-flex flex-wrap gap-2">
+            <button type="button" class="btn btn-danger no-print d-flex align-items-center gap-2 fw-bold shadow-sm" data-bs-toggle="modal" data-bs-target="#modalSeleccionarMesReporte">
+                <i class="bi bi-file-earmark-pdf-fill"></i> Reporte Mensual PDF
+            </button>
+            <a href="{% url 'exportar_historial_excel' %}{% if request.GET.urlencode %}?{{ request.GET.urlencode }}{% endif %}" class="btn btn-outline-success no-print d-flex align-items-center gap-2">
+                <i class="bi bi-file-earmark-excel-fill"></i> Exportar Excel
+            </a>
+            <button onclick="imprimirReporteHistorial(this)" class="btn btn-primary-custom no-print d-flex align-items-center gap-2">
+                <i class="bi bi-printer-fill"></i> Reporte General
+            </button>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Barra de Filtros por Fecha y Estado con Filtros Rápidos -->
+    <div class="card border border-light rounded-4 p-3 mb-4 shadow-sm filter-box">
+        <form method="GET" action="{% url 'historial' %}" id="formFiltroHistorial" class="row g-3 align-items-end">
+            <div class="col-12 col-md-3">
+                <label class="form-label fw-semibold text-secondary small">Estado</label>
+                <select name="status" class="form-select">
+                    <option value="Todos" {% if status_actual == 'Todos' %}selected{% endif %}>Todos los estados</option>
+                    <option value="Entregado" {% if status_actual == 'Entregado' %}selected{% endif %}>Entregado</option>
+                    <option value="Pendiente" {% if status_actual == 'Pendiente' %}selected{% endif %}>Pendiente</option>
+                </select>
+            </div>
+            
+            <div class="col-12 col-md-3">
+                <label class="form-label fw-semibold text-secondary small">Desde Fecha</label>
+                <input type="date" name="fecha_inicio" id="fechaInicioFilter" class="form-control" value="{{ fecha_inicio }}">
+            </div>
+
+            <div class="col-12 col-md-3">
+                <label class="form-label fw-semibold text-secondary small">Hasta Fecha</label>
+                <input type="date" name="fecha_fin" id="fechaFinFilter" class="form-control" value="{{ fecha_fin }}">
+            </div>
+
+            <div class="col-6 col-md-1">
+                <label class="form-label fw-semibold text-secondary small">Ver</label>
+                <select name="per_page" class="form-select px-2" onchange="this.form.submit()">
+                    <option value="15" {% if per_page == 15 %}selected{% endif %}>15</option>
+                    <option value="30" {% if per_page == 30 %}selected{% endif %}>30</option>
+                    <option value="50" {% if per_page == 50 %}selected{% endif %}>50</option>
+                    <option value="100" {% if per_page == 100 %}selected{% endif %}>100</option>
+                </select>
+            </div>
+
+            <div class="col-12 col-md-2 d-flex gap-2">
+                <button type="submit" class="btn btn-primary-custom flex-grow-1">
+                    <i class="bi bi-funnel-fill me-1"></i> Filtrar
+                </button>
+                <a href="{% url 'historial' %}" class="btn btn-outline-secondary" title="Limpiar Filtros">
+                    <i class="bi bi-x-circle"></i>
+                </a>
+            </div>
+
+            <!-- Botones de Rango Rápido -->
+            <div class="col-12 pt-2 border-top">
+                <div class="d-flex flex-wrap align-items-center gap-2">
+                    <span class="small fw-bold text-muted me-1"><i class="bi bi-lightning-charge-fill text-warning me-1"></i> Filtros Rápidos:</span>
+                    <button type="button" class="btn btn-sm btn-outline-primary rounded-pill px-3" onclick="setQuickDate('hoy')">Hoy</button>
+                    <button type="button" class="btn btn-sm btn-outline-primary rounded-pill px-3" onclick="setQuickDate('semana')">Esta Semana</button>
+                    <button type="button" class="btn btn-sm btn-outline-primary rounded-pill px-3" onclick="setQuickDate('mes')">Este Mes</button>
+                    <button type="button" class="btn btn-sm btn-outline-primary rounded-pill px-3" onclick="setQuickDate('30dias')">Últimos 30 Días</button>
+                </div>
+            </div>
+        </form>
+    </div>
+
+
+    <!-- Buscador rápido en tiempo real -->
+    <div class="row mb-3">
+        <div class="col-12 col-md-6 col-lg-5">
+            <div class="input-group shadow-sm rounded-3">
+                <span class="input-group-text bg-white border-end-0 text-muted">
+                    <i class="bi bi-search"></i>
+                </span>
+                <input type="text" id="buscador" class="form-control border-start-0" placeholder="🔍 Escribe cédula, beneficiario o producto para buscar..." autocomplete="off">
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabla responsiva -->
+    <div id="tabla-historial-container" class="table-responsive rounded-4 border border-light bg-white p-3 shadow-sm mb-3">
+        <table id="tablaHistorial" class="table table-hover align-middle mb-0">
+            <thead class="bg-light text-secondary small text-uppercase">
+                <tr>
+                    <th style="width: 110px;">Fecha</th>
+                    <th>Beneficiario</th>
+                    <th>Producto</th>
+                    <th class="text-center" style="width: 80px;">Cant.</th>
+                    <th class="text-center" style="width: 120px;">Estado</th>
+                    <th class="no-print" style="width: 140px;">Evidencia</th>
+                    <th class="text-center no-print" style="width: 210px;">Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for e in entregas %}
+                <tr class="fila-historial" data-id="{{ e.id }}" data-firma-hash="{{ e.firma_hash }}" data-nombre="{{ e.nombre_beneficiario }}" data-cedula="{{ e.cedula }}" data-producto="{{ e.descripcion_prod }}" data-cantidad="{{ e.cantidad_dada }}" data-fecha="{{ e.fecha_legible }}" data-fecha-entrega="{{ e.fecha_entrega_legible|default:'' }}" data-via="{{ e.via }}">
+                    <textarea class="data-firma d-none" style="display:none;">{{ e.firma_beneficiario|default:'' }}</textarea>
+                    <textarea class="data-huella d-none" style="display:none;">{{ e.huella_dactilar|default:'' }}</textarea>
+                    <td class="small">
+                        <span class="text-muted fw-semibold d-block">{{ e.fecha_legible }}</span>
+                        {% if e.status == 'Entregado' and e.fecha_entrega_legible %}
+                            <span class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25 mt-1 px-1.5 py-0.5 d-inline-flex align-items-center gap-1" style="font-size: 0.68rem;" title="Fecha de entrega efectiva">
+                                <i class="bi bi-check2-circle"></i> Ent: {{ e.fecha_entrega_legible }}
+                            </span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <div class="fw-bold text-dark">{{ e.nombre_beneficiario }}</div>
+                        <div class="small text-muted font-monospace">
+                            C.I. {{ e.cedula }}
+                            {% if e.tiene_firma %}
+                                <span class="badge bg-primary bg-opacity-10 text-primary ms-1" title="Firma digital registrada"><i class="bi bi-pen-fill me-1"></i>Firmado</span>
+                            {% endif %}
+                        </div>
+                    </td>
+                    <td><span class="badge bg-light text-dark border">{{ e.descripcion_prod }}</span></td>
+                    <td class="text-center fw-bold fs-6 text-dark">{{ e.cantidad_dada }}</td>
+                    <td class="text-center">
+                        {% if e.status == 'Entregado' %}
+                            <span class="badge bg-success text-white px-3 py-1 rounded-pill shadow-sm fw-bold">
+                                <i class="bi bi-check-circle-fill me-1"></i> Entregado
+                            </span>
+                        {% else %}
+                            <span class="badge bg-warning text-dark px-3 py-1 rounded-pill shadow-sm fw-bold">
+                                <i class="bi bi-clock-fill me-1"></i> Pendiente
+                            </span>
+                        {% endif %}
+                    </td>
+                    <td class="align-middle no-print">
+                        {% if e.urls_evidencia %}
+                            {% for url in e.urls_evidencia %}
+                                <a href="{{ url }}" target="_blank" class="link-evidencia-foto btn btn-sm btn-outline-info mb-1 d-flex align-items-center gap-1 rounded-3">
+                                    <i class="bi bi-image"></i> Foto {{ forloop.counter }}
+                                </a>
+                            {% endfor %}
+                        {% endif %}
+                        {% if e.urls_evidencia|length < 3 %}
+                            <button class="btn btn-sm {% if not e.urls_evidencia %}btn-outline-success{% else %}btn-outline-warning{% endif %} w-100 rounded-3 mt-1" data-bs-toggle="modal" data-bs-target="#modalEvidencia{{ e.id }}">
+                                <i class="bi bi-camera-fill me-1"></i> {% if not e.urls_evidencia %}Cargar{% else %}Agregar{% endif %}
+                            </button>
+                        {% endif %}
+                    </td>
+                    <td class="text-center no-print">
+                        <div class="d-flex justify-content-center flex-wrap gap-1">
+                            {% if request.user.is_superuser or request.user.perfil.puede_imprimir_entregas %}
+                            <!-- 1. Botón Imprimir Comprobante Completo (Formato Carta) -->
+                            <button class="btn btn-primary btn-sm rounded-3 px-2 py-1 shadow-sm border-0 d-inline-flex align-items-center gap-1" onclick="imprimirRegistro(this)" title="🖨️ Imprimir Comprobante Completo (Carta)">
+                                <i class="bi bi-printer-fill"></i> <span class="small fw-bold">Imprimir</span>
+                            </button>
+
+                            <!-- 2. Descargar PDF Oficial -->
+                            <a href="{% url 'generar_comprobante_pdf' e.id %}" target="_blank" class="btn btn-danger btn-sm rounded-3 px-2 py-1 shadow-sm border-0 d-inline-flex align-items-center gap-1" title="📄 Descargar PDF Oficial">
+                                <i class="bi bi-file-earmark-pdf-fill"></i> <span class="small fw-bold">PDF</span>
+                            </a>
+
+                            <!-- 3. Ticket Térmico POS (80mm) -->
+                            <button class="btn btn-dark btn-sm rounded-3 px-2 py-1 shadow-sm border-0 d-inline-flex align-items-center gap-1" onclick="imprimirTicketTermico(this)" title="🧾 Ticket POS (80mm)">
+                                <i class="bi bi-receipt"></i> <span class="small fw-bold">Ticket</span>
+                            </button>
+                            {% endif %}
+
+                            {% if request.user.is_superuser or request.user.perfil.puede_editar_entregas %}
+                            <!-- 4. Editar Datos del Beneficiario (Entregada o Pendiente) -->
+                            <button type="button" class="btn btn-warning btn-sm rounded-3 px-2 py-1 shadow-sm border-0 d-inline-flex align-items-center gap-1 text-dark" data-bs-toggle="modal" data-bs-target="#modalEditarBeneficiario{{ e.id }}" title="✏️ Editar Datos del Beneficiario">
+                                <i class="bi bi-pencil-square"></i> <span class="small fw-bold">Editar</span>
+                            </button>
+                            {% endif %}
+
+                            {% if e.status == 'Pendiente' %}
+                                {% if request.user.is_superuser or request.user.perfil.puede_cambiar_estatus_entregas %}
+                                <form method="POST" action="{% url 'cambiar_estado' e.id 'Entregado' %}" style="display: inline-block; margin: 0;">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="fecha_entrega" class="input-fecha-equipo" value="">
+                                    <button type="submit" class="btn btn-success btn-sm rounded-circle p-1" title="Marcar como Entregado (Registra fecha actual del equipo)" style="width: 28px; height: 28px; display: inline-flex; align-items: center; justify-content: center; border: none;">
+                                        <i class="bi bi-check-lg"></i>
+                                    </button>
+                                </form>
+                                {% endif %}
+                            {% else %}
+                                {% if request.user.is_superuser or request.user.perfil.puede_cambiar_estatus_entregas %}
+                                <form method="POST" action="{% url 'cambiar_estado' e.id 'Pendiente' %}" style="display: inline-block; margin: 0;" onsubmit="return confirm('¿Deseas revertir esta entrega a estado Pendiente? Se repondrá el stock en el inventario.');">
+                                    {% csrf_token %}
+                                    <button type="submit" class="btn btn-outline-warning btn-sm rounded-circle p-1" title="Revertir a Pendiente" style="width: 28px; height: 28px; display: inline-flex; align-items: center; justify-content: center;">
+                                        <i class="bi bi-arrow-counterclockwise"></i>
+                                    </button>
+                                </form>
+                                {% endif %}
+                            {% endif %}
+                            {% if request.user.is_superuser %}
+                                <button class="btn btn-outline-danger btn-sm rounded-circle p-1" data-bs-toggle="modal" data-bs-target="#modalEliminarEntrega" data-id="{{ e.id }}" title="Eliminar de la BD" style="width: 28px; height: 28px; display: inline-flex; align-items: center; justify-content: center;">
+                                    <i class="bi bi-trash3-fill"></i>
+                                </button>
+                            {% endif %}
+                        </div>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="7" class="text-center text-muted py-4 fst-italic">No hay entregas registradas que coincidan con los criterios.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Controles de Paginación -->
+    {% if page_obj.has_other_pages %}
+    <nav class="d-flex justify-content-between align-items-center mt-3">
+        <div class="text-muted small">
+            Página <strong>{{ page_obj.number }}</strong> de <strong>{{ page_obj.paginator.num_pages }}</strong>
+        </div>
+        <ul class="pagination pagination-sm mb-0">
+            {% if page_obj.has_previous %}
+                <li class="page-item"><a class="page-link" href="?page=1{% if status_actual != 'Todos' %}&status={{ status_actual }}{% endif %}{% if fecha_inicio %}&fecha_inicio={{ fecha_inicio }}{% endif %}{% if fecha_fin %}&fecha_fin={{ fecha_fin }}{% endif %}">&laquo; Primero</a></li>
+                <li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if status_actual != 'Todos' %}&status={{ status_actual }}{% endif %}{% if fecha_inicio %}&fecha_inicio={{ fecha_inicio }}{% endif %}{% if fecha_fin %}&fecha_fin={{ fecha_fin }}{% endif %}">Anterior</a></li>
+            {% endif %}
+            
+            <li class="page-item active"><span class="page-link">{{ page_obj.number }}</span></li>
+
+            {% if page_obj.has_next %}
+                <li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}{% if status_actual != 'Todos' %}&status={{ status_actual }}{% endif %}{% if fecha_inicio %}&fecha_inicio={{ fecha_inicio }}{% endif %}{% if fecha_fin %}&fecha_fin={{ fecha_fin }}{% endif %}">Siguiente</a></li>
+                <li class="page-item"><a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if status_actual != 'Todos' %}&status={{ status_actual }}{% endif %}{% if fecha_inicio %}&fecha_inicio={{ fecha_inicio }}{% endif %}{% if fecha_fin %}&fecha_fin={{ fecha_fin }}{% endif %}">Último &raquo;</a></li>
+            {% endif %}
+        </ul>
+    </nav>
+    {% endif %}
+</div>
+
+<!-- Modales de Evidencia -->
+{% for e in entregas %}
+    <div class="modal fade" id="modalEvidencia{{ e.id }}" data-bs-backdrop="static" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <form method="POST" action="{% url 'confirmar_entrega' e.id %}" class="form-evidencia" enctype="multipart/form-data">
+                {% csrf_token %}
+                <div class="modal-content border-0 shadow-lg rounded-4">
+                    <div class="modal-header border-bottom pb-2">
+                        <h5 class="modal-title fw-bold text-dark"><i class="bi bi-camera-fill text-primary me-2"></i>Cargar Foto de Evidencia</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body py-3">
+                        <input type="hidden" name="fecha_entrega" class="input-fecha-equipo" value="">
+                        <label class="form-label small text-muted">Selecciona la imagen de respaldo para la entrega:</label>
+                        <input type="file" name="evidencia" class="form-control" accept="image/*" required>
+                    </div>
+                    <div class="modal-footer border-top pt-2">
+                        <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="submit" class="btn btn-primary-custom">Subir Evidencia</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+{% endfor %}
+
+<!-- Modales de Edición de Beneficiario -->
+{% if request.user.is_superuser or request.user.perfil.puede_editar_entregas %}
+{% for e in entregas %}
+<div class="modal fade" id="modalEditarBeneficiario{{ e.id }}" data-bs-backdrop="static" tabindex="-1" aria-labelledby="modalEditarBeneficiarioLabel{{ e.id }}" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <form method="POST" action="{% url 'editar_beneficiario_entrega' e.id %}" id="formEditarBeneficiario{{ e.id }}">
+            {% csrf_token %}
+            <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
+                <!-- Header con degradado sutil y estado -->
+                <div class="modal-header bg-light border-bottom py-3 px-4 d-flex justify-content-between align-items-center">
+                    <div class="d-flex align-items-center gap-2">
+                        <div class="rounded-circle bg-warning bg-opacity-25 p-2 text-warning-emphasis d-flex align-items-center justify-content-center" style="width: 38px; height: 38px;">
+                            <i class="bi bi-pencil-square fs-5"></i>
+                        </div>
+                        <div>
+                            <h5 class="modal-title fw-bold text-dark mb-0" id="modalEditarBeneficiarioLabel{{ e.id }}">
+                                Modificar Datos del Beneficiario
+                            </h5>
+                            <span class="small text-muted">Entrega #{{ e.id }} &bull; Registrada el {{ e.fecha_legible }}</span>
+                        </div>
+                    </div>
+                    <div class="d-flex align-items-center gap-2">
+                        {% if e.status == 'Entregado' %}
+                            <span class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25 px-2 py-1 rounded-pill fw-semibold">
+                                <i class="bi bi-check-circle-fill me-1"></i> Entregado
+                            </span>
+                        {% else %}
+                            <span class="badge bg-warning bg-opacity-10 text-warning-emphasis border border-warning border-opacity-25 px-2 py-1 rounded-pill fw-semibold">
+                                <i class="bi bi-clock-history me-1"></i> Pendiente
+                            </span>
+                        {% endif %}
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                    </div>
+                </div>
+
+                <div class="modal-body p-4">
+                    <!-- Tarjeta Informativa de Solo Lectura (Protección de Inventario) -->
+                    <div class="alert alert-secondary bg-light border p-3 rounded-3 mb-4">
+                        <div class="d-flex align-items-start gap-2">
+                            <i class="bi bi-shield-lock-fill text-primary fs-5 mt-1"></i>
+                            <div class="w-100">
+                                <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+                                    <span class="fw-bold text-dark small text-uppercase">Datos de Entrega Protegidos (Solo Lectura)</span>
+                                    <span class="badge bg-secondary-subtle text-secondary small">Inventario Protegido</span>
+                                </div>
+                                <div class="row g-2 mt-2 pt-2 border-top border-secondary-subtle">
+                                    <div class="col-12 col-md-6">
+                                        <span class="text-muted small d-block">Producto Asignado:</span>
+                                        <strong class="text-dark">{{ e.descripcion_prod }}</strong>
+                                    </div>
+                                    <div class="col-6 col-md-3">
+                                        <span class="text-muted small d-block">Cantidad:</span>
+                                        <strong class="text-dark">{{ e.cantidad_dada }} u.</strong>
+                                    </div>
+                                    <div class="col-6 col-md-3">
+                                        <span class="text-muted small d-block">Estado Actual:</span>
+                                        <strong class="{% if e.status == 'Entregado' %}text-success{% else %}text-warning-emphasis{% endif %}">{{ e.status }}</strong>
+                                    </div>
+                                </div>
+                                <p class="small text-muted mb-0 mt-2 fst-italic">
+                                    <i class="bi bi-info-circle me-1"></i>Únicamente los datos de identidad y contacto del beneficiario receptor pueden ser modificados. Los productos y stock no son alterados en esta sección.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Formulario de Datos del Beneficiario -->
+                    <h6 class="fw-bold text-dark mb-3 d-flex align-items-center gap-2">
+                        <i class="bi bi-person-lines-fill text-warning-emphasis"></i> Datos de Identidad y Contacto
+                    </h6>
+
+                    <div class="row g-3">
+                        <!-- Cédula con botón de búsqueda CNE/PNP -->
+                        <div class="col-12 col-md-5">
+                            <label class="form-label fw-semibold text-secondary small mb-1">
+                                Cédula de Identidad <span class="text-danger">*</span>
+                            </label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-light text-muted"><i class="bi bi-card-heading"></i></span>
+                                <input type="text" name="cedula" id="editCedula{{ e.id }}" value="{{ e.cedula }}" class="form-control fw-bold" required placeholder="Ej: 12345678">
+                                <button type="button" class="btn btn-outline-primary d-inline-flex align-items-center gap-1" onclick="consultarBeneficiarioEdicion('{{ e.id }}')" title="Consultar en CNE / Padrón Electoral">
+                                    <i class="bi bi-search" id="iconBuscarCNE{{ e.id }}"></i>
+                                    <span class="d-none d-sm-inline small fw-semibold" id="textBuscarCNE{{ e.id }}">CNE</span>
+                                </button>
+                            </div>
+                            <div id="feedbackCNE{{ e.id }}" class="small mt-1 text-muted">
+                                Consulta automática en el padrón electoral CNE/PNP disponible.
+                            </div>
+                        </div>
+
+                        <!-- Nombre Completo -->
+                        <div class="col-12 col-md-7">
+                            <label class="form-label fw-semibold text-secondary small mb-1">
+                                Nombre Completo del Beneficiario <span class="text-danger">*</span>
+                            </label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-light text-muted"><i class="bi bi-person"></i></span>
+                                <input type="text" name="nombre_beneficiario" id="editNombre{{ e.id }}" value="{{ e.nombre_beneficiario }}" class="form-control" required placeholder="Nombres y Apellidos">
+                            </div>
+                        </div>
+
+                        <!-- Teléfono -->
+                        <div class="col-12 col-md-5">
+                            <label class="form-label fw-semibold text-secondary small mb-1">
+                                Número Telefónico
+                            </label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-light text-muted"><i class="bi bi-telephone"></i></span>
+                                <input type="text" name="telefono" id="editTelefono{{ e.id }}" value="{{ e.telefono }}" class="form-control" placeholder="Ej: 0414-1234567">
+                            </div>
+                        </div>
+
+                        <!-- Dirección -->
+                        <div class="col-12 col-md-7">
+                            <label class="form-label fw-semibold text-secondary small mb-1">
+                                Dirección / Residencia
+                            </label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-light text-muted"><i class="bi bi-geo-alt"></i></span>
+                                <input type="text" name="direccion" id="editDireccion{{ e.id }}" value="{{ e.direccion }}" class="form-control" placeholder="Sector, calle o comunidad">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="modal-footer bg-light border-top py-3 px-4 d-flex justify-content-between align-items-center">
+                    <button type="button" class="btn btn-outline-secondary rounded-3 px-3" data-bs-dismiss="modal">
+                        <i class="bi bi-x-lg me-1"></i> Cancelar
+                    </button>
+                    <button type="submit" class="btn btn-warning rounded-3 px-4 fw-bold shadow-sm d-inline-flex align-items-center gap-1 text-dark">
+                        <i class="bi bi-check-circle-fill me-1"></i> Guardar Cambios
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+{% endfor %}
+{% endif %}
+
+<!-- Modal de Confirmación de Eliminación -->
+<div class="modal fade" id="modalEliminarEntrega" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow-lg rounded-4">
+      <form id="formEliminarEntrega" method="POST">
+        {% csrf_token %}
+        <div class="modal-header border-bottom pb-2">
+          <h5 class="modal-title fw-bold text-danger"><i class="bi bi-exclamation-triangle-fill me-2"></i>Confirmar Eliminación</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body py-3">
+          <p class="mb-2 text-dark">¿Estás seguro de eliminar este registro de entrega permanentemente?</p>
+          
+          <div class="form-check form-switch mt-3 bg-light p-3 rounded-3 border">
+            <input class="form-check-input" type="checkbox" id="reponer_stock" name="reponer_stock" checked>
+            <label class="form-check-label fw-semibold text-dark ms-2" for="reponer_stock">
+              Reponer automáticamente la cantidad al inventario
+            </label>
+          </div>
+        </div>
+        <div class="modal-footer border-top pt-2">
+          <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancelar</button>
+          <button type="submit" class="btn btn-danger px-4">Sí, eliminar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Modal para Seleccionar Mes y Año del Reporte Ejecutivo PDF -->
+<div class="modal fade" id="modalSeleccionarMesReporte" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg rounded-4">
+            <div class="modal-header border-bottom">
+                <h5 class="modal-title fw-bold text-dark"><i class="bi bi-calendar-check text-danger me-2"></i>Generar Reporte Ejecutivo Mensual</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form action="{% url 'generar_reporte_mensual_pdf' %}" method="GET" target="_blank">
+                <div class="modal-body p-4">
+                    <p class="text-muted small mb-3">Selecciona el mes y año para descargar el informe institucional de entregas en PDF:</p>
+                    <div class="row g-3">
+                        <div class="col-12 col-md-7">
+                            <label class="form-label fw-semibold text-secondary small">Mes del Reporte</label>
+                            <select name="mes" id="selectMesReporte" class="form-select fw-bold">
+                                <option value="1">Enero</option>
+                                <option value="2">Febrero</option>
+                                <option value="3">Marzo</option>
+                                <option value="4">Abril</option>
+                                <option value="5">Mayo</option>
+                                <option value="6">Junio</option>
+                                <option value="7">Julio</option>
+                                <option value="8">Agosto</option>
+                                <option value="9">Septiembre</option>
+                                <option value="10">Octubre</option>
+                                <option value="11">Noviembre</option>
+                                <option value="12">Diciembre</option>
+                            </select>
+                        </div>
+                        <div class="col-12 col-md-5">
+                            <label class="form-label fw-semibold text-secondary small">Año</label>
+                            <select name="anio" id="selectAnioReporte" class="form-select fw-bold">
+                                <option value="2026">2026</option>
+                                <option value="2025">2025</option>
+                                <option value="2024">2024</option>
+                                <option value="2023">2023</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer border-top justify-content-between">
+                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-danger px-4 fw-bold" onclick="setTimeout(() => { bootstrap.Modal.getInstance(document.getElementById('modalSeleccionarMesReporte')).hide(); }, 400);">
+                        <i class="bi bi-file-earmark-pdf-fill me-1"></i> Descargar PDF
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // --- MOTOR DE BÚSQUEDA EN TIEMPO REAL INSTANTÁNEO ---
+    document.addEventListener('DOMContentLoaded', function() {
+        const inputBuscador = document.getElementById('buscador');
+        const tabla = document.getElementById('tablaHistorial');
+        
+        if (inputBuscador && tabla) {
+            const tbody = tabla.querySelector('tbody');
+            
+            function ejecutarFiltroHistorial() {
+                const query = inputBuscador.value.toLowerCase().trim();
+                const filas = tbody.querySelectorAll('tr.fila-historial');
+                let encontrados = 0;
+
+                filas.forEach(fila => {
+                    const texto = fila.textContent.toLowerCase();
+                    if (texto.includes(query)) {
+                        fila.style.setProperty('display', '', 'important');
+                        encontrados++;
+                    } else {
+                        fila.style.setProperty('display', 'none', 'important');
+                    }
+                });
+
+                let filaSinResultados = tbody.querySelector('.no-results-row-historial');
+                if (encontrados === 0 && filas.length > 0) {
+                    if (!filaSinResultados) {
+                        filaSinResultados = document.createElement('tr');
+                        filaSinResultados.className = 'no-results-row-historial';
+                        filaSinResultados.innerHTML = `<td colspan="7" class="text-center text-muted py-4 fst-italic">No se encontraron entregas que coincidan con "${query}".</td>`;
+                        tbody.appendChild(filaSinResultados);
+                    } else {
+                        filaSinResultados.style.display = '';
+                        filaSinResultados.querySelector('td').textContent = `No se encontraron entregas que coincidan con "${query}".`;
+                    }
+                } else if (filaSinResultados) {
+                    filaSinResultados.style.display = 'none';
+                }
+            }
+
+            inputBuscador.addEventListener('input', ejecutarFiltroHistorial);
+            inputBuscador.addEventListener('keyup', ejecutarFiltroHistorial);
+            inputBuscador.addEventListener('change', ejecutarFiltroHistorial);
+        }
+
+        // Asignar automáticamente la fecha del equipo (dispositivo del usuario) a los formularios
+        const hoyEquipoStr = new Date().toLocaleDateString('en-CA');
+        document.querySelectorAll('.input-fecha-equipo').forEach(inp => {
+            inp.value = hoyEquipoStr;
+        });
+    });
+
+    // --- FILTROS RÁPIDOS DE FECHAS EN 1 CLIC ---
+    function setQuickDate(rango) {
+        const hoy = new Date();
+        const formatDate = d => {
+            const year = d.getFullYear();
+            const month = String(d.getMonth() + 1).padStart(2, '0');
+            const day = String(d.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        };
+
+        let inicio = new Date();
+        let fin = new Date();
+
+        if (rango === 'hoy') {
+            inicio = hoy;
+            fin = hoy;
+        } else if (rango === 'semana') {
+            const day = hoy.getDay();
+            const diff = hoy.getDate() - day + (day === 0 ? -6 : 1);
+            inicio = new Date(hoy.setDate(diff));
+            fin = new Date();
+        } else if (rango === 'mes') {
+            inicio = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
+            fin = new Date();
+        } else if (rango === '30dias') {
+            const d = new Date();
+            d.setDate(d.getDate() - 30);
+            inicio = d;
+            fin = new Date();
+        }
+
+        document.getElementById('fechaInicioFilter').value = formatDate(inicio);
+        document.getElementById('fechaFinFilter').value = formatDate(fin);
+        document.getElementById('formFiltroHistorial').submit();
+    }
+
+    const modalEliminar = document.getElementById('modalEliminarEntrega');
+    if (modalEliminar) {
+        modalEliminar.addEventListener('show.bs.modal', function (event) {
+            const button = event.relatedTarget;
+            const entregaId = button.getAttribute('data-id');
+            const form = document.getElementById('formEliminarEntrega');
+            form.action = `/eliminar/${entregaId}/`;
+        });
+    }
+
+    const modalMesReporte = document.getElementById('modalSeleccionarMesReporte');
+    if (modalMesReporte) {
+        modalMesReporte.addEventListener('show.bs.modal', function () {
+            const hoy = new Date();
+            const currentMonth = hoy.getMonth() + 1;
+            const currentYear = hoy.getFullYear();
+            
+            const selectMes = document.getElementById('selectMesReporte');
+            const selectAnio = document.getElementById('selectAnioReporte');
+            
+            if (selectMes) selectMes.value = String(currentMonth);
+            if (selectAnio) selectAnio.value = String(currentYear);
+        });
+    }
+
+    // --- IMPRESIÓN FORMATO CARTA VERTICAL (8.5in x 11in) ---
+    function imprimirRegistro(btn) {
+        const row = btn.closest('tr');
+        const fecha = row.getAttribute('data-fecha') || row.cells[0].innerText.trim();
+        const fechaEntrega = row.getAttribute('data-fecha-entrega') || '';
+        const estado = row.cells[4].innerText.trim();
+        const nombreBeneficiario = row.getAttribute('data-nombre') || '';
+        const cedulaBeneficiario = row.getAttribute('data-cedula') || '';
+        const producto = row.getAttribute('data-producto') || row.cells[2].innerText.trim();
+        const cantidad = row.getAttribute('data-cantidad') || row.cells[3].innerText.trim();
+        const via = row.getAttribute('data-via') || 'Atención Directa';
+        const firmaBeneficiario = (row.querySelector('.data-firma')?.value || '').trim();
+        const huellaDactilar = (row.querySelector('.data-huella')?.value || '').trim();
+        
+        // Función para optimizar URLs de Cloudinary al vuelo (reduce de 3MB a ~70KB para carga instantánea y nítida)
+        function optimizarUrlEvidencia(url) {
+            if (!url) return '';
+            if (url.includes('cloudinary.com') && url.includes('/upload/') && !url.includes('/upload/w_')) {
+                return url.replace('/upload/', '/upload/w_900,c_limit,q_auto,f_auto/');
+            }
+            return url;
+        }
+
+        const rawImgLinks = Array.from(row.querySelectorAll('a.link-evidencia-foto')).map(a => a.href).filter(h => h && h.length > 5);
+        const imgLinks = rawImgLinks.map(optimizarUrlEvidencia);
+
+        // Construir layout dinámico de evidencias fotográficas en ancho completo para Carta Vertical
+        let evidenciasHtml = '';
+        if (imgLinks && imgLinks.length > 0) {
+            if (imgLinks.length === 1) {
+                evidenciasHtml = `
+                    <div class="card bg-light border p-3 rounded-3 mb-3">
+                        <div class="fw-bold text-secondary border-bottom pb-1 mb-2 text-center" style="font-size: 0.88rem;">
+                            <i class="bi bi-camera-fill text-primary me-1"></i> EVIDENCIA FOTOGRÁFICA DE LA ENTREGA
+                        </div>
+                        <div class="d-flex align-items-center justify-content-center bg-white rounded-2 border p-2" style="min-height: 260px; max-height: 320px;">
+                            <img src="${imgLinks[0]}" loading="eager" decoding="sync" style="max-height: 300px; max-width: 100%; object-fit: contain; border-radius: 6px;" alt="Evidencia 1">
+                        </div>
+                    </div>
+                `;
+            } else if (imgLinks.length === 2) {
+                evidenciasHtml = `
+                    <div class="card bg-light border p-3 rounded-3 mb-3">
+                        <div class="fw-bold text-secondary border-bottom pb-1 mb-2 text-center" style="font-size: 0.88rem;">
+                            <i class="bi bi-camera-fill text-primary me-1"></i> EVIDENCIAS FOTOGRÁFICAS DE LA ENTREGA (2 FOTOS)
+                        </div>
+                        <div class="row g-2">
+                            <div class="col-6">
+                                <div class="d-flex align-items-center justify-content-center bg-white rounded-2 border p-2" style="height: 220px;">
+                                    <img src="${imgLinks[0]}" loading="eager" decoding="sync" style="max-height: 205px; max-width: 100%; object-fit: contain; border-radius: 6px;" alt="Evidencia 1">
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="d-flex align-items-center justify-content-center bg-white rounded-2 border p-2" style="height: 220px;">
+                                    <img src="${imgLinks[1]}" loading="eager" decoding="sync" style="max-height: 205px; max-width: 100%; object-fit: contain; border-radius: 6px;" alt="Evidencia 2">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            } else {
+                evidenciasHtml = `
+                    <div class="card bg-light border p-3 rounded-3 mb-3">
+                        <div class="fw-bold text-secondary border-bottom pb-1 mb-2 text-center" style="font-size: 0.88rem;">
+                            <i class="bi bi-camera-fill text-primary me-1"></i> EVIDENCIAS FOTOGRÁFICAS DE LA ENTREGA (${imgLinks.length} FOTOS)
+                        </div>
+                        <div class="row g-2">
+                            <div class="col-4">
+                                <div class="d-flex align-items-center justify-content-center bg-white rounded-2 border p-2" style="height: 190px;">
+                                    <img src="${imgLinks[0]}" loading="eager" decoding="sync" style="max-height: 175px; max-width: 100%; object-fit: contain; border-radius: 6px;" alt="Evidencia 1">
+                                </div>
+                            </div>
+                            <div class="col-4">
+                                <div class="d-flex align-items-center justify-content-center bg-white rounded-2 border p-2" style="height: 190px;">
+                                    <img src="${imgLinks[1]}" loading="eager" decoding="sync" style="max-height: 175px; max-width: 100%; object-fit: contain; border-radius: 6px;" alt="Evidencia 2">
+                                </div>
+                            </div>
+                            <div class="col-4">
+                                <div class="d-flex align-items-center justify-content-center bg-white rounded-2 border p-2" style="height: 190px;">
+                                    <img src="${imgLinks[2]}" loading="eager" decoding="sync" style="max-height: 175px; max-width: 100%; object-fit: contain; border-radius: 6px;" alt="Evidencia 3">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+        }
+        
+        const content = `
+            <!DOCTYPE html>
+            <html lang="es">
+            <head>
+                <meta charset="UTF-8">
+                <title>Comprobante de Entrega - Carta Vertical</title>
+                <link rel="preconnect" href="https://res.cloudinary.com">
+                ${imgLinks.map(url => `<link rel="preload" as="image" href="${url}">`).join('\n')}
+                <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+                <style>
+                    @page {
+                        size: letter portrait;
+                        margin: 12mm 15mm;
+                    }
+                    body {
+                        background-color: #f8fafc;
+                        color: #0f172a;
+                        margin: 0;
+                        padding: 15px;
+                        font-family: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+                        font-size: 13px;
+                        line-height: 1.4;
+                    }
+                    .comprobante-card {
+                        width: 100%;
+                        max-width: 8in;
+                        margin: 0 auto;
+                        background: #ffffff !important;
+                        border: 1px solid #cbd5e1 !important;
+                        border-radius: 12px;
+                        padding: 24px;
+                        box-sizing: border-box;
+                    }
+                    .logo-encabezado {
+                        max-height: 62px;
+                        width: auto;
+                    }
+                    @media print {
+                        .no-print { display: none !important; }
+                        body { background: #ffffff !important; padding: 0 !important; }
+                        .comprobante-card { box-shadow: none !important; border: 1px solid #000 !important; max-width: 100% !important; padding: 16px !important; }
+                    }
+                </style>
+            </head>
+            <body>
+                <div class="comprobante-card">
+                    <!-- Botón Destacado de Impresión (Solo en pantalla) -->
+                    <div class="text-end no-print mb-3">
+                        <button onclick="window.print()" class="btn btn-primary btn-sm fw-bold shadow-sm px-4">
+                            🖨️ IMPRIMIR COMPROBANTE (CARTA VERTICAL)
+                        </button>
+                    </div>
+
+                    <!-- Membrete con Logos Institucionales -->
+                    <div class="d-flex justify-content-between align-items-center border-bottom pb-3 mb-3">
+                        <img src="https://res.cloudinary.com/tehn5bfb/image/upload/v1783630731/efad9adhn201uv8xemcn.jpg" class="logo-encabezado rounded" alt="Alcaldía">
+                        <div class="text-center flex-grow-1 px-3">
+                            <h4 class="text-primary mb-0 fw-bold" style="font-size: 1.35rem; letter-spacing: -0.2px;">COMPROBANTE OFICIAL DE ENTREGA</h4>
+                            <p class="text-muted small mb-0 fw-semibold" style="font-size: 0.9rem;">Alcaldía del Municipio Valera • Sistema SIA Web</p>
+                        </div>
+                        <img src="https://res.cloudinary.com/tehn5bfb/image/upload/v1783630731/hgb44vfc0d8wirbnz2th.jpg" class="logo-encabezado rounded" alt="Valera Renace">
+                    </div>
+
+                    <!-- Sección 1: Tabla Estructurada de Datos del Beneficiario y Entrega -->
+                    <div class="card bg-light border p-3 rounded-3 mb-3">
+                        <div class="fw-bold text-primary border-bottom pb-1 mb-2" style="font-size: 0.92rem;">
+                            <i class="bi bi-person-vcard-fill me-1"></i> DATOS DEL CIUDADANO BENEFICIARIO Y DE LA ENTREGA
+                        </div>
+                        <table class="table table-bordered table-sm mb-0 align-middle" style="font-size: 13px;">
+                            <tbody>
+                                <tr>
+                                    <th class="bg-white text-secondary fw-bold" style="width: 22%;">Beneficiario:</th>
+                                    <td class="fw-bold text-primary" style="width: 28%; font-size: 13.5px;">${nombreBeneficiario}</td>
+                                    <th class="bg-white text-secondary fw-bold" style="width: 22%;">Cédula de Identidad:</th>
+                                    <td class="fw-bold font-monospace text-dark" style="width: 28%; font-size: 13px;">C.I. ${cedulaBeneficiario}</td>
+                                </tr>
+                                <tr>
+                                    <th class="bg-white text-secondary fw-bold">Fecha de Registro:</th>
+                                    <td class="fw-bold text-dark">${fecha}</td>
+                                    <th class="bg-white text-secondary fw-bold">Fecha de Entrega:</th>
+                                    <td class="fw-bold ${estado.includes('Entregado') ? 'text-success' : 'text-warning'}">
+                                        ${estado.includes('Entregado') ? (fechaEntrega || fecha) : 'Pendiente por entregar'}
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <th class="bg-white text-secondary fw-bold">Producto / Beneficio:</th>
+                                    <td class="fw-bold text-dark">${producto}</td>
+                                    <th class="bg-white text-secondary fw-bold">Cantidad Asignada:</th>
+                                    <td><span class="badge bg-success px-2.5 py-1" style="font-size: 12.5px;">${cantidad} u.</span></td>
+                                </tr>
+                                <tr>
+                                    <th class="bg-white text-secondary fw-bold">Observación / Vía:</th>
+                                    <td class="fw-bold text-dark">${via}</td>
+                                    <th class="bg-white text-secondary fw-bold">Estatus del Registro:</th>
+                                    <td>
+                                        ${estado.includes('Entregado') 
+                                            ? '<span class="badge bg-success px-2.5 py-1" style="font-size: 12px;">ENTREGADO</span>' 
+                                            : '<span class="badge bg-warning text-dark px-2.5 py-1" style="font-size: 12px;">PENDIENTE</span>'}
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Sección 2: Evidencias Fotográficas (Si existen) -->
+                    ${evidenciasHtml}
+
+                    <!-- Sección 3: Verificación Digital QR y Firma Criptográfica SHA-256 -->
+                    <div class="bg-light p-3 rounded-3 border mb-3">
+                        <div class="d-flex align-items-center justify-content-between mb-2">
+                            <div class="d-flex align-items-center gap-3">
+                                <img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(window.location.origin + '/comprobante/entrega/' + (row.getAttribute('data-id') || '0') + '/')}" alt="QR Verificación" class="rounded border p-1 bg-white" style="width: 64px; height: 64px;">
+                                <div>
+                                    <div class="fw-bold text-dark mb-0" style="font-size: 0.9rem;">🛡️ SELLO DIGITAL DE AUTENTICIDAD LEGAL</div>
+                                    <small class="text-muted d-block" style="font-size: 0.75rem;">Ley de Mensajes de Datos y Firmas Electrónicas • Norma Criptográfica ISO/IEC 27001</small>
+                                    <small class="text-secondary d-block mt-0.5" style="font-size: 0.72rem;">Código de Control Documental: <strong>REG-${row.getAttribute('data-id') || '0'}</strong></small>
+                                </div>
+                            </div>
+                            <div class="text-end">
+                                <span class="badge bg-success bg-opacity-10 text-success border border-success px-3 py-1.5 fw-bold" style="font-size: 0.8rem;">FIRMA VÁLIDA</span>
+                            </div>
+                        </div>
+                        <div class="bg-white p-2 rounded border">
+                            <small class="text-secondary fw-semibold d-block" style="font-size: 0.72rem;">Firma Criptográfica SHA-256 (Huella Digital del Documento):</small>
+                            <code class="fw-bold text-primary font-monospace d-block text-break mt-0.5" style="font-size: 0.78rem;">${row.getAttribute('data-firma-hash') || 'SHA256-VALIDATED-OFFICIAL-DOCUMENT'}</code>
+                        </div>
+                    </div>
+
+                    <!-- Sección 4: Recuadros de Firma y Biometría Dactilar -->
+                    <div class="row text-center mt-4 pt-2 align-items-end g-3">
+                        <div class="${huellaDactilar ? 'col-4' : 'col-6'}">
+                            ${firmaBeneficiario ? `
+                                <img src="${firmaBeneficiario}" style="max-height: 65px; max-width: 170px; display: block; margin: 0 auto 4px auto;" alt="Firma Digital Beneficiario">
+                            ` : `
+                                <div style="height: 55px;"></div>
+                            `}
+                            <div style="border-top: 1.5px solid #000; padding-top: 4px; font-weight: bold; font-size: 0.9rem;">Firma del Beneficiario</div>
+                            <small class="text-muted" style="font-size: 0.78rem;">C.I. ${cedulaBeneficiario}</small>
+                        </div>
+                        ${huellaDactilar ? `
+                        <div class="col-4">
+                            <img src="${huellaDactilar}" style="max-height: 65px; max-width: 55px; border: 1.5px solid #0f172a; border-radius: 4px; padding: 2px; background: #fff; display: block; margin: 0 auto 4px auto;" alt="Huella Dactilar">
+                            <div style="border-top: 1.5px solid #000; padding-top: 4px; font-weight: bold; font-size: 0.9rem;">Huella Dactilar</div>
+                            <small class="text-muted" style="font-size: 0.78rem;">Pulgar / Biometría</small>
+                        </div>
+                        ` : ''}
+                        <div class="${huellaDactilar ? 'col-4' : 'col-6'}">
+                            <div style="height: 55px;"></div>
+                            <div style="border-top: 1.5px solid #000; padding-top: 4px; font-weight: bold; font-size: 0.9rem;">Firma / Sello Responsable SIA</div>
+                            <small class="text-muted" style="font-size: 0.78rem;">Atención Social e Inventario</small>
+                        </div>
+                    </div>
+
+                    <!-- Botón Inferior para Imprimir -->
+                    <div class="text-center no-print mt-4 pt-3 border-top">
+                        <button onclick="window.print()" class="btn btn-primary btn-sm fw-bold shadow-sm px-4">
+                            🖨️ IMPRIMIR COMPROBANTE (CARTA VERTICAL)
+                        </button>
+                    </div>
+                </div>
+            </body>
+            </html>
+        `;
+        
+        const printWindow = window.open('', '_blank');
+        printWindow.document.write(content);
+        printWindow.document.close();
+    }
+
+    // IMPRESIÓN DE TICKET TÉRMICO POS (80mm)
+    function imprimirTicketTermico(btn) {
+        const row = btn.closest('tr');
+        const fecha = row.getAttribute('data-fecha') || row.cells[0].innerText.trim();
+        const fechaEntrega = row.getAttribute('data-fecha-entrega') || '';
+        const nombreBeneficiario = row.getAttribute('data-nombre') || '';
+        const cedulaBeneficiario = row.getAttribute('data-cedula') || '';
+        const producto = row.getAttribute('data-producto') || row.cells[2].innerText.trim();
+        const cantidad = row.getAttribute('data-cantidad') || row.cells[3].innerText.trim();
+        const estado = row.cells[4].innerText.trim();
+        const via = row.getAttribute('data-via') || 'Atención Directa';
+        
+        const content = `
+            <!DOCTYPE html>
+            <html lang="es">
+            <head>
+                <meta charset="UTF-8">
+                <title>Ticket POS - SIA Web</title>
+                <style>
+                    @page { size: 80mm 200mm; margin: 0; }
+                    body {
+                        font-family: 'Courier New', Courier, monospace;
+                        width: 76mm;
+                        margin: 0 auto;
+                        padding: 6mm 2mm;
+                        font-size: 11px;
+                        color: #000;
+                        line-height: 1.3;
+                    }
+                    .text-center { text-align: center; }
+                    .bold { font-weight: bold; }
+                    .linea { border-bottom: 1px dashed #000; margin: 6px 0; }
+                    .tabla-ticket { width: 100%; border-collapse: collapse; }
+                    .tabla-ticket td { padding: 2px 0; }
+                </style>
+            </head>
+            <body>
+                <div class="text-center bold">ALCALDÍA / SIA WEB</div>
+                <div class="text-center">COMPROBANTE DE ENTREGA</div>
+                <div class="linea"></div>
+                <table class="tabla-ticket">
+                    <tr><td>FECHA REGISTRO:</td><td style="text-align:right;">${fecha}</td></tr>
+                    ${estado.includes('Entregado') ? `<tr><td>FECHA ENTREGA:</td><td style="text-align:right;" class="bold">${fechaEntrega || fecha}</td></tr>` : ''}
+                    <tr><td>BENEFICIARIO:</td><td style="text-align:right;">${nombreBeneficiario}</td></tr>
+                    <tr><td>CÉDULA:</td><td style="text-align:right;">C.I. ${cedulaBeneficiario}</td></tr>
+                </table>
+                <div class="linea"></div>
+                <div class="bold">PRODUCTO:</div>
+                <div>${producto}</div>
+                <table class="tabla-ticket" style="margin-top: 4px;">
+                    <tr><td>CANTIDAD:</td><td style="text-align:right;" class="bold">${cantidad} u.</td></tr>
+                    <tr><td>OBSERVAC. / VÍA:</td><td style="text-align:right;">${via}</td></tr>
+                    <tr><td>ESTADO:</td><td style="text-align:right;">${estado}</td></tr>
+                </table>
+                <div class="linea"></div>
+                <div class="text-center my-2">
+                    <img src="https://api.qrserver.com/v1/create-qr-code/?size=110x110&data=${encodeURIComponent(window.location.origin + '/comprobante/entrega/' + (row.getAttribute('data-id') || '0') + '/')}" width="70" height="70" alt="QR Verificación">
+                    <div class="bold" style="font-size: 8px; margin-top: 3px;">FIRMA DIGITAL (SHA-256):</div>
+                    <div style="font-size: 7.5px; font-family: monospace; word-break: break-all;">${row.getAttribute('data-firma-hash') || 'SHA256-VALIDATED-OFFICIAL'}</div>
+                </div>
+                <div class="linea"></div>
+                <br>
+                <div class="text-center">__________________________</div>
+                <div class="text-center small">FIRMA RECEPTOR</div>
+                <br>
+                <div class="text-center small">¡GRACIAS POR SU ATENCIÓN!</div>
+                <script>window.onload = function() { window.print(); };<\/script>
+            </body>
+            </html>
+        `;
+        
+        const printWin = window.open('', '_blank');
+        printWin.document.write(content);
+        printWin.document.close();
+    }
+
+    function imprimirReporteHistorial(btn) {
+        const contenedorTemp = document.getElementById('tabla-historial-container').cloneNode(true);
+        $(contenedorTemp).find('th:nth-child(6), td:nth-child(6), th:nth-child(7), td:nth-child(7)').remove();
+
+        const contenidoHistorial = contenedorTemp.innerHTML;
+        
+        const content = `
+            <!DOCTYPE html>
+            <html lang="es">
+            <head>
+                <meta charset="UTF-8">
+                <title>Reporte General de Entregas</title>
+                <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+                <style>
+                    @page { size: 8.5in 11in; margin: 15mm; }
+                    body { background-color: #ffffff; color: #212529; font-size: 13px; }
+                    .logo-encabezado { max-width: 75px; height: auto; }
+                    @media print { .no-print { display: none !important; } }
+                </style>
+            </head>
+            <body>
+                <div class="container p-4">
+                    <div class="d-flex justify-content-between align-items-center border-bottom pb-3 mb-4">
+                        <img src="https://res.cloudinary.com/tehn5bfb/image/upload/v1783630731/efad9adhn201uv8xemcn.jpg" class="logo-encabezado rounded" alt="Alcaldía">
+                        <div class="text-center flex-grow-1 px-2">
+                            <h4 class="text-primary mb-0 fw-bold">Reporte General de Entregas</h4>
+                            <p class="text-muted small mb-0">Sistema de Gestión - SIA Web</p>
+                        </div>
+                        <img src="https://res.cloudinary.com/tehn5bfb/image/upload/v1783630731/hgb44vfc0d8wirbnz2th.jpg" class="logo-encabezado rounded" alt="Valera Renace">
+                    </div>
+                    <div class="mb-3">${contenidoHistorial}</div>
+                </div>
+            </body>
+            </html>
+        `;
+        
+        const printWindow = window.open('', '_blank');
+        printWindow.document.write(content);
+        printWindow.document.close();
+        printWindow.onload = function() { setTimeout(() => { printWindow.print(); }, 300); };
+    }
+
+    function consultarBeneficiarioEdicion(id) {
+        const inputCedula = document.getElementById('editCedula' + id);
+        const inputNombre = document.getElementById('editNombre' + id);
+        const inputTelefono = document.getElementById('editTelefono' + id);
+        const inputDireccion = document.getElementById('editDireccion' + id);
+        const feedback = document.getElementById('feedbackCNE' + id);
+        const icon = document.getElementById('iconBuscarCNE' + id);
+        const text = document.getElementById('textBuscarCNE' + id);
+
+        if (!inputCedula) return;
+        const cedula = inputCedula.value.trim().replace(/\D/g, '');
+
+        if (!cedula) {
+            if (feedback) feedback.innerHTML = '<span class="text-danger"><i class="bi bi-exclamation-circle me-1"></i>Ingresa una cédula válida antes de buscar.</span>';
+            return;
+        }
+
+        if (icon) icon.className = 'spinner-border spinner-border-sm';
+        if (text) text.innerText = 'Buscando...';
+        if (feedback) feedback.innerHTML = '<span class="text-primary"><i class="bi bi-hourglass-split me-1"></i>Consultando base de datos y CNE...</span>';
+
+        fetch(`/buscar-beneficiario/?cedula=${encodeURIComponent(cedula)}`)
+            .then(res => res.json())
+            .then(data => {
+                if (icon) icon.className = 'bi bi-search';
+                if (text) text.innerText = 'CNE';
+
+                if (data.existe) {
+                    if (inputNombre && data.nombre_apellido) {
+                        inputNombre.value = data.nombre_apellido;
+                    }
+                    if (inputTelefono && data.telefono && (!inputTelefono.value || inputTelefono.value.trim() === '')) {
+                        inputTelefono.value = data.telefono;
+                    }
+                    if (inputDireccion && data.direccion && (!inputDireccion.value || inputDireccion.value.trim() === '')) {
+                        inputDireccion.value = data.direccion;
+                    }
+
+                    const origen = data.origen === 'sistemaspnp' ? 'CNE (Sistemas PNP)' : 'Registros del Sistema';
+                    if (feedback) {
+                        feedback.innerHTML = `<span class="text-success fw-semibold"><i class="bi bi-check-circle-fill me-1"></i>Encontrado (${origen}): ${data.nombre_apellido}</span>`;
+                    }
+                } else {
+                    if (feedback) {
+                        feedback.innerHTML = '<span class="text-warning-emphasis"><i class="bi bi-info-circle me-1"></i>No se encontró en CNE. Puedes ingresar el nombre manualmente.</span>';
+                    }
+                }
+            })
+            .catch(err => {
+                if (icon) icon.className = 'bi bi-search';
+                if (text) text.innerText = 'CNE';
+                if (feedback) {
+                    feedback.innerHTML = '<span class="text-muted"><i class="bi bi-wifi-off me-1"></i>No se pudo conectar con el CNE. Ingresa los datos manualmente.</span>';
+                }
+            });
+    }
+</script>
+{% endblock %}

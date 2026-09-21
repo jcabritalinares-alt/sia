@@ -1,0 +1,164 @@
+{% extends 'base.html' %}
+
+{% block contenido %}
+<div class="container-fluid px-0">
+
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-4 gap-3">
+        <div>
+            <h2 class="fw-extrabold text-dark mb-1 d-flex align-items-center gap-2">
+                <i class="bi bi-shield-shaded text-primary"></i> Bienes Públicos y Patrimonio Nacional (SUDEBIP)
+            </h2>
+            <p class="text-muted small mb-0">Registro Único de Bienes Muebles, Inmuebles, Vehículos, Asignación Patrimonial y Etiquetas QR</p>
+        </div>
+        <div class="d-flex flex-wrap gap-2">
+            <button class="btn btn-primary-custom fw-bold shadow-sm d-flex align-items-center gap-2" data-bs-toggle="modal" data-bs-target="#modalIncorporarBien">
+                <i class="bi bi-plus-circle-fill"></i> Incorporar Bien al Patrimonio
+            </button>
+        </div>
+    </div>
+
+    <!-- KPIs Patrimonio -->
+    <div class="row g-3 mb-4">
+        <div class="col-12 col-sm-6 col-xl-3">
+            <div class="card border-0 shadow-sm rounded-4 bg-primary bg-opacity-10 border border-primary border-opacity-25 p-3 h-100">
+                <div class="small text-primary fw-bold uppercase">Valor Total del Patrimonio</div>
+                <div class="fs-3 fw-extrabold text-dark mt-1">{{ total_valor|floatformat:2 }} BS</div>
+            </div>
+        </div>
+        <div class="col-12 col-sm-6 col-xl-3">
+            <div class="card border-0 shadow-sm rounded-4 bg-info bg-opacity-10 border border-info border-opacity-25 p-3 h-100">
+                <div class="small text-info fw-bold uppercase">Bienes Muebles</div>
+                <div class="fs-3 fw-extrabold text-dark mt-1">{{ cnt_muebles }} Activos</div>
+            </div>
+        </div>
+        <div class="col-12 col-sm-6 col-xl-3">
+            <div class="card border-0 shadow-sm rounded-4 bg-success bg-opacity-10 border border-success border-opacity-25 p-3 h-100">
+                <div class="small text-success fw-bold uppercase">Bienes Inmuebles</div>
+                <div class="fs-3 fw-extrabold text-dark mt-1">{{ cnt_inmuebles }} Inmuebles</div>
+            </div>
+        </div>
+        <div class="col-12 col-sm-6 col-xl-3">
+            <div class="card border-0 shadow-sm rounded-4 bg-warning bg-opacity-10 border border-warning border-opacity-25 p-3 h-100">
+                <div class="small text-warning fw-bold uppercase">Vehículos y Maquinaria</div>
+                <div class="fs-3 fw-extrabold text-dark mt-1">{{ cnt_vehiculos }} Vehículos</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabla de Bienes Públicos -->
+    <div class="card border border-light rounded-4 shadow-sm p-4 mb-4 bg-white">
+        <h5 class="fw-bold text-dark mb-3 border-bottom pb-2 d-flex align-items-center gap-2">
+            <i class="bi bi-box-seam-fill text-primary"></i> Inventario Inmobiliario y Mobiliario Nacional
+        </h5>
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="bg-light">
+                    <tr>
+                        <th>Código Registro (SUDEBIP)</th>
+                        <th>Descripción del Bien</th>
+                        <th>Categoría</th>
+                        <th>Ubicación / Dependencia</th>
+                        <th>Responsable Patrimonial</th>
+                        <th class="text-end">Valor Adquisición</th>
+                        <th class="text-center">Estado Físico</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for a in activos %}
+                    <tr>
+                        <td><span class="badge bg-dark font-monospace px-2.5 py-1.5 fs-6">{{ a.codigo_patrimonial }}</span></td>
+                        <td>
+                            <strong class="text-dark d-block">{{ a.descripcion }}</strong>
+                            <small class="text-muted">Marca: {{ a.marca|default:"N/A" }} | Serial: {{ a.serial|default:"N/A" }}</small>
+                        </td>
+                        <td><span class="badge bg-primary bg-opacity-10 text-primary border px-2.5 py-1">{{ a.categoria }}</span></td>
+                        <td class="small text-dark font-monospace fw-semibold">{{ a.ubicacion_dependencia }}</td>
+                        <td class="small text-muted">{{ a.responsable_patrimonial }}</td>
+                        <td class="text-end fw-extrabold text-dark">{{ a.valor_adquisicion|floatformat:2 }} BS</td>
+                        <td class="text-center">
+                            {% if a.estado_fisico == 'Excelente' or a.estado_fisico == 'Bueno' %}
+                            <span class="badge bg-success fw-bold px-3 py-1.5">{{ a.estado_fisico }}</span>
+                            {% else %}
+                            <span class="badge bg-warning text-dark fw-bold px-3 py-1.5">{{ a.estado_fisico }}</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="7" class="text-center py-4 text-muted">No hay bienes públicos registrados en el inventario patrimonial.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</div>
+
+<!-- Modal Incorporar Bien -->
+<div class="modal fade" id="modalIncorporarBien" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content rounded-4 shadow-lg border-0 overflow-hidden">
+            <div class="modal-header bg-primary text-white py-3">
+                <h5 class="modal-title fw-bold d-flex align-items-center gap-2">
+                    <i class="bi bi-shield-plus"></i> Incorporar Bien al Patrimonio Nacional (SUDEBIP)
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST">
+                {% csrf_token %}
+                <div class="modal-body p-4">
+                    <div class="row g-3 mb-3">
+                        <div class="col-12 col-md-6">
+                            <label class="form-label fw-semibold text-dark">Código Patrimonial (SUDEBIP):</label>
+                            <input type="text" name="codigo_patrimonial" class="form-control font-monospace fw-bold border-primary" placeholder="BM-2026-0045" required>
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <label class="form-label fw-semibold text-dark">Categoría de Bien:</label>
+                            <select name="categoria" class="form-select border-primary" required>
+                                <option value="Mueble">Bien Mueble (Equipos, Mobiliario)</option>
+                                <option value="Inmueble">Bien Inmueble (Terrenos, Edificaciones)</option>
+                                <option value="Vehiculo">Vehículo / Maquinaria</option>
+                            </select>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label fw-semibold text-dark">Descripción Completa del Bien:</label>
+                            <input type="text" name="descripcion" class="form-control" placeholder="Ej: Servidor de Datos ProLiant HP Gen10 32GB RAM" required>
+                        </div>
+                        <div class="col-12 col-md-4">
+                            <label class="form-label fw-semibold text-dark">Marca:</label>
+                            <input type="text" name="marca" class="form-control">
+                        </div>
+                        <div class="col-12 col-md-4">
+                            <label class="form-label fw-semibold text-dark">Modelo:</label>
+                            <input type="text" name="modelo" class="form-control">
+                        </div>
+                        <div class="col-12 col-md-4">
+                            <label class="form-label fw-semibold text-dark">Serial de Fábrica:</label>
+                            <input type="text" name="serial" class="form-control font-monospace">
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <label class="form-label fw-semibold text-dark">Valor de Adquisición (BS):</label>
+                            <input type="number" step="0.01" name="valor_adquisicion" class="form-control font-monospace fw-bold" placeholder="0.00" required>
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <label class="form-label fw-semibold text-dark">Responsable Patrimonial:</label>
+                            <input type="text" name="responsable_patrimonial" class="form-control" placeholder="Nombre del funcionario a cargo" required>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label fw-semibold text-dark">Ubicación / Dependencia:</label>
+                            <input type="text" name="ubicacion_dependencia" class="form-control" placeholder="Ej: Dirección de Tecnología - Piso 2" required>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light py-2 justify-content-between">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary-custom fw-bold shadow-sm px-4">
+                        <i class="bi bi-floppy-fill me-1"></i> Guardar e Incorporar Bien
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

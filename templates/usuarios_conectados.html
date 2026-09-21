@@ -1,0 +1,78 @@
+{% extends 'base.html' %}
+
+{% block contenido %}
+<div class="container-fluid px-0">
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-4 gap-3">
+        <div>
+            <h2 class="fw-extrabold text-dark mb-1 d-flex align-items-center gap-2">
+                <i class="bi bi-wifi text-success"></i> Usuarios Conectados
+            </h2>
+            <p class="text-muted small mb-0">Estado de sesión en tiempo real de los usuarios registrados</p>
+        </div>
+        <div>
+            <button class="btn btn-outline-primary d-flex align-items-center gap-2 rounded-3 fw-semibold" onclick="cargarUsuariosConectadosFormulario()">
+                <i class="bi bi-arrow-clockwise"></i> Actualizar Lista
+            </button>
+        </div>
+    </div>
+
+    <div class="card border border-light shadow-sm rounded-4 p-4">
+        <div class="table-responsive rounded-3">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="bg-light text-secondary small text-uppercase">
+                    <tr>
+                        <th>Nombre de Usuario</th>
+                        <th>Último Acceso Registrado</th>
+                        <th class="text-center" style="width: 150px;">Estado Actual</th>
+                    </tr>
+                </thead>
+                <tbody id="listaUsuariosConectadosForm">
+                    <tr>
+                        <td colspan="3" class="text-center text-muted py-4">Cargando información...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    $(document).ready(function() {
+        cargarUsuariosConectadosFormulario();
+    });
+
+    function cargarUsuariosConectadosFormulario() {
+        $.ajax({
+            url: "{% url 'api_usuarios_conectados' %}",
+            type: "GET",
+            success: function(response) {
+                let tbody = $('#listaUsuariosConectadosForm');
+                tbody.empty();
+                
+                if (response.usuarios && response.usuarios.length > 0) {
+                    response.usuarios.forEach(user => {
+                        let badgeEstado = user.is_online 
+                            ? '<span class="badge bg-success bg-opacity-15 text-success border border-success px-3 py-1.5 rounded-pill"><i class="bi bi-circle-fill me-1 small"></i> En línea</span>' 
+                            : '<span class="badge bg-secondary bg-opacity-10 text-secondary border px-3 py-1.5 rounded-pill"><i class="bi bi-circle me-1 small"></i> Desconectado</span>';
+                        
+                        tbody.append(`
+                            <tr>
+                                <td class="fw-bold text-dark"><i class="bi bi-person-circle text-primary me-2"></i>${user.username}</td>
+                                <td><span class="text-muted small fw-semibold">${user.last_seen}</span></td>
+                                <td class="text-center">${badgeEstado}</td>
+                            </tr>
+                        `);
+                    });
+                } else {
+                    tbody.append(`<tr><td colspan="3" class="text-center text-muted py-4">No hay usuarios registrados.</td></tr>`);
+                }
+            },
+            error: function() {
+                $('#listaUsuariosConectadosForm').html(`<tr><td colspan="3" class="text-center text-danger py-4">Error al obtener los datos del servidor.</td></tr>`);
+            }
+        });
+    }
+</script>
+{% endblock %}

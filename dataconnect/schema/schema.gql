@@ -1,0 +1,40 @@
+type Category @table {
+  name: String!
+  description: String
+}
+
+type Product @table {
+  name: String!
+  sku: String!
+  currentQuantity: Int!
+  unitPrice: Float!
+  description: String
+  category: Category
+}
+
+type Supplier @table {
+  companyName: String!
+  contactEmail: String!
+  phoneNumber: String
+  address: String
+}
+
+type Location @table {
+  name: String!
+  address: String
+  type: String
+}
+
+type StockTransaction @table {
+  product: Product!
+  quantityChange: Int!
+  timestamp: Timestamp!
+  type: String!
+  notes: String
+}
+
+type ProductSupplier @table {
+  product: Product!
+  supplier: Supplier!
+  leadTimeDays: Int
+}

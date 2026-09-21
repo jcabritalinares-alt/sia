@@ -1,0 +1,206 @@
+{% extends 'base.html' %}
+
+{% block style %}
+<style>
+    .dataTables_filter {
+        display: none !important;
+    }
+
+    @media print {
+        .btn, .no-print, #buscador {
+            display: none !important;
+        }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { border: 1px solid #000; padding: 8px; }
+    }
+</style>
+{% endblock %}
+
+{% block contenido %}
+<div class="container-fluid px-0">
+    <!-- Encabezado -->
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-4 gap-3">
+        <div>
+            <h2 class="fw-extrabold text-dark mb-1 d-flex align-items-center gap-2">
+                <i class="bi bi-building-fill-gear text-primary"></i> Asignaciones Especiales
+            </h2>
+            <p class="text-muted small mb-0">Gestión de entregas institucionales, departamentos y despachos</p>
+        </div>
+        <div class="d-flex flex-wrap align-items-center gap-2">
+            <div style="min-width: 250px;">
+                <div class="input-group shadow-sm rounded-3">
+                    <span class="input-group-text bg-white border-end-0 text-muted">
+                        <i class="bi bi-search"></i>
+                    </span>
+                    <input type="text" id="buscador" class="form-control border-start-0" placeholder="Buscar receptor, departamento...">
+                </div>
+            </div>
+            <a href="{% url 'registrar_asignacion' %}" class="btn btn-primary-custom no-print d-flex align-items-center gap-2">
+                <i class="bi bi-plus-lg"></i> Nueva Asignación
+            </a>
+            {% if request.user.is_superuser or request.user.perfil.puede_imprimir_asignaciones %}
+            <button onclick="imprimirReporteAsignaciones(this)" class="btn btn-outline-secondary no-print d-flex align-items-center gap-2 rounded-3 fw-semibold">
+                <i class="bi bi-printer-fill"></i> Reporte General
+            </button>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Tabla responsiva -->
+    <div id="tabla-asignaciones-container" class="table-responsive rounded-4 border border-light bg-white p-3 shadow-sm">
+        <table id="tablaAsignaciones" class="table table-hover align-middle mb-0">
+            <thead class="bg-light text-secondary small text-uppercase">
+                <tr>
+                    <th style="width: 140px;">Fecha</th>
+                    <th>Receptor / Jefe</th>
+                    <th>Cargo / Departamento</th>
+                    <th>Productos y Cantidades</th>
+                    <th>Registrado Por</th>
+                    <th class="text-center no-print" style="width: 100px;">Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in asignaciones %}
+                <tr>
+                    <td class="text-muted small fw-semibold">{{ item.fecha|date:"d/m/Y H:i" }}</td>
+                    <td class="fw-bold text-dark">{{ item.nombre_receptor }}</td>
+                    <td><span class="badge bg-light text-dark border">{{ item.departamento_o_cargo|default:"N/A" }}</span></td>
+                    <td>
+                        <ul class="list-unstyled mb-0">
+                            {% for detalle in item.detalles.all %}
+                                <li class="mb-1">• <span class="fw-semibold">{{ detalle.descripcion_prod }}</span> (<span class="badge bg-primary text-white fw-bold px-2 py-1">{{ detalle.cantidad }} u.</span>)</li>
+                            {% empty %}
+                                <li class="text-muted fst-italic">Sin productos registrados</li>
+                            {% endfor %}
+                        </ul>
+                    </td>
+                    <td><span class="text-muted small fw-semibold"><i class="bi bi-person-fill text-secondary me-1"></i>{{ item.registrado_por.username|default:"Sistema" }}</span></td>
+                    <td class="text-center no-print">
+                        <div class="d-flex justify-content-center gap-1">
+                            {% if request.user.is_superuser or request.user.perfil.puede_imprimir_asignaciones %}
+                            <a href="{% url 'imprimir_asignacion_especial' item.id %}" target="_blank" class="btn btn-outline-secondary btn-sm rounded-circle p-2" title="Imprimir Comprobante" style="width: 34px; height: 34px; display: inline-flex; align-items: center; justify-content: center;">
+                                <i class="bi bi-printer"></i>
+                            </a>
+                            {% endif %}
+                            {% if request.user.is_superuser %}
+                                <button class="btn btn-outline-danger btn-sm rounded-circle p-2" data-bs-toggle="modal" data-bs-target="#modalEliminarAsignacion" data-id="{{ item.id }}" title="Eliminar de la BD" style="width: 34px; height: 34px; display: inline-flex; align-items: center; justify-content: center;">
+                                    <i class="bi bi-trash3-fill"></i>
+                                </button>
+                            {% endif %}
+                        </div>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="6" class="text-center text-muted py-4 fst-italic">No hay asignaciones especiales registradas.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Modal de Confirmación de Eliminación -->
+<div class="modal fade" id="modalEliminarAsignacion" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow-lg rounded-4">
+      <form id="formEliminarAsignacion" method="POST">
+        {% csrf_token %}
+        <div class="modal-header border-bottom pb-2">
+          <h5 class="modal-title fw-bold text-danger"><i class="bi bi-exclamation-triangle-fill me-2"></i>Confirmar Eliminación</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body py-3">
+          <p class="mb-2 text-dark">¿Estás seguro de eliminar esta asignación especial?</p>
+          
+          <div class="form-check form-switch mt-3 bg-light p-3 rounded-3 border">
+            <input class="form-check-input" type="checkbox" id="reponer_stock" name="reponer_stock" checked>
+            <label class="form-check-label fw-semibold text-dark ms-2" for="reponer_stock">
+              Reponer automáticamente las cantidades al inventario
+            </label>
+          </div>
+        </div>
+        <div class="modal-footer border-top pt-2">
+          <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancelar</button>
+          <button type="submit" class="btn btn-danger px-4">Sí, eliminar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    $(document).ready(function() {
+        if ($.fn.DataTable.isDataTable('#tablaAsignaciones')) {
+            $('#tablaAsignaciones').DataTable().destroy();
+        }
+        
+        var table = $('#tablaAsignaciones').DataTable({ 
+            "searching": true, 
+            "paging": false, 
+            "info": false,
+            "order": [[ 0, "desc" ]]
+        });
+
+        $('#buscador').on('keyup', function() { 
+            table.search(this.value).draw(); 
+        });
+        
+        $('.dataTables_filter').hide();
+    });
+
+    const modalEliminarAsignacion = document.getElementById('modalEliminarAsignacion');
+    if (modalEliminarAsignacion) {
+        modalEliminarAsignacion.addEventListener('show.bs.modal', function (event) {
+            const button = event.relatedTarget;
+            const asignacionId = button.getAttribute('data-id');
+            const form = document.getElementById('formEliminarAsignacion');
+            form.action = `/asignaciones-especiales/eliminar/${asignacionId}/`; 
+        });
+    }
+
+    function imprimirReporteAsignaciones(btn) {
+        const contenedorTemp = document.getElementById('tabla-asignaciones-container').cloneNode(true);
+        $(contenedorTemp).find('th:nth-child(6), td:nth-child(6)').remove();
+
+        const contenidoAsignaciones = contenedorTemp.innerHTML;
+        
+        const content = `
+            <!DOCTYPE html>
+            <html lang="es">
+            <head>
+                <meta charset="UTF-8">
+                <title>Reporte General de Asignaciones Especiales</title>
+                <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+                <style>
+                    @page { size: 8.5in 11in; margin: 15mm; }
+                    body { background-color: #ffffff; color: #212529; font-size: 13px; }
+                    .logo-encabezado { max-width: 75px; height: auto; }
+                    @media print { .no-print { display: none !important; } }
+                </style>
+            </head>
+            <body>
+                <div class="container p-4">
+                    <div class="d-flex justify-content-between align-items-center border-bottom pb-3 mb-4">
+                        <img src="https://res.cloudinary.com/tehn5bfb/image/upload/v1783630731/efad9adhn201uv8xemcn.jpg" class="logo-encabezado rounded" alt="Alcaldía">
+                        <div class="text-center flex-grow-1 px-2">
+                            <h4 class="text-primary mb-0 fw-bold">Reporte General de Asignaciones Especiales</h4>
+                            <p class="text-muted small mb-0">Sistema de Gestión - SIA Web</p>
+                        </div>
+                        <img src="https://res.cloudinary.com/tehn5bfb/image/upload/v1783630731/hgb44vfc0d8wirbnz2th.jpg" class="logo-encabezado rounded" alt="Valera Renace">
+                    </div>
+                    <div class="mb-3">${contenidoAsignaciones}</div>
+                </div>
+            </body>
+            </html>
+        `;
+        
+        const printWindow = window.open('', '_blank');
+        printWindow.document.write(content);
+        printWindow.document.close();
+        printWindow.onload = function() { setTimeout(() => { printWindow.print(); }, 300); };
+    }
+</script>
+{% endblock %}

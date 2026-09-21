@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Reporte General de Inventario - SIA Web</title>
+    <style>
+        @page {
+            size: letter portrait;
+            margin: 1.5cm;
+        }
+        body {
+            font-family: Helvetica, Arial, sans-serif;
+            color: #1e293b;
+            font-size: 11px;
+            line-height: 1.4;
+        }
+        .header-table {
+            width: 100%;
+            border-bottom: 2px solid #4f46e5;
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+        }
+        .logo {
+            max-height: 60px;
+        }
+        .title {
+            font-size: 16px;
+            font-weight: bold;
+            color: #4f46e5;
+            text-align: center;
+        }
+        .subtitle {
+            font-size: 10px;
+            color: #64748b;
+            text-align: center;
+        }
+        .table-inventario {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+        .table-inventario th {
+            background-color: #312e81;
+            color: #ffffff;
+            font-weight: bold;
+            padding: 8px;
+            text-align: left;
+            font-size: 10px;
+            text-transform: uppercase;
+        }
+        .table-inventario td {
+            padding: 7px 8px;
+            border-bottom: 1px solid #e2e8f0;
+            font-size: 10px;
+        }
+        .text-center { text-align: center; }
+        .stock-normal { color: #166534; font-weight: bold; }
+        .stock-critico { color: #991b1b; font-weight: bold; }
+        .footer {
+            margin-top: 30px;
+            text-align: center;
+            font-size: 9px;
+            color: #94a3b8;
+            border-top: 1px solid #e2e8f0;
+            padding-top: 8px;
+        }
+    </style>
+</head>
+<body>
+
+    <table class="header-table">
+        <tr>
+            <td width="130">
+                <img src="https://res.cloudinary.com/tehn5bfb/image/upload/v1783630731/efad9adhn201uv8xemcn.jpg" class="logo" alt="Alcaldía">
+            </td>
+            <td width="280" align="center">
+                <div class="title">REPORTE GENERAL DE INVENTARIO</div>
+                <div class="subtitle">Sistema de Gestión de Inventario y Atención (SIA Web)</div>
+                <div class="subtitle" style="margin-top: 4px;">Fecha de emisión: {% now "d/m/Y H:i" %}</div>
+            </td>
+            <td width="130" align="right">
+                <img src="https://res.cloudinary.com/tehn5bfb/image/upload/v1783630731/hgb44vfc0d8wirbnz2th.jpg" class="logo" alt="Valera Renace">
+            </td>
+        </tr>
+    </table>
+
+    <table class="table-inventario">
+        <thead>
+            <tr>
+                <th width="90" class="text-center">Código</th>
+                <th width="250">Descripción del Producto</th>
+                <th width="110">Almacén</th>
+                <th width="90" class="text-center">Stock Actual</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for p in productos %}
+            <tr>
+                <td class="text-center"><strong>{{ p.codigo }}</strong></td>
+                <td>{{ p.descripcion }}</td>
+                <td>{{ p.almacen }}</td>
+                <td class="text-center">
+                    {% if p.cantidad <= 5 %}
+                        <span class="stock-critico">⚠️ {{ p.cantidad }} u.</span>
+                    {% else %}
+                        <span class="stock-normal">{{ p.cantidad }} u.</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="4" class="text-center" style="padding: 15px; color: #64748b;">No hay productos registrados en el inventario.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <div class="footer">
+        Documento generado automáticamente por SIA Web &bull; Reporte Oficial de Almacén
+    </div>
+
+</body>
+</html>

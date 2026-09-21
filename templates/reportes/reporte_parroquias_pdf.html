@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Reporte de Atenciones por Parroquia y Sector</title>
+    <style>
+        @page { size: letter portrait; margin: 1.5cm; }
+        body { font-family: Helvetica, Arial, sans-serif; font-size: 10pt; color: #1e293b; line-height: 1.4; }
+        .header { border-bottom: 2px solid #4f46e5; padding-bottom: 10px; margin-bottom: 20px; }
+        .title { font-size: 16pt; font-weight: bold; color: #0f172a; margin-bottom: 4px; }
+        .subtitle { font-size: 10pt; color: #64748b; }
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+        th { background-color: #f1f5f9; color: #334155; font-size: 9pt; font-weight: bold; text-transform: uppercase; padding: 8px; border: 1px solid #cbd5e1; text-align: left; }
+        td { padding: 8px; border: 1px solid #e2e8f0; font-size: 9.5pt; }
+        .text-center { text-align: center; }
+        .text-right { text-align: right; }
+        .badge { font-size: 8pt; font-weight: bold; padding: 3px 6px; border-radius: 4px; background: #e0e7ff; color: #3730a3; }
+        .footer { margin-top: 30px; font-size: 8pt; color: #94a3b8; border-top: 1px solid #e2e8f0; padding-top: 10px; }
+        .seal-box { border: 1px dashed #4f46e5; padding: 8px; font-family: monospace; font-size: 7.5pt; background: #faf5ff; border-radius: 4px; margin-top: 15px; }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <div class="title">REPORTE CONSOLIDADO POR SECTOR Y PARROQUIA</div>
+        <div class="subtitle">SIA Web - Sistema Institucional de Atención Social e Inventario</div>
+        <div class="subtitle" style="margin-top: 4px;">Fecha de Generación: {{ fecha_reporte|date:"d/m/Y H:i" }} | Generado Por: {{ usuario_impresion }}</div>
+    </div>
+
+    <p>Consolidado de solicitudes de apoyo e impacto de entrega de beneficios distribuidos geográficamente por comunidad y sector:</p>
+
+    <table>
+        <thead>
+            <tr>
+                <th style="width: 40px;">#</th>
+                <th>Comunidad / Sector / Parroquia</th>
+                <th class="text-center" style="width: 110px;">Total Solicitudes</th>
+                <th class="text-center" style="width: 110px;">Entregadas</th>
+                <th class="text-center" style="width: 110px;">En Proceso</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in comunidades %}
+            <tr>
+                <td class="text-center">{{ forloop.counter }}</td>
+                <td><strong>{{ item.direccion|default:"No especificado / Centro" }}</strong></td>
+                <td class="text-center"><span class="badge">{{ item.total_solicitudes }}</span></td>
+                <td class="text-center" style="color: #16a34a; font-weight: bold;">{{ item.entregadas }}</td>
+                <td class="text-center" style="color: #d97706;">{{ item.en_proceso }}</td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="5" class="text-center" style="font-style: italic; color: #94a3b8;">No hay registros de sectores o solicitudes disponibles.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <div class="seal-box">
+        🔒 SELLO Y FIRMA DE AUTENTICIDAD DIGITAL INSTITUCIONAL:<br>
+        Firma SHA-256: <strong>{{ firma_digital }}</strong><br>
+        Documento válido ante la Dirección de Atención Ciudadana.
+    </div>
+
+    <div class="footer">
+        Alcaldía / Dirección Social - SIA Web © {{ fecha_reporte|date:"Y" }}
+    </div>
+
+</body>
+</html>

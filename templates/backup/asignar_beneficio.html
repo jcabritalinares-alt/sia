@@ -1,0 +1,152 @@
+{% extends 'base.html' %}
+
+{% block contenido %}
+<div class="container mt-4">
+    <h2>Registrar Entrega</h2>
+    
+    <form method="POST" action="{% url 'asignar_beneficio' %}" id="formRegistro" enctype="multipart/form-data">
+        {% csrf_token %}
+        
+        <div class="row">
+            <div class="col-md-6 mb-3">
+                <label class="form-label">Cédula</label>
+                <input type="text" name="cedula" id="cedula" class="form-control" required>
+            </div>
+            <div class="col-md-6 mb-3">
+                <label class="form-label">Nombre Completo</label>
+                <input type="text" name="nombre_beneficiario" id="nombre" class="form-control" required>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-md-6 mb-3">
+                <label class="form-label">Dirección</label>
+                <input type="text" name="direccion" id="direccion" class="form-control" required>
+            </div>
+            <div class="col-md-6 mb-3">
+                <label class="form-label">Teléfono</label>
+                <input type="text" name="telefono" id="telefono" class="form-control">
+            </div>
+        </div>
+
+        <hr>
+
+        <div class="row">
+            <div class="col-md-6 mb-3">
+                <label class="form-label">Producto</label>
+                <select name="codigo_prod" class="form-select" required>
+                    <option value="">Seleccione...</option>
+                    {% for p in inventario %}
+                    <option value="{{ p.id }}">{{ p.descripcion }} (Stock: {{ p.cantidad }})</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3 mb-3">
+                <label class="form-label">Cantidad</label>
+                <input type="number" name="cantidad_dada" class="form-control" min="1" required>
+            </div>
+            <div class="col-md-3 mb-3">
+                <label class="form-label">Estado</label>
+                <select name="status" id="statusSelect" class="form-select">
+                    <option value="Pendiente">Pendiente</option>
+                    <option value="Entregado">Entregado</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="mb-3" id="divEvidencia" style="display:none;">
+            <label class="form-label">Cargar Evidencias (Máx 2 fotos):</label>
+            <input type="file" name="evidencia1" class="form-control mb-2" accept="image/*">
+            <input type="file" name="evidencia2" class="form-control" accept="image/*">
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">Observaciones</label>
+            <input type="text" name="via" class="form-control">
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">Fecha de Entrega</label>
+            <input type="date" name="fecha" class="form-control" value="{{ hoy }}" required>
+        </div>
+
+        <button type="submit" id="btnGuardar" class="btn btn-primary w-100">Guardar Registro</button>
+    </form>
+</div>
+
+<div class="modal fade" id="modalProcesando" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content text-center py-4">
+            <div class="modal-body">
+                <div class="spinner-border text-primary mb-3" style="width: 3rem; height: 3rem;" role="status"></div>
+                <h5 class="fw-bold">Guardando información...</h5>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Función central de validación
+    function validarBloqueo() {
+        let cedula = $('#cedula').val();
+        let telefono = $('#telefono').val();
+
+        if (cedula.length > 0) {
+            $.ajax({
+                url: "{% url 'verificar_beneficio' %}",
+                data: { 'cedula': cedula, 'telefono': telefono },
+                success: function(res) {
+                    if (res.bloqueado) {
+                        Swal.fire({
+                            icon: 'error',
+                            title: '¡No permitido!',
+                            text: res.mensaje,
+                            confirmButtonText: 'Entendido'
+                        });
+                        $('#btnGuardar').prop('disabled', true);
+                    } else {
+                        $('#btnGuardar').prop('disabled', false);
+                    }
+                }
+            });
+        }
+    }
+
+    // 1. Al salir de cédula: busca datos del beneficiario
+    $('#cedula').on('blur', function() {
+        let cedula = $(this).val();
+        if (cedula.length > 0) {
+            $.ajax({
+                url: "{% url 'buscar_beneficiario' %}",
+                data: { 'cedula': cedula },
+                success: function(data) {
+                    $('#nombre').val(data.nombre_apellido);
+                    $('#direccion').val(data.direccion);
+                    $('#telefono').val(data.telefono);
+                    validarBloqueo(); // Validar tras cargar datos
+                }
+            });
+        }
+    });
+
+    // 2. Validación al presionar ENTER en el campo Teléfono
+    $('#telefono').on('keydown', function(e) {
+        if (e.key === 'Enter') {
+            e.preventDefault(); // Evita que se envíe el formulario
+            validarBloqueo();
+        }
+    });
+
+    // 3. Bloqueo al enviar el formulario
+    $('#formRegistro').on('submit', function() {
+        new bootstrap.Modal(document.getElementById('modalProcesando')).show();
+    });
+
+    // 4. Mostrar evidencias
+    $('#statusSelect').on('change', function() {
+        $('#divEvidencia').toggle($(this).val() === 'Entregado');
+    });
+</script>
+{% endblock %}

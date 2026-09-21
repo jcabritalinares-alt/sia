@@ -1,0 +1,228 @@
+{% extends 'base.html' %}
+
+{% block contenido %}
+<div class="container-fluid px-0">
+
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-4 gap-3">
+        <div>
+            <h2 class="fw-extrabold text-dark mb-1 d-flex align-items-center gap-2">
+                <i class="bi bi-people-fill text-primary"></i> Recursos Humanos y Nómina Pública (LOPA)
+            </h2>
+            <p class="text-muted small mb-0">Expedientes de Funcionarios Públicos, Escalafón Administativo y Procesamiento Automatizado de Nóminas</p>
+        </div>
+        <div class="d-flex flex-wrap gap-2">
+            <button class="btn btn-outline-primary fw-bold shadow-sm d-flex align-items-center gap-2" data-bs-toggle="modal" data-bs-target="#modalNuevoFuncionario">
+                <i class="bi bi-person-plus-fill"></i> Registrar Funcionario Público
+            </button>
+            <button class="btn btn-primary-custom fw-bold shadow-sm d-flex align-items-center gap-2 text-white" data-bs-toggle="modal" data-bs-target="#modalProcesarNomina">
+                <i class="bi bi-calculator-fill"></i> Procesar Nómina de Pago
+            </button>
+        </div>
+    </div>
+
+    <!-- KPIs Recursos Humanos -->
+    <div class="row g-3 mb-4">
+        <div class="col-12 col-sm-6 col-xl-3">
+            <div class="card border-0 shadow-sm rounded-4 bg-primary bg-opacity-10 border border-primary border-opacity-25 p-3 h-100">
+                <div class="small text-primary fw-bold uppercase">Monto Sueldos Base Mensual</div>
+                <div class="fs-3 fw-extrabold text-dark mt-1">{{ total_nomina_mensual|floatformat:2 }} BS</div>
+            </div>
+        </div>
+        <div class="col-12 col-sm-6 col-xl-3">
+            <div class="card border-0 shadow-sm rounded-4 bg-success bg-opacity-10 border border-success border-opacity-25 p-3 h-100">
+                <div class="small text-success fw-bold uppercase">Personal Fijo / Carrera</div>
+                <div class="fs-3 fw-extrabold text-dark mt-1">{{ cnt_fijos }} Funcionarios</div>
+            </div>
+        </div>
+        <div class="col-12 col-sm-6 col-xl-3">
+            <div class="card border-0 shadow-sm rounded-4 bg-info bg-opacity-10 border border-info border-opacity-25 p-3 h-100">
+                <div class="small text-info fw-bold uppercase">Personal Contratado</div>
+                <div class="fs-3 fw-extrabold text-dark mt-1">{{ cnt_contratados }} Contratados</div>
+            </div>
+        </div>
+        <div class="col-12 col-sm-6 col-xl-3">
+            <div class="card border-0 shadow-sm rounded-4 bg-warning bg-opacity-10 border border-warning border-opacity-25 p-3 h-100">
+                <div class="small text-warning fw-bold uppercase">Personal Directivo / Confianza</div>
+                <div class="fs-3 fw-extrabold text-dark mt-1">{{ cnt_directivos }} Directivos</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabla de Funcionarios Públicos -->
+    <div class="card border border-light rounded-4 shadow-sm p-4 mb-4 bg-white">
+        <h5 class="fw-bold text-dark mb-3 border-bottom pb-2 d-flex align-items-center gap-2">
+            <i class="bi bi-person-badge-fill text-primary"></i> Registro de Funcionarios y Personal de la Institución
+        </h5>
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="bg-light">
+                    <tr>
+                        <th>Cédula</th>
+                        <th>Nombres y Apellidos</th>
+                        <th>Cargo</th>
+                        <th>Departamento / Dirección</th>
+                        <th>Tipo Personal</th>
+                        <th class="text-end">Sueldo Base</th>
+                        <th class="text-center">Antigüedad</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for f in funcionarios %}
+                    <tr>
+                        <td><span class="badge bg-dark font-monospace px-2.5 py-1.5 fs-6">{{ f.cedula }}</span></td>
+                        <td><strong class="text-dark">{{ f.nombres }} {{ f.apellidos }}</strong></td>
+                        <td class="small fw-semibold text-primary">{{ f.cargo }}</td>
+                        <td class="small text-muted">{{ f.departamento }}</td>
+                        <td><span class="badge bg-primary bg-opacity-10 text-primary border px-2.5 py-1">{{ f.get_tipo_personal_display }}</span></td>
+                        <td class="text-end fw-extrabold text-dark">{{ f.sueldo_base|floatformat:2 }} BS</td>
+                        <td class="text-center small font-monospace">{{ f.anos_servicio }} años</td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="7" class="text-center py-4 text-muted">No hay funcionarios públicos registrados.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Historial de Nóminas Procesadas -->
+    <div class="card border border-light rounded-4 shadow-sm p-4 bg-white">
+        <h5 class="fw-bold text-dark mb-3 border-bottom pb-2 d-flex align-items-center gap-2">
+            <i class="bi bi-journal-check text-success"></i> Nóminas Públicas Calculadas y Emitidas
+        </h5>
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="bg-light">
+                    <tr>
+                        <th>Fecha Procesamiento</th>
+                        <th>Título / Periodo de Nómina</th>
+                        <th class="text-end">Total Bruto</th>
+                        <th class="text-end">Deducciones (IVSS/FAOV)</th>
+                        <th class="text-end">Total Neto Pagado</th>
+                        <th class="text-center">Estado</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for n in nominas %}
+                    <tr>
+                        <td class="small text-muted">{{ n.fecha_procesamiento|date:"d/m/Y H:i" }}</td>
+                        <td><strong class="text-dark">{{ n.titulo }}</strong></td>
+                        <td class="text-end fw-semibold">{{ n.total_bruto|floatformat:2 }} BS</td>
+                        <td class="text-end text-danger fw-semibold">{{ n.total_deducciones|floatformat:2 }} BS</td>
+                        <td class="text-end fw-extrabold text-success fs-6">{{ n.total_neto|floatformat:2 }} BS</td>
+                        <td class="text-center">
+                            <span class="badge bg-success fw-bold px-3 py-1.5"><i class="bi bi-check-all me-1"></i> Procesada</span>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="text-center py-4 text-muted">No hay nóminas procesadas anteriormente.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</div>
+
+<!-- Modal Registrar Funcionario -->
+<div class="modal fade" id="modalNuevoFuncionario" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content rounded-4 shadow-lg border-0 overflow-hidden">
+            <div class="modal-header bg-primary text-white py-3">
+                <h5 class="modal-title fw-bold d-flex align-items-center gap-2">
+                    <i class="bi bi-person-plus-fill"></i> Registrar Funcionario Público
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST">
+                {% csrf_token %}
+                <input type="hidden" name="accion" value="registrar_funcionario">
+                <div class="modal-body p-4">
+                    <div class="row g-3 mb-3">
+                        <div class="col-12 col-md-4">
+                            <label class="form-label fw-semibold text-dark">Cédula de Identidad:</label>
+                            <input type="text" name="cedula" class="form-control font-monospace fw-bold border-primary" placeholder="V-18000000" required>
+                        </div>
+                        <div class="col-12 col-md-4">
+                            <label class="form-label fw-semibold text-dark">Nombres:</label>
+                            <input type="text" name="nombres" class="form-control" required>
+                        </div>
+                        <div class="col-12 col-md-4">
+                            <label class="form-label fw-semibold text-dark">Apellidos:</label>
+                            <input type="text" name="apellidos" class="form-control" required>
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <label class="form-label fw-semibold text-dark">Cargo Funcionarial:</label>
+                            <input type="text" name="cargo" class="form-control" placeholder="Ej: Analista de Presupuesto II" required>
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <label class="form-label fw-semibold text-dark">Departamento / Dirección:</label>
+                            <input type="text" name="departamento" class="form-control" placeholder="Ej: Dirección de Hacienda" required>
+                        </div>
+                        <div class="col-12 col-md-4">
+                            <label class="form-label fw-semibold text-dark">Tipo Personal:</label>
+                            <select name="tipo_personal" class="form-select border-primary" required>
+                                <option value="Fijo">Fijo / Carrera Administrativa</option>
+                                <option value="Contratado">Contratado</option>
+                                <option value="Directivo">Directivo / Confianza</option>
+                                <option value="Jubilado">Jubilado / Pensionado</option>
+                            </select>
+                        </div>
+                        <div class="col-12 col-md-4">
+                            <label class="form-label fw-semibold text-dark">Sueldo Base (BS):</label>
+                            <input type="number" step="0.01" name="sueldo_base" class="form-control font-monospace fw-bold" placeholder="0.00" required>
+                        </div>
+                        <div class="col-12 col-md-4">
+                            <label class="form-label fw-semibold text-dark">Fecha de Ingreso:</label>
+                            <input type="date" name="fecha_ingreso" class="form-control" required>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light py-2 justify-content-between">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary-custom fw-bold shadow-sm px-4">
+                        <i class="bi bi-floppy-fill me-1"></i> Guardar Funcionario
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Procesar Nómina -->
+<div class="modal fade" id="modalProcesarNomina" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content rounded-4 shadow-lg border-0 overflow-hidden">
+            <div class="modal-header bg-success text-white py-3">
+                <h5 class="modal-title fw-bold d-flex align-items-center gap-2">
+                    <i class="bi bi-calculator-fill"></i> Procesar Nómina Pública de Pago
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST">
+                {% csrf_token %}
+                <input type="hidden" name="accion" value="procesar_nomina">
+                <div class="modal-body p-4">
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold text-dark">Título / Concepto de Nómina:</label>
+                        <input type="text" name="titulo" class="form-control form-control-lg border-success" placeholder="Ej: Nómina Quincena 1 - Agosto 2026" required>
+                    </div>
+                    <div class="alert alert-info border border-info border-opacity-25 rounded-3 mb-0 small">
+                        <i class="bi bi-info-circle me-1 fw-bold"></i> El sistema calculará automáticamente los sueldos base, primas por antigüedad, cesta tickets y deducciones legales de ley para {{ funcionarios.count }} funcionarios activos.
+                    </div>
+                </div>
+                <div class="modal-footer bg-light py-2 justify-content-between">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-success fw-bold shadow-sm px-4">
+                        <i class="bi bi-cpu-fill me-1"></i> Calcular y Emitir Nómina
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

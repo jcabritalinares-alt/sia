@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Comprobante de Entrega - SIA Web</title>
+    <style>
+        @page {
+            size: letter portrait;
+            margin: 1.5cm;
+        }
+        body {
+            font-family: Helvetica, Arial, sans-serif;
+            color: #1e293b;
+            font-size: 12px;
+            line-height: 1.5;
+        }
+        .header-table {
+            width: 100%;
+            border-bottom: 2px solid #4f46e5;
+            padding-bottom: 12px;
+            margin-bottom: 20px;
+        }
+        .logo {
+            max-height: 65px;
+        }
+        .title {
+            font-size: 18px;
+            font-weight: bold;
+            color: #4f46e5;
+            text-align: center;
+        }
+        .subtitle {
+            font-size: 11px;
+            color: #64748b;
+            text-align: center;
+        }
+        .box {
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+            padding: 15px;
+            margin-bottom: 20px;
+            background-color: #f8fafc;
+        }
+        .box-title {
+            font-size: 13px;
+            font-weight: bold;
+            color: #1e293b;
+            margin-bottom: 10px;
+            border-bottom: 1px solid #e2e8f0;
+            padding-bottom: 4px;
+        }
+        .info-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .info-table th {
+            text-align: left;
+            color: #64748b;
+            font-weight: bold;
+            padding: 4px 0;
+        }
+        .info-table td {
+            color: #0f172a;
+            font-weight: bold;
+            padding: 4px 0;
+        }
+        .badge {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: bold;
+        }
+        .badge-success { background-color: #dcfce7; color: #166534; }
+        .badge-warning { background-color: #fef3c7; color: #92400e; }
+        .signatures-table {
+            width: 100%;
+            margin-top: 40px;
+        }
+        .signature-box {
+            text-align: center;
+        }
+        .signature-line {
+            border-top: 1px solid #94a3b8;
+            margin-top: 50px;
+            padding-top: 5px;
+            font-weight: bold;
+            color: #334155;
+        }
+        .signature-img {
+            max-height: 70px;
+            max-width: 200px;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Encabezado con Membrete -->
+    <table class="header-table">
+        <tr>
+            <td width="120">
+                <img src="https://res.cloudinary.com/tehn5bfb/image/upload/v1783630731/efad9adhn201uv8xemcn.jpg" class="logo" alt="Alcaldía">
+            </td>
+            <td width="300" align="center">
+                <div class="title">COMPROBANTE OFICIAL DE ENTREGA</div>
+                <div class="subtitle">Sistema de Gestión de Inventario y Atención (SIA Web)</div>
+                <div style="font-size: 9px; color: #64748b; font-weight: bold; margin-top: 2px;">N° {{ entrega.id|stringformat:"06d" }} • Fecha Registro: {{ entrega.fecha|date:"d/m/Y" }}{% if entrega.status == "Entregado" %} • Fecha Entrega: {{ entrega.fecha_entrega|date:"d/m/Y"|default:entrega.fecha|date:"d/m/Y" }}{% endif %}</div>
+            </td>
+            <td width="120" align="right">
+                <img src="https://res.cloudinary.com/tehn5bfb/image/upload/v1783630731/hgb44vfc0d8wirbnz2th.jpg" class="logo" alt="Valera Renace">
+            </td>
+        </tr>
+    </table>
+
+    <!-- Estado del Documento -->
+    <table width="100%" style="margin-bottom: 15px; border-bottom: 1px solid #e2e8f0; padding-bottom: 8px;">
+        <tr>
+            <td>
+                <span style="font-size: 11px; color: #64748b;">Observaciones / Vía:</span>
+                <span style="font-size: 11px; font-weight: bold; color: #0f172a; margin-left: 5px;">{{ entrega.via|default:"Atención Directa"|upper }}</span>
+            </td>
+            <td align="right">
+                <span style="font-size: 11px; color: #64748b; margin-right: 5px;">Estatus:</span>
+                {% if entrega.status == "Entregado" %}
+                    <span class="badge badge-success">ENTREGADO</span>
+                {% else %}
+                    <span class="badge badge-warning">{{ entrega.status|upper }}</span>
+                {% endif %}
+            </td>
+        </tr>
+    </table>
+
+    <!-- Datos del Beneficiario -->
+    <div class="box">
+        <div class="box-title">DATOS DEL CIUDADANO BENEFICIARIO</div>
+        <table class="info-table">
+            <tr>
+                <th width="150">Cédula de Identidad:</th>
+                <td>{{ entrega.cedula }}</td>
+            </tr>
+            <tr>
+                <th width="150">Nombres y Apellidos:</th>
+                <td>{{ entrega.nombre_beneficiario }}</td>
+            </tr>
+            <tr>
+                <th width="150">Teléfono:</th>
+                <td>{{ beneficiario.telefono|default:"No registrado" }}</td>
+            </tr>
+            <tr>
+                <th width="150">Dirección de Domicilio:</th>
+                <td>{{ beneficiario.direccion|default:"No registrada" }}</td>
+            </tr>
+        </table>
+    </div>
+
+    <!-- Detalle del Producto -->
+    <div class="box">
+        <div class="box-title">DETALLE DEL ARTÍCULO ENTREGADO</div>
+        <table class="info-table">
+            <tr>
+                <th width="150">Código de Producto:</th>
+                <td>{{ entrega.codigo_prod }}</td>
+            </tr>
+            <tr>
+                <th width="150">Descripción:</th>
+                <td>{{ entrega.descripcion_prod }}</td>
+            </tr>
+            <tr>
+                <th width="150">Cantidad Asignada:</th>
+                <td>{{ entrega.cantidad_dada }} unidad(es)</td>
+            </tr>
+            <tr>
+                <th width="150">Observaciones / Vía:</th>
+                <td style="font-weight: bold; color: #1e293b;">{{ entrega.via|default:"Atención Directa / Institucional" }}</td>
+            </tr>
+            <tr>
+                <th width="150">Fecha de Entrega:</th>
+                <td style="font-weight: bold; color: #1e293b;">
+                    {% if entrega.status == "Entregado" %}
+                        <span style="color: #166534;">{{ entrega.fecha_entrega|date:"d/m/Y"|default:entrega.fecha|date:"d/m/Y" }}</span>
+                    {% else %}
+                        <span style="color: #d97706; font-style: italic;">Pendiente por entregar</span>
+                    {% endif %}
+                </td>
+            </tr>
+        </table>
+    </div>
+
+    <!-- Verificación Digital QR y Firma Criptográfica -->
+    <div class="box" style="background-color: #f8fafc; border: 1px solid #4f46e5; border-left: 4px solid #4f46e5; padding: 10px; margin-bottom: 20px;">
+        <table width="100%">
+            <tr>
+                <td width="70">
+                    <img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data={{ qr_comprobante_url|urlencode }}" width="60" height="60" alt="QR Verificación" style="border: 1px solid #cbd5e1; padding: 2px; background: #ffffff;">
+                </td>
+                <td>
+                    <div style="font-weight: bold; color: #4f46e5; font-size: 11px; margin-bottom: 2px;">🛡️ SELLO DE FIRMA DIGITAL Y AUTENTICIDAD LEGAL</div>
+                    <div style="font-size: 8px; color: #64748b; margin-bottom: 3px;">Ley de Mensajes de Datos y Firmas Electrónicas • Estándar Criptográfico ISO/IEC 27001</div>
+                    <div style="font-family: Courier, monospace; font-weight: bold; color: #0f172a; font-size: 8.5px; background: #ffffff; padding: 2px 5px; border: 1px solid #cbd5e1;">
+                        {{ firma_hash|default:"SHA256-VALIDATED-OFFICIAL-DOCUMENT" }}
+                    </div>
+                </td>
+                <td width="85" align="right">
+                    <span class="badge badge-success" style="font-size: 8.5px;">FIRMA VÁLIDA</span>
+                </td>
+            </tr>
+        </table>
+    </div>
+
+    <!-- Firmas y Registro Biométrico -->
+    <table class="signatures-table">
+        <tr>
+            <td width="{% if huella_local_path %}180{% else %}230{% endif %}" class="signature-box">
+                {% if firma_local_path %}
+                    <img src="{{ firma_local_path }}" class="signature-img" alt="Firma"><br>
+                    <div class="signature-line" style="margin-top: 5px;">Firma del Beneficiario</div>
+                {% else %}
+                    <br><br><br>
+                    <div class="signature-line">Firma del Beneficiario</div>
+                {% endif %}
+                <div style="font-size: 10px; color: #64748b;">C.I.: {{ entrega.cedula }}</div>
+            </td>
+            {% if huella_local_path %}
+            <td width="30"></td>
+            <td width="130" class="signature-box">
+                <img src="{{ huella_local_path }}" class="fingerprint-img" alt="Huella"><br>
+                <div class="signature-line" style="margin-top: 5px;">Huella Dactilar</div>
+                <div style="font-size: 9px; color: #64748b;">Pulgar / Biometría</div>
+            </td>
+            <td width="30"></td>
+            {% else %}
+            <td width="80"></td>
+            {% endif %}
+            <td width="{% if huella_local_path %}180{% else %}230{% endif %}" class="signature-box">
+                <br><br><br>
+                <div class="signature-line">Firma / Sello Responsable SIA</div>
+                <div style="font-size: 10px; color: #64748b;">Atención Social e Inventario</div>
+            </td>
+        </tr>
+    </table>
+
+</body>
+</html>

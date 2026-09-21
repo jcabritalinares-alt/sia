@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Reporte de Atención al Ciudadano - SIA Web</title>
+    <style>
+        @page {
+            size: letter portrait;
+            margin: 1.2cm;
+        }
+        body {
+            font-family: Helvetica, Arial, sans-serif;
+            color: #0f172a;
+            font-size: 10px;
+            line-height: 1.4;
+        }
+        .header-table {
+            width: 100%;
+            border-bottom: 2px solid #312e81;
+            padding-bottom: 10px;
+            margin-bottom: 15px;
+        }
+        .logo {
+            max-height: 55px;
+        }
+        .title {
+            font-size: 16px;
+            font-weight: bold;
+            color: #312e81;
+            text-align: center;
+        }
+        .subtitle {
+            font-size: 10px;
+            color: #64748b;
+            text-align: center;
+        }
+        .stats-table {
+            width: 100%;
+            margin-bottom: 15px;
+        }
+        .stat-card {
+            border: 1px solid #cbd5e1;
+            background-color: #f8fafc;
+            border-radius: 6px;
+            padding: 8px;
+            text-align: center;
+        }
+        .stat-num {
+            font-size: 16px;
+            font-weight: bold;
+            color: #4f46e5;
+        }
+        .stat-label {
+            font-size: 8px;
+            color: #475569;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+        .section-title {
+            font-size: 11px;
+            font-weight: bold;
+            color: #1e1b4b;
+            background-color: #e0e7ff;
+            padding: 5px 8px;
+            border-left: 4px solid #4f46e5;
+            margin-bottom: 10px;
+            margin-top: 10px;
+        }
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 15px;
+        }
+        .data-table th {
+            background-color: #312e81;
+            color: #ffffff;
+            font-weight: bold;
+            padding: 6px 6px;
+            text-align: left;
+            font-size: 9px;
+        }
+        .data-table td {
+            padding: 5px 6px;
+            border-bottom: 1px solid #e2e8f0;
+            font-size: 9px;
+        }
+        .badge {
+            padding: 2px 5px;
+            border-radius: 3px;
+            font-weight: bold;
+            font-size: 8px;
+            display: inline-block;
+        }
+        .badge-recibida { background-color: #e2e8f0; color: #334155; }
+        .badge-proceso { background-color: #fef08a; color: #854d0e; }
+        .badge-aprobada { background-color: #bae6fd; color: #0369a1; }
+        .badge-entregada { background-color: #bbf7d0; color: #166534; }
+        .badge-rechazada { background-color: #fecaca; color: #991b1b; }
+        
+        .signatures-table {
+            width: 100%;
+            margin-top: 35px;
+        }
+        .signature-box {
+            text-align: center;
+        }
+        .signature-line {
+            border-top: 1px solid #64748b;
+            margin-top: 45px;
+            padding-top: 4px;
+            font-weight: bold;
+            color: #1e293b;
+            font-size: 9px;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Encabezado con Logos Institucionales -->
+    <table class="header-table">
+        <tr>
+            <td width="110">
+                <img src="https://res.cloudinary.com/tehn5bfb/image/upload/v1783630731/efad9adhn201uv8xemcn.jpg" class="logo" alt="Alcaldía">
+            </td>
+            <td width="320" align="center">
+                <div class="title">REPORTE DE ATENCIÓN AL CIUDADANO</div>
+                <div class="subtitle">Alcaldía / Sistema de Gestión e Inventario (SIA Web)</div>
+                <div style="font-size: 10px; font-weight: bold; color: #4f46e5; margin-top: 4px;">
+                    {% if fecha_inicio or fecha_fin %}
+                        Período Evaluado: {{ fecha_inicio|default:"Inicio" }} al {{ fecha_fin|default:"Hoy" }}
+                    {% else %}
+                        Reporte General de Solicitudes Sociales
+                    {% endif %}
+                </div>
+            </td>
+            <td width="110" align="right">
+                <img src="https://res.cloudinary.com/tehn5bfb/image/upload/v1783630731/hgb44vfc0d8wirbnz2th.jpg" class="logo" alt="Valera Renace">
+            </td>
+        </tr>
+    </table>
+
+    <!-- Métricas Resumen -->
+    <table class="stats-table">
+        <tr>
+            <td width="19%">
+                <div class="stat-card">
+                    <div class="stat-num">{{ total_count }}</div>
+                    <div class="stat-label">Total Solicitudes</div>
+                </div>
+            </td>
+            <td width="1%"></td>
+            <td width="19%">
+                <div class="stat-card">
+                    <div class="stat-num" style="color: #475569;">{{ recibidas_count }}</div>
+                    <div class="stat-label">Recibidas</div>
+                </div>
+            </td>
+            <td width="1%"></td>
+            <td width="19%">
+                <div class="stat-card">
+                    <div class="stat-num" style="color: #d97706;">{{ en_proceso_count }}</div>
+                    <div class="stat-label">En Proceso</div>
+                </div>
+            </td>
+            <td width="1%"></td>
+            <td width="19%">
+                <div class="stat-card">
+                    <div class="stat-num" style="color: #0284c7;">{{ aprobadas_count }}</div>
+                    <div class="stat-label">Aprobadas</div>
+                </div>
+            </td>
+            <td width="1%"></td>
+            <td width="19%">
+                <div class="stat-card">
+                    <div class="stat-num" style="color: #16a34a;">{{ entregadas_count }}</div>
+                    <div class="stat-label">Entregadas</div>
+                </div>
+            </td>
+        </tr>
+    </table>
+
+    <!-- Registro Detallado de Solicitudes -->
+    <div class="section-title">REGISTRO DE ATENCIONES Y SOLICITUDES CIUDADANAS</div>
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th width="45">Fecha</th>
+                <th width="65">Cédula</th>
+                <th width="120">Solicitante</th>
+                <th width="110">Categoría / Tipo</th>
+                <th width="120">Requerimiento</th>
+                <th width="40" align="center">Prio.</th>
+                <th width="50" align="center">Estado</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for s in solicitudes %}
+            <tr>
+                <td>{{ s.fecha_solicitud|date:"d/m/Y" }}</td>
+                <td style="font-family: monospace;">{{ s.cedula }}</td>
+                <td><strong>{{ s.nombre_apellido }}</strong></td>
+                <td>{{ s.tipo_solicitud }}</td>
+                <td>{{ s.descripcion_solicitud|truncatechars:55 }}</td>
+                <td align="center">{{ s.prioridad }}</td>
+                <td align="center">
+                    {% if s.status == 'Recibida' %}
+                        <span class="badge badge-recibida">Recibida</span>
+                    {% elif s.status == 'En Proceso' %}
+                        <span class="badge badge-proceso">En Proceso</span>
+                    {% elif s.status == 'Aprobada' %}
+                        <span class="badge badge-aprobada">Aprobada</span>
+                    {% elif s.status == 'Entregada' %}
+                        <span class="badge badge-entregada">Entregada</span>
+                    {% else %}
+                        <span class="badge badge-rechazada">Rechazada</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="7" align="center">No hay registros de solicitudes en el período evaluado.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <!-- Firmas Oficiales -->
+    <table class="signatures-table">
+        <tr>
+            <td width="230" class="signature-box">
+                <div class="signature-line">Dirección de Atención Social</div>
+                <div style="font-size: 9px; color: #64748b;">Revisado y Conformado</div>
+            </td>
+            <td width="80"></td>
+            <td width="230" class="signature-box">
+                <div class="signature-line">Coordinación de Almacén SIA</div>
+                <div style="font-size: 9px; color: #64748b;">Control de Inventarios</div>
+            </td>
+        </tr>
+    </table>
+
+</body>
+</html>

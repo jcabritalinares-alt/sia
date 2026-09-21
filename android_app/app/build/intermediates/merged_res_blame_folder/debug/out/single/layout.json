@@ -1,0 +1,10 @@
+[
+    {
+        "merged": "C:\\Users\\Jean\\.gradle\\daemon\\8.10.2\\com.sia.inventario.app-mergeDebugResources-32:\\layout\\activity_main.xml",
+        "source": "C:\\Users\\Jean\\.gradle\\daemon\\8.10.2\\com.sia.inventario.app-main-35:\\layout\\activity_main.xml"
+    },
+    {
+        "merged": "com.sia.inventario.app-mergeDebugResources-32:/layout/activity_main.xml",
+        "source": "com.sia.inventario.app-main-35:/layout/activity_main.xml"
+    }
+]

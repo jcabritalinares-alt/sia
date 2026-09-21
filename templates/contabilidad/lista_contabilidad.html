@@ -1,0 +1,189 @@
+{% extends 'base.html' %}
+
+{% block contenido %}
+<div class="container-fluid px-0">
+
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-4 gap-3">
+        <div>
+            <h2 class="fw-extrabold text-dark mb-1 d-flex align-items-center gap-2">
+                <i class="bi bi-journal-bookmark-fill text-primary"></i> Contabilidad Gubernamental y Patrimonial (NICSP / IPSAS)
+            </h2>
+            <p class="text-muted small mb-0">Plan Único de Cuentas (PUC), Asientos por Partida Doble, Libro Mayor y Balance General</p>
+        </div>
+        <div class="d-flex flex-wrap gap-2">
+            <button class="btn btn-primary-custom fw-bold shadow-sm d-flex align-items-center gap-2" data-bs-toggle="modal" data-bs-target="#modalAsientoContable">
+                <i class="bi bi-plus-circle-fill"></i> Registrar Asiento Contable
+            </button>
+        </div>
+    </div>
+
+    <!-- KPIs Contables -->
+    <div class="row g-3 mb-4">
+        <div class="col-12 col-sm-6 col-xl-3">
+            <div class="card border-0 shadow-sm rounded-4 bg-primary bg-opacity-10 border border-primary border-opacity-25 p-3 h-100">
+                <div class="small text-primary fw-bold uppercase">Total Activos (Bancos/Bienes)</div>
+                <div class="fs-3 fw-extrabold text-dark mt-1">{{ total_activos|floatformat:2 }} BS</div>
+            </div>
+        </div>
+        <div class="col-12 col-sm-6 col-xl-3">
+            <div class="card border-0 shadow-sm rounded-4 bg-danger bg-opacity-10 border border-danger border-opacity-25 p-3 h-100">
+                <div class="small text-danger fw-bold uppercase">Total Pasivos (Cuentas por Pagar)</div>
+                <div class="fs-3 fw-extrabold text-dark mt-1">{{ total_pasivos|floatformat:2 }} BS</div>
+            </div>
+        </div>
+        <div class="col-12 col-sm-6 col-xl-3">
+            <div class="card border-0 shadow-sm rounded-4 bg-success bg-opacity-10 border border-success border-opacity-25 p-3 h-100">
+                <div class="small text-success fw-bold uppercase">Patrimonio Público</div>
+                <div class="fs-3 fw-extrabold text-dark mt-1">{{ total_patrimonio|floatformat:2 }} BS</div>
+            </div>
+        </div>
+        <div class="col-12 col-sm-6 col-xl-3">
+            <div class="card border-0 shadow-sm rounded-4 bg-warning bg-opacity-10 border border-warning border-opacity-25 p-3 h-100">
+                <div class="small text-warning fw-bold uppercase">Gastos Patrimoniales</div>
+                <div class="fs-3 fw-extrabold text-dark mt-1">{{ total_gastos|floatformat:2 }} BS</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Plan Único de Cuentas (PUC) -->
+    <div class="card border border-light rounded-4 shadow-sm p-4 mb-4 bg-white">
+        <h5 class="fw-bold text-dark mb-3 border-bottom pb-2 d-flex align-items-center gap-2">
+            <i class="bi bi-diagram-3-fill text-primary"></i> Plan Único de Cuentas Contables (PUC / ONCOP)
+        </h5>
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="bg-light">
+                    <tr>
+                        <th>Código PUC</th>
+                        <th>Nombre de la Cuenta</th>
+                        <th>Clasificación Tipo</th>
+                        <th>Naturaleza</th>
+                        <th class="text-end">Saldo Actual</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for c in cuentas %}
+                    <tr>
+                        <td><span class="badge bg-dark font-monospace px-2.5 py-1.5 fs-6">{{ c.codigo }}</span></td>
+                        <td class="fw-bold text-dark">{{ c.nombre }}</td>
+                        <td>
+                            {% if c.tipo == 'Activo' %}
+                            <span class="badge bg-primary px-3 py-1">Activo</span>
+                            {% elif c.tipo == 'Pasivo' %}
+                            <span class="badge bg-danger px-3 py-1">Pasivo</span>
+                            {% elif c.tipo == 'Gasto' %}
+                            <span class="badge bg-warning text-dark px-3 py-1">Gasto Patrimonial</span>
+                            {% else %}
+                            <span class="badge bg-secondary px-3 py-1">{{ c.tipo }}</span>
+                            {% endif %}
+                        </td>
+                        <td class="small text-muted">{{ c.naturaleza }}</td>
+                        <td class="text-end fw-extrabold text-dark">{{ c.saldo_actual|floatformat:2 }} BS</td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="5" class="text-center py-4 text-muted">No hay cuentas del Plan Único registradas.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Libro Diario - Últimos Asientos Contables -->
+    <div class="card border border-light rounded-4 shadow-sm p-4 bg-white">
+        <h5 class="fw-bold text-dark mb-3 border-bottom pb-2 d-flex align-items-center gap-2">
+            <i class="bi bi-book-half text-info"></i> Libro Diario General (Asientos por Partida Doble)
+        </h5>
+        {% for a in asientos %}
+        <div class="border rounded-3 p-3 mb-3 bg-light">
+            <div class="d-flex justify-content-between align-items-center mb-2 border-bottom pb-2">
+                <div>
+                    <span class="badge bg-primary font-monospace px-2.5 py-1 fs-6">Asiento #{{ a.num_asiento }}</span>
+                    <strong class="ms-2 text-dark">{{ a.concepto }}</strong>
+                </div>
+                <small class="text-muted"><i class="bi bi-calendar-event me-1"></i> {{ a.fecha|date:"d/m/Y H:i" }} | Ref: {{ a.documento_referencia|default:"Sin Ref" }}</small>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-sm table-borderless align-middle mb-0">
+                    <thead>
+                        <tr class="text-muted small">
+                            <th>Cuenta Contable (PUC)</th>
+                            <th class="text-end" style="width: 150px;">DEBE (BS)</th>
+                            <th class="text-end" style="width: 150px;">HABER (BS)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for d in a.detalles.all %}
+                        <tr>
+                            <td><span class="font-monospace fw-bold">{{ d.cuenta.codigo }}</span> - {{ d.cuenta.nombre }}</td>
+                            <td class="text-end fw-bold text-primary">{% if d.debe > 0 %}{{ d.debe|floatformat:2 }} BS{% else %}-{% endif %}</td>
+                            <td class="text-end fw-bold text-success">{% if d.haber > 0 %}{{ d.haber|floatformat:2 }} BS{% else %}-{% endif %}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        {% empty %}
+        <p class="text-center py-4 text-muted mb-0">No hay asientos contables registrados en el Libro Diario.</p>
+        {% endfor %}
+    </div>
+
+</div>
+
+<!-- Modal Asiento Contable -->
+<div class="modal fade" id="modalAsientoContable" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content rounded-4 shadow-lg border-0 overflow-hidden">
+            <div class="modal-header bg-primary text-white py-3">
+                <h5 class="modal-title fw-bold d-flex align-items-center gap-2">
+                    <i class="bi bi-journal-plus"></i> Registrar Asiento Contable por Partida Doble
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST">
+                {% csrf_token %}
+                <div class="modal-body p-4">
+                    <div class="row g-3 mb-3">
+                        <div class="col-12">
+                            <label class="form-label fw-semibold text-dark">Concepto / Motivo del Asiento:</label>
+                            <input type="text" name="concepto" class="form-control form-control-lg" placeholder="Descripción clara de la transacción patrimonial" required>
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <label class="form-label fw-semibold text-dark">Cuenta DEBE (Cargar):</label>
+                            <select name="cuenta_debe_id" class="form-select border-primary" required>
+                                {% for c in cuentas %}
+                                <option value="{{ c.id }}">{{ c.codigo }} - {{ c.nombre }} ({{ c.tipo }})</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <label class="form-label fw-semibold text-dark">Cuenta HABER (Acreditar):</label>
+                            <select name="cuenta_haber_id" class="form-select border-primary" required>
+                                {% for c in cuentas %}
+                                <option value="{{ c.id }}">{{ c.codigo }} - {{ c.nombre }} ({{ c.tipo }})</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <label class="form-label fw-semibold text-dark">Monto (BS):</label>
+                            <input type="number" step="0.01" name="monto" class="form-control form-control-lg font-monospace fw-bold" placeholder="0.00" required>
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <label class="form-label fw-semibold text-dark">N° Documento Referencia:</label>
+                            <input type="text" name="documento_referencia" class="form-control font-monospace" placeholder="Ej: Comprobante #902, Factura #104" required>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light py-2 justify-content-between">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary-custom fw-bold shadow-sm px-4">
+                        <i class="bi bi-floppy-fill me-1"></i> Registrar Asiento Contable
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

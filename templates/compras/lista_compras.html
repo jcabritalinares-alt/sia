@@ -1,0 +1,194 @@
+{% extends 'base.html' %}
+
+{% block contenido %}
+<div class="container-fluid px-0">
+
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-4 gap-3">
+        <div>
+            <h2 class="fw-extrabold text-dark mb-1 d-flex align-items-center gap-2">
+                <i class="bi bi-cart-check-fill text-primary"></i> Compras, Contrataciones Públicas y Licitaciones (SNC)
+            </h2>
+            <p class="text-muted small mb-0">Registro Nacional de Contratistas (RNC), Solicitud de Ofertas y Adjudicación de Órdenes de Compra/Servicio</p>
+        </div>
+        <div class="d-flex flex-wrap gap-2">
+            <button class="btn btn-outline-primary fw-bold shadow-sm d-flex align-items-center gap-2" data-bs-toggle="modal" data-bs-target="#modalNuevoProveedor">
+                <i class="bi bi-truck-front-fill"></i> Registrar Proveedor (RNC)
+            </button>
+            <button class="btn btn-primary-custom fw-bold shadow-sm d-flex align-items-center gap-2 text-white" data-bs-toggle="modal" data-bs-target="#modalEmitirOrden">
+                <i class="bi bi-file-earmark-plus-fill"></i> Emitir Orden de Compra/Servicio
+            </button>
+        </div>
+    </div>
+
+    <!-- KPIs Compras -->
+    <div class="row g-3 mb-4">
+        <div class="col-12 col-sm-6 col-xl-6">
+            <div class="card border-0 shadow-sm rounded-4 bg-primary bg-opacity-10 border border-primary border-opacity-25 p-3 h-100">
+                <div class="small text-primary fw-bold uppercase">Monto Total Adjudicado en Contrataciones</div>
+                <div class="fs-3 fw-extrabold text-dark mt-1">{{ total_compras|floatformat:2 }} BS</div>
+            </div>
+        </div>
+        <div class="col-12 col-sm-6 col-xl-6">
+            <div class="card border-0 shadow-sm rounded-4 bg-success bg-opacity-10 border border-success border-opacity-25 p-3 h-100">
+                <div class="small text-success fw-bold uppercase">Proveedores Habilitados en RNC</div>
+                <div class="fs-3 fw-extrabold text-dark mt-1">{{ cnt_proveedores }} Proveedores</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabla Órdenes de Compra -->
+    <div class="card border border-light rounded-4 shadow-sm p-4 mb-4 bg-white">
+        <h5 class="fw-bold text-dark mb-3 border-bottom pb-2 d-flex align-items-center gap-2">
+            <i class="bi bi-bag-check-fill text-primary"></i> Órdenes de Compra y Servicios Adjudicadas
+        </h5>
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="bg-light">
+                    <tr>
+                        <th>N° Orden</th>
+                        <th>Proveedor (RNC)</th>
+                        <th>Tipo Contrato</th>
+                        <th>Descripción</th>
+                        <th class="text-end">Monto Total (+IVA)</th>
+                        <th class="text-center">Estado</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for o in ordenes %}
+                    <tr>
+                        <td><span class="badge bg-dark font-monospace px-2.5 py-1.5 fs-6">{{ o.num_orden }}</span></td>
+                        <td>
+                            <strong class="text-dark d-block">{{ o.proveedor.razon_social }}</strong>
+                            <small class="text-muted font-monospace">{{ o.proveedor.rif }} | RNC: {{ o.proveedor.num_rnc|default:"S/N" }}</small>
+                        </td>
+                        <td><span class="badge bg-primary bg-opacity-10 text-primary border px-2.5 py-1">{{ o.get_tipo_display }}</span></td>
+                        <td class="small text-secondary">{{ o.descripcion_contrato }}</td>
+                        <td class="text-end fw-extrabold text-dark fs-6">{{ o.monto_total|floatformat:2 }} BS</td>
+                        <td class="text-center">
+                            <span class="badge bg-success fw-bold px-3 py-1.5"><i class="bi bi-check-circle-fill me-1"></i> {{ o.estatus }}</span>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="text-center py-4 text-muted">No hay órdenes de compra registradas.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</div>
+
+<!-- Modal Nuevo Proveedor -->
+<div class="modal fade" id="modalNuevoProveedor" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content rounded-4 shadow-lg border-0 overflow-hidden">
+            <div class="modal-header bg-primary text-white py-3">
+                <h5 class="modal-title fw-bold d-flex align-items-center gap-2">
+                    <i class="bi bi-truck-front-fill"></i> Registrar Proveedor en el RNC
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST">
+                {% csrf_token %}
+                <input type="hidden" name="accion" value="registrar_proveedor">
+                <div class="modal-body p-4">
+                    <div class="row g-3 mb-3">
+                        <div class="col-12 col-md-6">
+                            <label class="form-label fw-semibold text-dark">RIF del Proveedor:</label>
+                            <input type="text" name="rif" class="form-control font-monospace fw-bold border-primary" placeholder="J-30000000-0" required>
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <label class="form-label fw-semibold text-dark">N° Registro RNC:</label>
+                            <input type="text" name="num_rnc" class="form-control font-monospace" placeholder="RNC-00000-A">
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label fw-semibold text-dark">Nombre / Razón Social:</label>
+                            <input type="text" name="razon_social" class="form-control" placeholder="Razón social fiscal completa" required>
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <label class="form-label fw-semibold text-dark">Ramo de Actividad Comercial:</label>
+                            <input type="text" name="ramo_actividad" class="form-control" placeholder="Ej: Materiales Médicos y Quirúrgicos" required>
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <label class="form-label fw-semibold text-dark">Teléfono de Contacto:</label>
+                            <input type="text" name="telefono" class="form-control" required>
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <label class="form-label fw-semibold text-dark">Correo Electrónico:</label>
+                            <input type="email" name="email" class="form-control" required>
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <label class="form-label fw-semibold text-dark">Dirección Fiscal:</label>
+                            <input type="text" name="direccion" class="form-control" required>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light py-2 justify-content-between">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary-custom fw-bold shadow-sm px-4">
+                        <i class="bi bi-floppy-fill me-1"></i> Guardar Proveedor
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Emitir Orden -->
+<div class="modal fade" id="modalEmitirOrden" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content rounded-4 shadow-lg border-0 overflow-hidden">
+            <div class="modal-header bg-success text-white py-3">
+                <h5 class="modal-title fw-bold d-flex align-items-center gap-2">
+                    <i class="bi bi-file-earmark-plus-fill"></i> Emitir Orden de Compra / Servicio
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST">
+                {% csrf_token %}
+                <input type="hidden" name="accion" value="emitir_orden">
+                <div class="modal-body p-4">
+                    <div class="row g-3 mb-3">
+                        <div class="col-12 col-md-6">
+                            <label class="form-label fw-semibold text-dark">N° Orden de Compra:</label>
+                            <input type="text" name="num_orden" class="form-control font-monospace fw-bold border-success" placeholder="OC-2026-0089" required>
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <label class="form-label fw-semibold text-dark">Seleccionar Proveedor RNC:</label>
+                            <select name="proveedor_id" class="form-select border-success" required>
+                                {% for p in proveedores %}
+                                <option value="{{ p.id }}">{{ p.razon_social }} ({{ p.rif }})</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <label class="form-label fw-semibold text-dark">Tipo de Contrato:</label>
+                            <select name="tipo" class="form-select border-success" required>
+                                <option value="CompraBienes">Compra de Bienes e Insumos</option>
+                                <option value="ContratacionServicios">Contratación de Servicios</option>
+                                <option value="ObraPublica">Ejecución de Obra Pública</option>
+                            </select>
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <label class="form-label fw-semibold text-dark">Monto Subtotal (Sin IVA):</label>
+                            <input type="number" step="0.01" name="monto_subtotal" class="form-control font-monospace fw-bold" placeholder="0.00" required>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label fw-semibold text-dark">Descripción Objeto de la Contratación:</label>
+                            <textarea name="descripcion_contrato" class="form-control" rows="2" placeholder="Detalle completo de los bienes o servicios adjudicados" required></textarea>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light py-2 justify-content-between">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-success fw-bold shadow-sm px-4">
+                        <i class="bi bi-floppy-fill me-1"></i> Adjudicar Orden
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

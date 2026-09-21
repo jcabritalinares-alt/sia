@@ -1,0 +1,2326 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es" data-bs-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#4f46e5">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="manifest" href="{% static 'manifest.json' %}">
+    <title>SIA Web | Sistema de Inventario y Atención</title>
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register("{% static 'service-worker.js' %}").catch(() => {});
+            });
+        }
+    </script>
+    
+    <!-- Evitar parpadeo (FOUC) aplicando el tema preferido y estado del sidebar inmediatamente -->
+    <script>
+        (function() {
+            const savedTheme = localStorage.getItem('sia_theme') || 'light';
+            document.documentElement.setAttribute('data-bs-theme', savedTheme);
+            document.documentElement.setAttribute('data-theme', savedTheme);
+            if (localStorage.getItem('sia_sidebar_collapsed') === 'true') {
+                document.documentElement.classList.add('sia-sidebar-collapsed');
+            }
+        })();
+    </script>
+
+    <!-- Google Fonts: Inter (Alta Legibilidad) & Plus Jakarta Sans -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- Bootstrap 5.3 & Icons -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
+    <!-- HTML5 QR Code Scanner Library -->
+    <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+    
+    <style>
+        :root { 
+            --primary: #4f46e5; 
+            --primary-hover: #4338ca;
+            --primary-light: #eef2ff;
+            --accent: #06b6d4;
+            --bg-gradient: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 50%, #e2e8f0 100%);
+            --card-bg: #ffffff;
+            --text-main: #0f172a;
+            --text-muted: #64748b;
+            --border-color: #e2e8f0;
+            --navbar-bg: rgba(255, 255, 255, 0.88);
+            --navbar-border: rgba(226, 232, 240, 0.8);
+            --shadow-sm: 0 2px 4px rgba(15, 23, 42, 0.04);
+            --shadow-md: 0 10px 25px -5px rgba(15, 23, 42, 0.08), 0 4px 6px -2px rgba(15, 23, 42, 0.03);
+            --shadow-lg: 0 20px 35px -10px rgba(79, 70, 229, 0.12), 0 8px 10px -6px rgba(15, 23, 42, 0.04);
+            --radius-sm: 10px;
+            --radius-md: 16px;
+            --radius-lg: 24px;
+        }
+
+        /* Variables Tema Oscuro */
+        [data-bs-theme="dark"] {
+            --primary: #6366f1; 
+            --primary-hover: #4f46e5;
+            --primary-light: rgba(99, 102, 241, 0.18);
+            --accent: #22d3ee;
+            --bg-gradient: linear-gradient(135deg, #0b0f19 0%, #0f172a 50%, #1e293b 100%);
+            --card-bg: #1e293b;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --border-color: #334155;
+            --navbar-bg: rgba(15, 23, 42, 0.90);
+            --navbar-border: rgba(51, 65, 85, 0.8);
+            --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.3);
+            --shadow-md: 0 10px 25px -5px rgba(0, 0, 0, 0.4);
+            --shadow-lg: 0 20px 35px -10px rgba(0, 0, 0, 0.5);
+        }
+        
+        html {
+            font-size: 18.2px;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            text-rendering: optimizeLegibility;
+        }
+
+        body { 
+            font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; 
+            background: var(--bg-gradient); 
+            color: var(--text-main); 
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            font-size: 1.08rem;
+            line-height: 1.6;
+            letter-spacing: 0.005em;
+            transition: background 0.3s ease, color 0.3s ease;
+        }
+
+        /* Jerarquía de Encabezados con Mayor Claridad */
+        h1, .h1 { font-size: 2.05rem; font-weight: 800; letter-spacing: -0.015em; }
+        h2, .h2 { font-size: 1.75rem; font-weight: 800; letter-spacing: -0.015em; }
+        h3, .h3 { font-size: 1.48rem; font-weight: 700; }
+        h4, .h4 { font-size: 1.32rem; font-weight: 700; }
+        h5, .h5 { font-size: 1.18rem; font-weight: 700; }
+        h6, .h6 { font-size: 1.05rem; font-weight: 700; }
+
+        /* --- SISTEMA DE ESTILOS DE NAVEGACIÓN Y MENÚ SIA WEB --- */
+        :root {
+            --mod-analitica: #4f46e5;
+            --mod-analitica-bg: rgba(79, 70, 229, 0.10);
+            --mod-inventario: #d97706;
+            --mod-inventario-bg: rgba(217, 119, 6, 0.12);
+            --mod-atencion: #e11d48;
+            --mod-atencion-bg: rgba(225, 29, 72, 0.10);
+            --mod-sistema: #7c3aed;
+            --mod-sistema-bg: rgba(124, 58, 237, 0.10);
+        }
+
+        [data-bs-theme="dark"] {
+            --mod-analitica: #818cf8;
+            --mod-analitica-bg: rgba(129, 140, 248, 0.18);
+            --mod-inventario: #fbbf24;
+            --mod-inventario-bg: rgba(251, 191, 36, 0.18);
+            --mod-atencion: #fb7185;
+            --mod-atencion-bg: rgba(251, 113, 133, 0.18);
+            --mod-sistema: #a78bfa;
+            --mod-sistema-bg: rgba(167, 139, 250, 0.18);
+        }
+
+        /* --- SISTEMA DE DISEÑO SIA: MENÚ LATERAL DESKTOP + PESTAÑAS Y SLIDER DERECHO MÓVIL --- */
+        :root {
+            --sidebar-width: 285px;
+            --sidebar-collapsed-width: 76px;
+            --topbar-height: 62px;
+            --bottom-nav-height: 64px;
+        }
+
+        /* Layout Base y Contenedores */
+        .sia-app-layout {
+            display: flex;
+            min-height: 100vh;
+            width: 100%;
+            position: relative;
+        }
+
+        .sia-main-wrapper {
+            min-width: 0;
+            background: transparent;
+            transition: all 0.25s ease;
+        }
+
+        /* SIDEBAR LATERAL (DESKTOP) */
+        .sia-sidebar {
+            width: var(--sidebar-width);
+            min-width: var(--sidebar-width);
+            height: 100vh;
+            position: sticky;
+            top: 0;
+            left: 0;
+            background: var(--navbar-bg);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-right: 1px solid var(--navbar-border);
+            box-shadow: var(--shadow-sm);
+            display: flex;
+            flex-direction: column;
+            z-index: 1030;
+            transition: width 0.24s cubic-bezier(0.16, 1, 0.3, 1), min-width 0.24s cubic-bezier(0.16, 1, 0.3, 1);
+            user-select: none;
+        }
+
+        .sia-sidebar::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            bottom: 0;
+            width: 3px;
+            background: linear-gradient(180deg, #4f46e5 0%, #06b6d4 40%, #10b981 70%, #f59e0b 100%);
+            z-index: 1031;
+        }
+
+        /* Modo Sidebar Colapsado */
+        .sia-sidebar-collapsed .sia-sidebar {
+            width: var(--sidebar-collapsed-width);
+            min-width: var(--sidebar-collapsed-width);
+        }
+
+        .sia-sidebar-collapsed .sidebar-text,
+        .sia-sidebar-collapsed .sidebar-badge,
+        .sia-sidebar-collapsed .sidebar-section-tag,
+        .sia-sidebar-collapsed .sidebar-brand-text,
+        .sia-sidebar-collapsed .sidebar-user-info,
+        .sia-sidebar-collapsed .sidebar-quick-action {
+            display: none !important;
+        }
+
+        .sia-sidebar-collapsed .sidebar-section-title {
+            justify-content: center;
+            padding: 0.5rem 0 0.2rem;
+            font-size: 0.55rem;
+            opacity: 0.7;
+        }
+
+        .sia-sidebar-collapsed .sidebar-item-link {
+            justify-content: center;
+            padding: 0.60rem 0.35rem;
+            margin: 0.2rem auto;
+            width: 46px;
+            border-radius: 12px;
+        }
+
+        .sia-sidebar-collapsed .sidebar-header {
+            justify-content: center !important;
+            padding: 0.75rem 0.4rem !important;
+        }
+
+        .sia-sidebar-collapsed #sidebarCollapseBtn {
+            display: none;
+        }
+
+        .sia-sidebar-collapsed .sidebar-footer {
+            padding: 0.5rem 0.25rem !important;
+            justify-content: center;
+        }
+
+        .sia-sidebar-collapsed .sidebar-user-card {
+            justify-content: center !important;
+            padding: 0.35rem 0 !important;
+            border-color: transparent !important;
+            background: transparent !important;
+        }
+
+        /* Elementos del Sidebar */
+        .brand-badge {
+            background: linear-gradient(135deg, #4f46e5 0%, #06b6d4 100%);
+            color: white !important;
+            padding: 0.35rem 0.75rem;
+            border-radius: var(--radius-sm);
+            font-weight: 800;
+            font-size: 1.02rem;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.45rem;
+            box-shadow: 0 4px 12px rgba(79, 70, 229, 0.25);
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+            white-space: nowrap;
+        }
+        .brand-badge:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 6px 16px rgba(79, 70, 229, 0.35);
+        }
+
+        .brand-icon-box {
+            width: 38px;
+            height: 38px;
+            min-width: 38px;
+            background: linear-gradient(135deg, #4f46e5 0%, #06b6d4 100%);
+            border-radius: 10px;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+            box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);
+            transition: transform 0.2s ease;
+        }
+
+        .sidebar-brand-link:hover .brand-icon-box {
+            transform: rotate(-6deg) scale(1.06);
+        }
+
+        .btn-sidebar-toggle {
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid var(--border-color);
+            background-color: var(--card-bg);
+            transition: all 0.2s ease;
+            cursor: pointer;
+        }
+        .btn-sidebar-toggle:hover {
+            background-color: var(--primary-light);
+            color: var(--primary) !important;
+            border-color: var(--primary);
+        }
+
+        .btn-quick-sidebar {
+            background: linear-gradient(135deg, #4f46e5 0%, #06b6d4 100%);
+            color: #ffffff !important;
+            border: none;
+            border-radius: 12px;
+            padding: 0.55rem 0.85rem;
+            font-weight: 700;
+            font-size: 0.85rem;
+            transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+            text-decoration: none;
+        }
+        .btn-quick-sidebar:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 18px rgba(79, 70, 229, 0.35);
+            color: #ffffff !important;
+        }
+
+        .sidebar-nav-scroll {
+            overflow-y: auto;
+            overflow-x: hidden;
+            padding: 0.65rem 0.75rem;
+            scrollbar-width: thin;
+        }
+
+        .sidebar-section-title {
+            font-size: 0.67rem;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: var(--text-muted);
+            padding: 0.60rem 0.50rem 0.25rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .sidebar-section-tag {
+            font-size: 0.62rem;
+            font-weight: 800;
+            letter-spacing: 0.04em;
+            border-radius: 6px;
+            padding: 0.15rem 0.40rem;
+            font-family: monospace;
+        }
+
+        .sidebar-item-link {
+            display: flex;
+            align-items: center;
+            gap: 0.65rem;
+            padding: 0.50rem 0.65rem;
+            border-radius: 10px;
+            color: var(--text-main);
+            font-weight: 600;
+            font-size: 0.86rem;
+            text-decoration: none;
+            transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+            margin-bottom: 0.18rem;
+            position: relative;
+        }
+
+        .sidebar-item-link:hover, .sidebar-item-link:focus-visible {
+            background-color: var(--primary-light);
+            color: var(--primary);
+            transform: translateX(3px);
+            outline: none;
+        }
+
+        .sidebar-item-link.active {
+            background: linear-gradient(135deg, rgba(79, 70, 229, 0.14) 0%, rgba(6, 182, 212, 0.08) 100%);
+            color: var(--primary);
+            font-weight: 700;
+            box-shadow: inset 3px 0 0 var(--primary);
+        }
+
+        .sidebar-icon-box {
+            width: 32px;
+            height: 32px;
+            min-width: 32px;
+            border-radius: 8px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.05rem;
+            transition: transform 0.2s ease;
+        }
+
+        .sidebar-item-link:hover .sidebar-icon-box {
+            transform: scale(1.10);
+        }
+
+        .sidebar-badge {
+            font-size: 0.65rem;
+            padding: 0.15rem 0.45rem;
+            border-radius: 9999px;
+            font-weight: 700;
+            margin-left: auto;
+        }
+
+        .sidebar-user-card {
+            background-color: var(--card-bg);
+            border: 1px solid var(--border-color);
+            transition: all 0.2s ease;
+        }
+
+        /* TOPBAR SUPERIOR */
+        .sia-topbar {
+            height: var(--topbar-height);
+            background: var(--navbar-bg);
+            backdrop-filter: blur(18px);
+            -webkit-backdrop-filter: blur(18px);
+            border-bottom: 1px solid var(--navbar-border);
+            box-shadow: var(--shadow-sm);
+            z-index: 1020;
+        }
+
+        .nav-link-custom { 
+            color: var(--text-main) !important; 
+            font-weight: 600; 
+            font-size: 0.85rem;
+            padding: 0.35rem 0.65rem !important;
+            border-radius: 9999px;
+            transition: all 0.2s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+            user-select: none;
+            white-space: nowrap;
+        }
+        
+        .nav-link-custom:hover { 
+            color: var(--primary) !important; 
+            background-color: var(--primary-light);
+        }
+
+        .dropdown-menu-custom {
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            box-shadow: var(--shadow-md);
+            padding: 0.6rem;
+            background: var(--card-bg);
+            animation: fadeInDown 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .dropdown-item-custom {
+            border-radius: 8px;
+            padding: 0.55rem 0.85rem;
+            font-weight: 500;
+            font-size: 0.9rem;
+            color: var(--text-main);
+            transition: all 0.15s ease;
+        }
+
+        .dropdown-item-custom:hover, .dropdown-item-custom:focus-visible {
+            background-color: var(--primary-light);
+            color: var(--primary);
+            outline: none;
+        }
+
+        @keyframes fadeInDown {
+            from { opacity: 0; transform: translateY(-8px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* PESTAÑAS INFERIORES MÓVILES (< 992px) */
+        .sia-bottom-nav {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: var(--bottom-nav-height);
+            background: var(--navbar-bg);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-top: 1px solid var(--navbar-border);
+            box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.08);
+            display: flex;
+            align-items: center;
+            justify-content: space-around;
+            z-index: 1040;
+            padding-bottom: env(safe-area-inset-bottom, 0);
+            user-select: none;
+        }
+
+        .bottom-nav-item {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            color: var(--text-muted);
+            text-decoration: none;
+            font-size: 0.68rem;
+            font-weight: 600;
+            transition: all 0.2s ease;
+            gap: 2px;
+            padding: 4px 0;
+            border: none;
+            background: transparent;
+            cursor: pointer;
+            position: relative;
+        }
+
+        .bottom-nav-item i {
+            font-size: 1.25rem;
+            line-height: 1;
+            transition: transform 0.2s ease, color 0.2s ease;
+        }
+
+        .bottom-nav-item:hover, .bottom-nav-item:focus {
+            color: var(--primary);
+        }
+
+        .bottom-nav-item.active {
+            color: var(--primary);
+            font-weight: 800;
+        }
+
+        .bottom-nav-item.active i {
+            color: var(--primary);
+            transform: translateY(-2px);
+            filter: drop-shadow(0 2px 6px rgba(79, 70, 229, 0.4));
+        }
+
+        .bottom-nav-item.active::after {
+            content: '';
+            position: absolute;
+            top: 2px;
+            width: 18px;
+            height: 3px;
+            border-radius: 3px;
+            background: var(--primary);
+        }
+
+        /* Botón de acción central en barra inferior */
+        .bottom-nav-action .bottom-nav-action-btn {
+            width: 42px;
+            height: 42px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #4f46e5 0%, #06b6d4 100%);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.3rem;
+            box-shadow: 0 4px 14px rgba(79, 70, 229, 0.4);
+            margin-top: -16px;
+            transition: transform 0.2s ease;
+        }
+
+        .bottom-nav-action:hover .bottom-nav-action-btn,
+        .bottom-nav-action:active .bottom-nav-action-btn {
+            transform: scale(1.10) translateY(-2px);
+        }
+
+        /* SLIDER LATERAL DERECHO (OFFCANVAS END) */
+        .offcanvas-sia {
+            background-color: var(--card-bg) !important;
+            color: var(--text-main) !important;
+            width: 330px !important;
+            max-width: 86vw !important;
+            border-left: 1px solid var(--border-color) !important;
+            border-right: none !important;
+            box-shadow: -5px 0 25px rgba(0, 0, 0, 0.15) !important;
+        }
+
+        .offcanvas-user-card {
+            background: linear-gradient(135deg, var(--primary-light) 0%, rgba(6, 182, 212, 0.06) 100%);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-sm);
+            padding: 0.85rem;
+            margin-bottom: 1rem;
+        }
+
+        .mobile-nav-group-title {
+            font-size: 0.70rem;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: var(--text-muted);
+            font-weight: 700;
+            padding: 0.5rem 0.75rem 0.25rem;
+            margin-top: 0.5rem;
+        }
+
+        /* Acordeón Offcanvas */
+        .offcanvas-sia .accordion-item {
+            background-color: transparent;
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-sm);
+            margin-bottom: 0.5rem;
+            overflow: hidden;
+        }
+
+        .offcanvas-sia .accordion-button {
+            background-color: transparent;
+            color: var(--text-main);
+            font-weight: 700;
+            font-size: 0.88rem;
+            padding: 0.75rem 0.85rem;
+            box-shadow: none;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .offcanvas-sia .accordion-button:not(.collapsed) {
+            background-color: var(--primary-light);
+            color: var(--primary);
+        }
+
+        .offcanvas-sia .accordion-body {
+            padding: 0.35rem 0.5rem 0.5rem;
+            background-color: var(--card-bg);
+        }
+
+        .offcanvas-sia .mobile-card-sublink {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.65rem 0.75rem;
+            border-radius: 8px;
+            color: var(--text-main);
+            text-decoration: none;
+            min-height: 48px;
+            transition: all 0.15s ease;
+            margin-bottom: 0.2rem;
+        }
+
+        .offcanvas-sia .mobile-card-sublink:hover,
+        .offcanvas-sia .mobile-card-sublink:focus-visible {
+            background-color: var(--primary-light);
+            color: var(--primary);
+            outline: none;
+        }
+
+        .offcanvas-sia .mobile-card-sublink.active {
+            background-color: var(--primary-light);
+            color: var(--primary);
+            font-weight: 700;
+            border-left: 3px solid var(--primary);
+        }
+
+        /* Responsive padding para móviles */
+        @media (max-width: 991.98px) {
+            .sia-main-wrapper {
+                padding-bottom: calc(var(--bottom-nav-height) + 12px);
+            }
+        }
+
+        /* Estilos Atajos de Teclado KBD */
+        .kbd-shortcut {
+            background: var(--card-bg);
+            color: var(--primary);
+            border: 1px solid var(--border-color);
+            border-bottom: 2px solid var(--border-color);
+            padding: 0.18rem 0.50rem;
+            border-radius: 6px;
+            font-family: monospace;
+            font-size: 0.80rem;
+            font-weight: 700;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+        }
+
+        .main-card { 
+            border: 1px solid var(--border-color); 
+            border-radius: var(--radius-md); 
+            background: var(--card-bg); 
+            box-shadow: var(--shadow-sm); 
+            padding: 1.25rem 1.5rem; 
+            margin: 0 auto;
+            width: 100%;
+            transition: all 0.3s ease;
+        }
+        @media (max-width: 768px) {
+            .main-card {
+                padding: 1rem 0.85rem;
+            }
+        }
+
+        .btn-theme-toggle {
+            width: 36px;
+            height: 36px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid var(--border-color);
+            background-color: var(--card-bg);
+            color: var(--text-main);
+            border-radius: 50%;
+            transition: all 0.25s ease;
+            cursor: pointer;
+        }
+        .btn-theme-toggle:hover {
+            transform: rotate(20deg) scale(1.08);
+            border-color: var(--primary);
+        }
+
+        /* Adaptaciones Globales Tema Oscuro */
+        [data-bs-theme="dark"] .text-dark { color: #f8fafc !important; }
+        [data-bs-theme="dark"] .text-secondary { color: #cbd5e1 !important; }
+        [data-bs-theme="dark"] .text-muted { color: #94a3b8 !important; }
+        [data-bs-theme="dark"] .bg-white { background-color: #1e293b !important; color: #f8fafc !important; }
+        [data-bs-theme="dark"] .bg-light { background-color: #0f172a !important; color: #f8fafc !important; }
+        [data-bs-theme="dark"] .border-light { border-color: #334155 !important; }
+        [data-bs-theme="dark"] .form-control, [data-bs-theme="dark"] .form-select {
+            background-color: #0f172a !important;
+            color: #f8fafc !important;
+            border-color: #334155 !important;
+        }
+        [data-bs-theme="dark"] .input-group-text {
+            background-color: #1e293b !important;
+            color: #94a3b8 !important;
+            border-color: #334155 !important;
+        }
+        [data-bs-theme="dark"] .table {
+            color: #f8fafc !important;
+            border-color: #334155 !important;
+        }
+        [data-bs-theme="dark"] .table-hover tbody tr:hover {
+            background-color: rgba(255, 255, 255, 0.04) !important;
+        }
+        [data-bs-theme="dark"] .modal-content {
+            background-color: #1e293b !important;
+            color: #f8fafc !important;
+            border-color: #334155 !important;
+        }
+        [data-bs-theme="dark"] .btn-outline-dark, 
+        [data-bs-theme="dark"] .btn-outline-secondary {
+            color: #f8fafc !important;
+            border-color: #475569 !important;
+            background-color: #1e293b !important;
+        }
+        [data-bs-theme="dark"] .btn-outline-dark:hover,
+        [data-bs-theme="dark"] .btn-outline-secondary:hover {
+            background-color: #334155 !important;
+            color: #ffffff !important;
+        }
+
+        /* Formularios más legibles y cómodos */
+        .form-control, .form-select {
+            border: 1.5px solid var(--border-color);
+            border-radius: var(--radius-sm);
+            padding: 0.72rem 1.05rem;
+            font-size: 1.06rem !important;
+            line-height: 1.5;
+            transition: all 0.2s ease;
+        }
+
+        .form-label {
+            font-size: 1.02rem !important;
+            font-weight: 600;
+            color: var(--text-main);
+            margin-bottom: 0.38rem;
+        }
+
+        .form-control:focus, .form-select:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.12);
+        }
+
+        /* Tablas de Datos con Lectura Clara */
+        .table {
+            font-size: 1.04rem;
+        }
+        .table thead th {
+            font-size: 0.92rem;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+        }
+        .table td {
+            padding: 0.80rem 0.72rem;
+            vertical-align: middle;
+        }
+
+        /* Botones con Fuente Nítida */
+        .btn {
+            font-size: 1.02rem;
+            font-weight: 600;
+            letter-spacing: 0.01em;
+        }
+        .btn-sm {
+            font-size: 0.92rem;
+            font-weight: 600;
+        }
+
+        .btn-primary-custom {
+            background: linear-gradient(135deg, #4f46e5 0%, #4338ca 100%);
+            color: #ffffff;
+            border: none;
+            border-radius: var(--radius-sm);
+            padding: 0.72rem 1.55rem;
+            font-weight: 700;
+            font-size: 1.05rem;
+            box-shadow: 0 4px 12px rgba(79, 70, 229, 0.22);
+            transition: all 0.2s ease;
+        }
+
+        /* Textos Pequeños y Badges */
+        small, .small {
+            font-size: 0.92rem !important;
+        }
+        .badge {
+            font-size: 0.88rem;
+            font-weight: 700;
+            padding: 0.40em 0.72em;
+            letter-spacing: 0.02em;
+        }
+
+        /* Navegación y Subtítulos del Menú Lateral */
+        .sidebar-section-title {
+            font-size: 0.84rem !important;
+            font-weight: 800 !important;
+            letter-spacing: 0.06em !important;
+        }
+        .sidebar-section-tag {
+            font-size: 0.76rem !important;
+        }
+        .sidebar-item-link {
+            font-size: 1.04rem !important;
+            font-weight: 600 !important;
+            padding: 0.60rem 0.80rem !important;
+        }
+        .btn-quick-sidebar {
+            font-size: 1.02rem !important;
+            font-weight: 700 !important;
+        }
+        .nav-link-custom {
+            font-size: 1.00rem !important;
+        }
+        .dropdown-item-custom {
+            font-size: 1.02rem !important;
+        }
+
+        .btn-primary-custom:hover {
+            background: linear-gradient(135deg, #4338ca 0%, #3730a3 100%);
+            color: #ffffff;
+            transform: translateY(-1px);
+            box-shadow: 0 6px 16px rgba(79, 70, 229, 0.32);
+        }
+
+        .online-dot {
+            width: 8px;
+            height: 8px;
+            background-color: #10b981;
+            border-radius: 50%;
+            display: inline-block;
+            box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.25);
+        }
+
+        /* --- ESTILOS SPLASH SCREEN DE BIENVENIDA --- */
+        .welcome-splash-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: 999999;
+            background: radial-gradient(circle at center, rgba(15, 23, 42, 0.97) 0%, rgba(3, 7, 18, 0.99) 100%);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: opacity 0.6s ease, transform 0.6s ease;
+        }
+
+        .welcome-splash-overlay.splash-hiding {
+            opacity: 0;
+            transform: scale(1.06);
+            pointer-events: none;
+        }
+
+        .welcome-splash-card {
+            max-width: 440px;
+            width: 90%;
+            animation: splashPop 0.7s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        @keyframes splashPop {
+            from { opacity: 0; transform: scale(0.8) translateY(20px); }
+            to { opacity: 1; transform: scale(1) translateY(0); }
+        }
+
+        .splash-logo-badge {
+            width: 95px;
+            height: 95px;
+            margin: 0 auto;
+            background: linear-gradient(135deg, #4f46e5 0%, #06b6d4 100%);
+            border-radius: 28px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 3.2rem;
+            color: white;
+            box-shadow: 0 0 35px rgba(79, 70, 229, 0.6), 0 0 70px rgba(6, 182, 212, 0.3);
+            animation: splashPulse 2s infinite ease-in-out;
+        }
+
+        @keyframes splashPulse {
+            0%, 100% { transform: scale(1); box-shadow: 0 0 35px rgba(79, 70, 229, 0.6); }
+            50% { transform: scale(1.06); box-shadow: 0 0 55px rgba(6, 182, 212, 0.8); }
+        }
+
+        .splash-title {
+            font-size: 2.6rem;
+            letter-spacing: -0.03em;
+            background: linear-gradient(135deg, #ffffff 0%, #cbd5e1 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .splash-progress {
+            height: 6px;
+            overflow: hidden;
+        }
+
+        .bg-gradient-primary {
+            background: linear-gradient(90deg, #4f46e5 0%, #06b6d4 50%, #10b981 100%);
+        }
+    </style>
+    {% block style %}{% endblock %}
+</head>
+<body>
+
+{% if request.session.show_welcome_splash %}
+<!-- Overlay Splash Screen Animado de Bienvenida -->
+<div id="siaWelcomeSplash" class="welcome-splash-overlay">
+    <div class="welcome-splash-card text-center p-4">
+        <!-- Logo Animado con Pulsación 3D -->
+        <div class="splash-logo-container mb-3">
+            <div class="splash-logo-badge">
+                <i class="bi bi-layers-fill"></i>
+            </div>
+        </div>
+        <h1 class="fw-extrabold text-white mb-2 splash-title">SIA Web</h1>
+        <div class="badge bg-primary bg-opacity-25 text-primary border border-primary border-opacity-50 px-3 py-1.5 rounded-pill mb-3 fs-6 font-monospace">
+            ¡Bienvenidos al Sistema!
+        </div>
+        <h4 class="fw-bold text-white mb-1">¡Hola, {{ user.username }}!</h4>
+        <p class="text-white-50 small mb-4">Sistema de Inventario y Atención Social Institucional</p>
+        
+        <!-- Barra de Progreso de 5 Segundos -->
+        <div class="progress splash-progress rounded-pill bg-dark bg-opacity-50">
+            <div id="splashProgressBar" class="progress-bar bg-gradient-primary rounded-pill" style="width: 0%;"></div>
+        </div>
+        <small class="text-white-50 d-block mt-2" style="font-size: 0.72rem;">Haz clic en cualquier lugar o presiona ESC para omitir</small>
+    </div>
+</div>
+{% endif %}
+
+{% if user.is_authenticated %}
+<div class="sia-app-layout" id="siaLayout">
+    <!-- ========================================================================= -->
+    <!-- 1. MENÚ LATERAL IZQUIERDO (SIDEBAR DESKTOP >= 992px)                      -->
+    <!-- ========================================================================= -->
+    <aside class="sia-sidebar d-none d-lg-flex flex-column" id="siaSidebar">
+        <!-- Encabezado del Menú Lateral -->
+        <div class="sidebar-header d-flex align-items-center justify-content-between p-3 border-bottom">
+            <a class="sidebar-brand-link d-flex align-items-center gap-2.5 text-decoration-none" href="{% if user.is_superuser or user.perfil.permiso_dashboard %}{% url 'dashboard' %}{% elif user.perfil.permiso_estadisticas %}{% url 'panel_estadisticas_avanzadas' %}{% elif user.perfil.permiso_atencion_ciudadano %}{% url 'lista_solicitudes_ciudadano' %}{% elif user.perfil.permiso_inventario %}{% url 'inventario' %}{% elif user.perfil.permiso_entradas %}{% url 'lista_entradas_inventario' %}{% elif user.perfil.permiso_entregas %}{% url 'asignar_beneficio' %}{% elif user.perfil.permiso_asignaciones_especiales %}{% url 'lista_asignaciones_especiales' %}{% elif user.perfil.permiso_usuarios %}{% url 'registrar_usuario' %}{% elif user.perfil.permiso_auditoria %}{% url 'lista_auditoria' %}{% elif user.perfil.permiso_respaldos %}{% url 'gestion_respaldos' %}{% else %}#{% endif %}" title="SIA Web - Ir al Inicio">
+                <div class="brand-icon-box">
+                    <i class="bi bi-layers-fill"></i>
+                </div>
+                <div class="sidebar-brand-text">
+                    <div class="fw-extrabold fs-5 lh-1 text-dark">SIA Web</div>
+                    <div class="text-muted small mt-0.5" style="font-size: 0.65rem; font-weight: 700; letter-spacing: 0.02em;">INVENTARIO & SOCIAL</div>
+                </div>
+            </a>
+            <button class="btn-sidebar-toggle text-secondary" id="sidebarCollapseBtn" type="button" title="Colapsar o expandir barra lateral">
+                <i class="bi bi-layout-sidebar-inset fs-5"></i>
+            </button>
+        </div>
+
+        <!-- Botón de Acción Rápida Destacado -->
+        <div class="p-3 pb-2 sidebar-quick-action">
+            {% if user.is_superuser or user.perfil.permiso_entregas %}
+            <a href="{% url 'asignar_beneficio' %}" class="btn btn-quick-sidebar w-100 d-flex align-items-center justify-content-center gap-2 shadow-sm" title="Registrar Entrega Directa">
+                <i class="bi bi-lightning-charge-fill text-warning fs-6"></i>
+                <span class="sidebar-text">Nueva Entrega</span>
+            </a>
+            {% elif user.is_superuser or user.perfil.permiso_inventario %}
+            <a href="{% url 'registrar_inventario' %}" class="btn btn-quick-sidebar w-100 d-flex align-items-center justify-content-center gap-2 shadow-sm" title="Crear Producto Nuevo">
+                <i class="bi bi-plus-circle-fill text-warning fs-6"></i>
+                <span class="sidebar-text">Nuevo Producto</span>
+            </a>
+            {% endif %}
+        </div>
+
+        <!-- Navegación Scrollable con Secciones y Etiquetas -->
+        <div class="sidebar-nav-scroll flex-grow-1">
+            
+            <!-- SECCIÓN 1: PANEL Y ANALÍTICA -->
+            {% if user.is_superuser or user.perfil.permiso_dashboard or user.perfil.permiso_estadisticas %}
+            <div class="sidebar-section-group mb-2">
+                <div class="sidebar-section-title">
+                    <span class="sidebar-text">Panel & Analítica</span>
+                    <span class="sidebar-section-tag" style="background: var(--mod-analitica-bg); color: var(--mod-analitica);">MÉTRICAS</span>
+                </div>
+                {% if user.is_superuser or user.perfil.permiso_dashboard %}
+                <a href="{% url 'dashboard' %}" class="sidebar-item-link" data-bs-toggle="tooltip" data-bs-placement="right" title="Dashboard Operativo" data-modulo="analitica">
+                    <div class="sidebar-icon-box" style="background: var(--mod-analitica-bg); color: var(--mod-analitica);">
+                        <i class="bi bi-speedometer2"></i>
+                    </div>
+                    <span class="sidebar-text flex-grow-1">Dashboard</span>
+                    <span class="sidebar-badge badge rounded-pill" style="background: var(--mod-analitica-bg); color: var(--mod-analitica);">En vivo</span>
+                </a>
+                {% endif %}
+                {% if user.is_superuser or user.perfil.permiso_estadisticas %}
+                <a href="{% url 'panel_estadisticas_avanzadas' %}" class="sidebar-item-link" data-bs-toggle="tooltip" data-bs-placement="right" title="Estadísticas Avanzadas e Inteligencia Social" data-modulo="analitica">
+                    <div class="sidebar-icon-box" style="background: var(--mod-analitica-bg); color: var(--mod-analitica);">
+                        <i class="bi bi-bar-chart-line-fill"></i>
+                    </div>
+                    <span class="sidebar-text flex-grow-1">Estadísticas</span>
+                    <span class="sidebar-badge badge rounded-pill bg-light text-muted border">Mapas</span>
+                </a>
+                {% endif %}
+            </div>
+            {% endif %}
+
+            <!-- SECCIÓN 2: ALMACÉN E INVENTARIO -->
+            {% if user.is_superuser or user.perfil.permiso_inventario or user.perfil.permiso_entradas %}
+            <div class="sidebar-section-group mb-2">
+                <div class="sidebar-section-title">
+                    <span class="sidebar-text">Almacén e Inventario</span>
+                    <span class="sidebar-section-tag" style="background: var(--mod-inventario-bg); color: var(--mod-inventario);">STOCK</span>
+                </div>
+                {% if user.is_superuser or user.perfil.permiso_inventario %}
+                <a href="{% url 'inventario' %}" class="sidebar-item-link" data-bs-toggle="tooltip" data-bs-placement="right" title="Catálogo de Existencias" data-modulo="inventario">
+                    <div class="sidebar-icon-box" style="background: var(--mod-inventario-bg); color: var(--mod-inventario);">
+                        <i class="bi bi-boxes"></i>
+                    </div>
+                    <span class="sidebar-text flex-grow-1">Catálogo de Stock</span>
+                    <span class="sidebar-badge badge rounded-pill" style="background: var(--mod-inventario-bg); color: var(--mod-inventario);">Lotes</span>
+                </a>
+                <a href="{% url 'registrar_inventario' %}" class="sidebar-item-link" data-bs-toggle="tooltip" data-bs-placement="right" title="Crear Producto Nuevo" data-modulo="inventario">
+                    <div class="sidebar-icon-box" style="background: var(--mod-inventario-bg); color: var(--mod-inventario);">
+                        <i class="bi bi-plus-circle-fill"></i>
+                    </div>
+                    <span class="sidebar-text flex-grow-1">Crear Producto</span>
+                </a>
+                {% endif %}
+                {% if user.is_superuser or user.perfil.permiso_entradas %}
+                <a href="{% url 'lista_entradas_inventario' %}" class="sidebar-item-link" data-bs-toggle="tooltip" data-bs-placement="right" title="Recepciones de Mercancía" data-modulo="inventario">
+                    <div class="sidebar-icon-box" style="background: var(--mod-inventario-bg); color: var(--mod-inventario);">
+                        <i class="bi bi-box-arrow-in-down"></i>
+                    </div>
+                    <span class="sidebar-text flex-grow-1">Recepciones</span>
+                </a>
+                <a href="{% url 'registrar_entrada_inventario' %}" class="sidebar-item-link" data-bs-toggle="tooltip" data-bs-placement="right" title="Registrar Entrada" data-modulo="inventario">
+                    <div class="sidebar-icon-box" style="background: var(--mod-inventario-bg); color: var(--mod-inventario);">
+                        <i class="bi bi-truck"></i>
+                    </div>
+                    <span class="sidebar-text flex-grow-1">Registrar Entrada</span>
+                </a>
+                {% endif %}
+                {% if user.is_superuser or user.perfil.permiso_inventario %}
+                <a href="{% url 'reporte_pdf' %}" target="_blank" class="sidebar-item-link" data-bs-toggle="tooltip" data-bs-placement="right" title="Balance Físico PDF">
+                    <div class="sidebar-icon-box" style="background: var(--mod-inventario-bg); color: var(--mod-inventario);">
+                        <i class="bi bi-file-earmark-pdf-fill"></i>
+                    </div>
+                    <span class="sidebar-text flex-grow-1">Balance Físico (PDF)</span>
+                    <i class="bi bi-box-arrow-up-right sidebar-text text-muted small ms-auto"></i>
+                </a>
+                {% endif %}
+            </div>
+            {% endif %}
+
+            <!-- SECCIÓN 3: ATENCIÓN SOCIAL & BENEFICIOS -->
+            {% if user.is_superuser or user.perfil.permiso_atencion_ciudadano or user.perfil.permiso_entregas or user.perfil.permiso_asignaciones_especiales %}
+            <div class="sidebar-section-group mb-2">
+                <div class="sidebar-section-title">
+                    <span class="sidebar-text">Atención Social</span>
+                    <span class="sidebar-section-tag" style="background: var(--mod-atencion-bg); color: var(--mod-atencion);">SOCIAL</span>
+                </div>
+                {% if user.is_superuser or user.perfil.permiso_entregas %}
+                <a href="{% url 'asignar_beneficio' %}" class="sidebar-item-link" data-bs-toggle="tooltip" data-bs-placement="right" title="Registrar Entrega Directa" data-modulo="atencion">
+                    <div class="sidebar-icon-box" style="background: var(--mod-atencion-bg); color: var(--mod-atencion);">
+                        <i class="bi bi-person-heart"></i>
+                    </div>
+                    <span class="sidebar-text flex-grow-1">Registrar Entrega</span>
+                    <span class="sidebar-badge badge rounded-pill" style="background: var(--mod-atencion-bg); color: var(--mod-atencion);">Directa</span>
+                </a>
+                <a href="{% url 'historial' %}" class="sidebar-item-link" data-bs-toggle="tooltip" data-bs-placement="right" title="Historial de Entregas y Actas" data-modulo="atencion">
+                    <div class="sidebar-icon-box" style="background: var(--mod-atencion-bg); color: var(--mod-atencion);">
+                        <i class="bi bi-clock-history"></i>
+                    </div>
+                    <span class="sidebar-text flex-grow-1">Historial Entregas</span>
+                </a>
+                <a href="{% url 'consulta_beneficiarios' %}" class="sidebar-item-link" data-bs-toggle="tooltip" data-bs-placement="right" title="Expediente y Búsqueda de Beneficiarios" data-modulo="atencion">
+                    <div class="sidebar-icon-box" style="background: var(--mod-atencion-bg); color: var(--mod-atencion);">
+                        <i class="bi bi-person-vcard-fill"></i>
+                    </div>
+                    <span class="sidebar-text flex-grow-1">Beneficiarios</span>
+                    <span class="sidebar-badge badge rounded-pill bg-light text-muted border">C.I.</span>
+                </a>
+                {% endif %}
+                {% if user.is_superuser or user.perfil.permiso_atencion_ciudadano %}
+                <a href="{% url 'lista_solicitudes_ciudadano' %}" class="sidebar-item-link" data-bs-toggle="tooltip" data-bs-placement="right" title="Solicitudes de Ayuda Social" data-modulo="atencion">
+                    <div class="sidebar-icon-box" style="background: var(--mod-atencion-bg); color: var(--mod-atencion);">
+                        <i class="bi bi-people-fill"></i>
+                    </div>
+                    <span class="sidebar-text flex-grow-1">Solicitudes Ciudadano</span>
+                    <span class="sidebar-badge badge rounded-pill bg-light text-muted border">Cartas</span>
+                </a>
+                <a href="{% url 'registrar_solicitud_ciudadano' %}" class="sidebar-item-link" data-bs-toggle="tooltip" data-bs-placement="right" title="Nueva Solicitud Social" data-modulo="atencion">
+                    <div class="sidebar-icon-box" style="background: var(--mod-atencion-bg); color: var(--mod-atencion);">
+                        <i class="bi bi-person-plus-fill"></i>
+                    </div>
+                    <span class="sidebar-text flex-grow-1">Nueva Solicitud</span>
+                </a>
+                {% endif %}
+                {% if user.is_superuser or user.perfil.permiso_asignaciones_especiales %}
+                <a href="{% url 'lista_asignaciones_especiales' %}" class="sidebar-item-link" data-bs-toggle="tooltip" data-bs-placement="right" title="Asignaciones Especiales Institucionales" data-modulo="atencion">
+                    <div class="sidebar-icon-box" style="background: var(--mod-atencion-bg); color: var(--mod-atencion);">
+                        <i class="bi bi-building-fill-gear"></i>
+                    </div>
+                    <span class="sidebar-text flex-grow-1">Asignaciones Especiales</span>
+                </a>
+                {% endif %}
+            </div>
+            {% endif %}
+
+            <!-- SECCIÓN 4: SISTEMA & SEGURIDAD -->
+            {% if user.is_superuser or user.perfil.permiso_usuarios or user.perfil.permiso_auditoria or user.perfil.permiso_respaldos %}
+            <div class="sidebar-section-group mb-2">
+                <div class="sidebar-section-title">
+                    <span class="sidebar-text">Sistema & Seguridad</span>
+                    <span class="sidebar-section-tag" style="background: var(--mod-sistema-bg); color: var(--mod-sistema);">SEGURIDAD</span>
+                </div>
+                {% if user.is_superuser or user.perfil.permiso_usuarios %}
+                <a href="{% url 'registrar_usuario' %}" class="sidebar-item-link" data-bs-toggle="tooltip" data-bs-placement="right" title="Gestión de Usuarios y Roles" data-modulo="sistema">
+                    <div class="sidebar-icon-box" style="background: var(--mod-sistema-bg); color: var(--mod-sistema);">
+                        <i class="bi bi-people-fill"></i>
+                    </div>
+                    <span class="sidebar-text flex-grow-1">Gestión de Usuarios</span>
+                    <span class="sidebar-badge badge rounded-pill" style="background: var(--mod-sistema-bg); color: var(--mod-sistema);">Roles</span>
+                </a>
+                <a href="{% url 'usuarios_conectados_view' %}" class="sidebar-item-link" data-bs-toggle="tooltip" data-bs-placement="right" title="Usuarios Conectados en Tiempo Real" data-modulo="sistema">
+                    <div class="sidebar-icon-box" style="background: var(--mod-sistema-bg); color: var(--mod-sistema);">
+                        <i class="bi bi-wifi"></i>
+                    </div>
+                    <span class="sidebar-text flex-grow-1">Usuarios Conectados</span>
+                    <span class="sidebar-badge badge rounded-pill bg-success-subtle text-success">En vivo</span>
+                </a>
+                {% endif %}
+                {% if user.is_superuser or user.perfil.permiso_auditoria %}
+                <a href="{% url 'lista_auditoria' %}" class="sidebar-item-link" data-bs-toggle="tooltip" data-bs-placement="right" title="Auditoría Forense de Operaciones" data-modulo="sistema">
+                    <div class="sidebar-icon-box" style="background: var(--mod-sistema-bg); color: var(--mod-sistema);">
+                        <i class="bi bi-shield-check"></i>
+                    </div>
+                    <span class="sidebar-text flex-grow-1">Auditoría Operaciones</span>
+                </a>
+                {% endif %}
+                {% if user.is_superuser or user.perfil.permiso_respaldos %}
+                <a href="{% url 'configurar_institucion' %}" class="sidebar-item-link" data-bs-toggle="tooltip" data-bs-placement="right" title="Identidad Institucional y Membretes" data-modulo="sistema">
+                    <div class="sidebar-icon-box" style="background: var(--mod-sistema-bg); color: var(--mod-sistema);">
+                        <i class="bi bi-building-gear"></i>
+                    </div>
+                    <span class="sidebar-text flex-grow-1">Identidad Institucional</span>
+                </a>
+                <a href="{% url 'gestion_respaldos' %}" class="sidebar-item-link" data-bs-toggle="tooltip" data-bs-placement="right" title="Copias de Respaldo y Base de Datos" data-modulo="sistema">
+                    <div class="sidebar-icon-box" style="background: var(--mod-sistema-bg); color: var(--mod-sistema);">
+                        <i class="bi bi-database-fill-gear"></i>
+                    </div>
+                    <span class="sidebar-text flex-grow-1">Copias de Respaldo</span>
+                    <span class="sidebar-badge badge rounded-pill bg-light text-muted border">DB</span>
+                </a>
+                {% endif %}
+            </div>
+            {% endif %}
+
+        </div>
+
+        <!-- Pie del Menú Lateral: Perfil y Cierre de Sesión -->
+        <div class="sidebar-footer border-top p-2.5">
+            <div class="d-flex align-items-center justify-content-between gap-2 p-1.5 rounded-3 sidebar-user-card">
+                <div class="d-flex align-items-center gap-2 overflow-hidden">
+                    <div class="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center fw-bold shadow-sm flex-shrink-0" style="width: 36px; height: 36px; font-size: 0.95rem;">
+                        {{ user.username|slice:":1"|upper }}
+                    </div>
+                    <div class="sidebar-user-info overflow-hidden">
+                        <div class="fw-bold text-dark text-truncate" style="font-size: 1.05rem;">{{ user.username }}</div>
+                        <div class="text-muted text-truncate" style="font-size: 0.86rem;">{{ user.perfil.rol|default:"Operador" }}</div>
+                    </div>
+                </div>
+                <a href="{% url 'logout' %}" class="btn btn-sm btn-outline-danger border-0 p-1.5 rounded-circle flex-shrink-0" title="Cerrar Sesión">
+                    <i class="bi bi-box-arrow-right fs-6"></i>
+                </a>
+            </div>
+        </div>
+    </aside>
+
+    <!-- ========================================================================= -->
+    <!-- 2. WRAPPER PRINCIPAL (TOPBAR + MAIN CONTENIDO + FOOTER)                   -->
+    <!-- ========================================================================= -->
+    <div class="sia-main-wrapper flex-grow-1 d-flex flex-column min-vh-100">
+        
+        <!-- Cabecera Superior (Desktop & Móvil) -->
+        <header class="sia-topbar sticky-top d-flex align-items-center justify-content-between px-3 px-lg-4">
+            <!-- Lado Izquierdo: Botón Toggle Sidebar (Desktop) / Brand Badge (Móvil) + Título -->
+            <div class="d-flex align-items-center gap-2">
+                <!-- Marca móvil (solo visible en pantallas < 992px) -->
+                <a class="brand-badge text-decoration-none d-lg-none" href="{% if user.is_superuser or user.perfil.permiso_dashboard %}{% url 'dashboard' %}{% else %}{% url 'inventario' %}{% endif %}">
+                    <i class="bi bi-layers-fill"></i> SIA Web
+                </a>
+                
+                <!-- Botón de colapsar/expandir barra lateral (Desktop) -->
+                <button class="btn btn-theme-toggle d-none d-lg-inline-flex" id="topbarSidebarToggleBtn" type="button" title="Alternar barra lateral">
+                    <i class="bi bi-layout-sidebar-inset fs-5"></i>
+                </button>
+
+                <!-- Indicador de sección / migas de pan dinámicas (Desktop) -->
+                <div class="d-none d-md-flex align-items-center gap-2 text-muted small ms-2" id="topbarBreadcrumb">
+                    <i class="bi bi-grid-1x2-fill text-primary" style="font-size: 1.02rem;"></i>
+                    <span class="fw-bold text-dark" id="topbarModuleTitle" style="font-size: 1.08rem;">SIA Web</span>
+                </div>
+            </div>
+
+            <!-- Lado Derecho: Buscador, Notificaciones, Atajos, Tema, Usuario, Botón Menú Slider -->
+            <div class="d-flex align-items-center gap-1.5 gap-md-2">
+                <!-- Buscador Universal Ctrl + K -->
+                <button class="btn btn-outline-secondary btn-sm rounded-pill px-2.5 py-1 text-muted d-none d-md-inline-flex align-items-center gap-1.5 border-opacity-50" data-bs-toggle="modal" data-bs-target="#modalBusquedaGlobal" title="Buscar en todo el sistema (Ctrl + K)">
+                    <i class="bi bi-search text-primary"></i>
+                    <span class="small" style="font-size: 0.98rem;">Buscar...</span>
+                    <kbd class="bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25 px-1 py-0.5 rounded small" style="font-size: 0.84rem;">Ctrl K</kbd>
+                </button>
+                <button class="btn btn-outline-secondary btn-sm rounded-circle d-md-none p-1.5" data-bs-toggle="modal" data-bs-target="#modalBusquedaGlobal" title="Buscar (Ctrl + K)" style="width: 36px; height: 36px; display: inline-flex; align-items: center; justify-content: center;">
+                    <i class="bi bi-search text-primary"></i>
+                </button>
+
+                <!-- Campana de Notificaciones -->
+                <div class="dropdown">
+                    <button class="btn-theme-toggle position-relative" id="notifBellBtn" data-bs-toggle="dropdown" aria-expanded="false" title="Centro de Notificaciones">
+                        <i class="bi bi-bell-fill text-secondary fs-6" id="notifBellIcon"></i>
+                        <span id="notifBadge" class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" style="display:none; font-size: 0.70rem;">
+                            0
+                        </span>
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end dropdown-menu-custom shadow-lg p-2" id="notifDropdownMenu" style="width: 310px; max-height: 360px; overflow-y: auto;">
+                        <li class="dropdown-header fw-bold text-dark border-bottom pb-2 mb-2 d-flex justify-content-between align-items-center">
+                            <span><i class="bi bi-bell me-1 text-primary"></i> Alertas y Avisos</span>
+                            <span class="badge bg-light text-dark border" id="notifTotalHeader">0</span>
+                        </li>
+                        <div id="notifListContainer">
+                            <li class="text-center text-muted small py-3">Cargando alertas...</li>
+                        </div>
+                    </ul>
+                </div>
+
+                <!-- Botón Atajos de Teclado (Alt + H) -->
+                <button class="btn-theme-toggle d-none d-sm-inline-flex" data-bs-toggle="modal" data-bs-target="#modalAtajosTeclado" title="Guía de Atajos de Teclado (Alt + H)">
+                    <i class="bi bi-keyboard text-secondary fs-6"></i>
+                </button>
+
+                <!-- Conmutador Tema Claro / Oscuro -->
+                <button class="btn-theme-toggle" id="themeToggleBtn" onclick="toggleTheme()" title="Cambiar tema Claro / Oscuro">
+                    <i class="bi bi-moon-stars-fill text-primary fs-6" id="themeIcon"></i>
+                </button>
+
+                <!-- Menú Usuario (Desktop) -->
+                <div class="dropdown d-none d-sm-block">
+                    <a class="nav-link-custom dropdown-toggle d-flex align-items-center gap-1.5 bg-light border px-2.5 py-1 rounded-pill" href="#" id="userDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                        <span class="online-dot"></span>
+                        <div class="d-flex flex-column text-start" style="line-height: 1.1; max-width: 125px;">
+                            <span class="fw-bold text-dark text-truncate" style="font-size: 1.04rem;">{{ user.username }}</span>
+                            <span class="text-muted text-truncate" style="font-size: 0.86rem;">{{ user.perfil.rol|default:"Operador" }}</span>
+                        </div>
+                    </a>
+                    <ul class="dropdown-menu dropdown-menu-end dropdown-menu-custom mt-2" aria-labelledby="userDropdown" style="min-width: 210px;">
+                        <li>
+                            <div class="px-3 py-2 border-bottom mb-1">
+                                <p class="mb-0 small text-muted">Sesión activa</p>
+                                <p class="mb-0 fw-bold text-dark">{{ user.username }}</p>
+                                <span class="badge bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25 rounded-pill mt-1" style="font-size: 0.88rem;">
+                                    {{ user.perfil.rol|default:"Operador" }}
+                                </span>
+                            </div>
+                        </li>
+                        <li>
+                            <a class="dropdown-item dropdown-item-custom d-flex align-items-center gap-2" href="#" data-bs-toggle="modal" data-bs-target="#modalAtajosTeclado">
+                                <i class="bi bi-keyboard text-muted"></i> Atajos de Teclado
+                            </a>
+                        </li>
+                        <li><hr class="dropdown-divider my-1"></li>
+                        <li>
+                            <a class="dropdown-item dropdown-item-custom text-danger d-flex align-items-center gap-2" href="{% url 'logout' %}">
+                                <i class="bi bi-box-arrow-right"></i> Cerrar Sesión
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+
+                <!-- Botón Hamburguesa Móvil (Abre el Slider Lateral DERECHO) -->
+                <button class="btn btn-theme-toggle d-lg-none border-0 shadow-none text-primary" type="button" data-bs-toggle="offcanvas" data-bs-target="#offcanvasNavRight" aria-controls="offcanvasNavRight" aria-label="Abrir menú slider lateral derecho">
+                    <i class="bi bi-list fs-3"></i>
+                </button>
+            </div>
+        </header>
+{% else %}
+<div class="sia-unauth-wrapper min-vh-100 d-flex flex-column">
+{% endif %}
+
+        <!-- Contenedor del Bloque de Contenido Dinámico -->
+        <main class="sia-main-content flex-grow-1 px-2 px-md-3 px-xl-4 py-2 py-md-3 {% if not user.is_authenticated %}d-flex flex-column justify-content-center{% endif %}">
+            <div class="main-card w-100 mx-auto">
+                {% block contenido %}{% endblock %}
+            </div>
+        </main>
+
+        <!-- Footer Institucional -->
+        <footer class="footer mt-auto py-2 text-center border-top border-opacity-10 bg-body-tertiary text-muted small">
+            <div class="container-fluid d-flex flex-column flex-sm-row justify-content-between align-items-center gap-2 px-3 px-xl-4 mx-auto">
+                <span class="fw-semibold">SIA Web &copy; Sistema Institucional de Atención e Inventario</span>
+                <span class="badge bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25 px-2.5 py-1">Versión 2.5 Pro</span>
+            </div>
+        </footer>
+
+{% if user.is_authenticated %}
+    </div>
+</div>
+
+<!-- ========================================================================= -->
+<!-- 3. MENÚ TIPO SLIDER DESLIZABLE DESDE LA DERECHA (MÓVILES & TABLETS)       -->
+<!-- ========================================================================= -->
+<div class="offcanvas offcanvas-end offcanvas-sia d-lg-none" tabindex="-1" id="offcanvasNavRight" aria-labelledby="offcanvasNavRightLabel">
+    <div class="offcanvas-header border-bottom py-3">
+        <div class="brand-badge" id="offcanvasNavRightLabel" style="font-size: 1.05rem;">
+            <i class="bi bi-layers-fill"></i> SIA Web
+        </div>
+        <button type="button" class="btn-close text-reset" data-bs-dismiss="offcanvas" aria-label="Cerrar menú"></button>
+    </div>
+    <div class="offcanvas-body p-3 d-flex flex-column">
+        <!-- Tarjeta de Usuario en Drawer Móvil -->
+        <div class="offcanvas-user-card d-flex align-items-center gap-3">
+            <div class="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center fw-bold shadow-sm" style="width: 44px; height: 44px; min-width: 44px; font-size: 1.15rem;">
+                {{ user.username|slice:":1"|upper }}
+            </div>
+            <div class="flex-grow-1 overflow-hidden">
+                <div class="d-flex align-items-center gap-1.5 mb-0.5">
+                    <span class="online-dot"></span>
+                    <span class="fw-bold text-dark text-truncate" style="font-size: 0.95rem;">{{ user.username }}</span>
+                </div>
+                <div class="badge bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25 rounded-pill" style="font-size: 0.72rem;">
+                    {{ user.perfil.rol|default:"Operador" }}
+                </div>
+            </div>
+        </div>
+
+        <!-- Accesos Rápidos Táctiles en Drawer -->
+        <div class="mb-3">
+            <div class="mobile-nav-group-title d-flex justify-content-between align-items-center">
+                <span>⚡ Acceso Rápido</span>
+            </div>
+            <div class="d-grid gap-2">
+                {% if user.is_superuser or user.perfil.permiso_entregas %}
+                <a href="{% url 'asignar_beneficio' %}" class="btn btn-outline-danger btn-sm text-start py-2 d-flex align-items-center gap-2 rounded-3">
+                    <i class="bi bi-person-heart fs-6"></i>
+                    <span class="fw-semibold">Nueva Entrega</span>
+                </a>
+                {% endif %}
+                {% if user.is_superuser or user.perfil.permiso_inventario %}
+                <a href="{% url 'registrar_inventario' %}" class="btn btn-outline-warning btn-sm text-start py-2 d-flex align-items-center gap-2 rounded-3">
+                    <i class="bi bi-plus-circle-fill fs-6"></i>
+                    <span class="fw-semibold">Registrar Producto</span>
+                </a>
+                {% endif %}
+                <button class="btn btn-outline-primary btn-sm text-start py-2 d-flex align-items-center gap-2 rounded-3" data-bs-toggle="modal" data-bs-target="#modalBusquedaGlobal" data-bs-dismiss="offcanvas">
+                    <i class="bi bi-search fs-6"></i>
+                    <span class="fw-semibold">Buscador General</span>
+                    <kbd class="ms-auto kbd-shortcut">Ctrl+K</kbd>
+                </button>
+            </div>
+        </div>
+
+        <!-- Acordeón Táctil con Secciones y Etiquetas Completas -->
+        <div class="accordion accordion-flush flex-grow-1" id="accordionMobileNav">
+            
+            <!-- Acordeón 1: Panel & Analítica -->
+            {% if user.is_superuser or user.perfil.permiso_dashboard or user.perfil.permiso_estadisticas %}
+            <div class="accordion-item">
+                <h2 class="accordion-header" id="headingMobileAnalitica">
+                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseMobileAnalitica" aria-expanded="false" aria-controls="collapseMobileAnalitica">
+                        <i class="bi bi-pie-chart-fill me-2" style="color: var(--mod-analitica);"></i> Panel & Analítica
+                    </button>
+                </h2>
+                <div id="collapseMobileAnalitica" class="accordion-collapse collapse" aria-labelledby="headingMobileAnalitica" data-bs-parent="#accordionMobileNav">
+                    <div class="accordion-body">
+                        {% if user.is_superuser or user.perfil.permiso_dashboard %}
+                        <a href="{% url 'dashboard' %}" class="mobile-card-sublink" data-modulo="analitica">
+                            <i class="bi bi-speedometer2 fs-5" style="color: var(--mod-analitica);"></i>
+                            <div>
+                                <div class="fw-bold small text-dark">Dashboard Operativo</div>
+                                <div class="text-muted" style="font-size: 0.72rem;">Métricas en tiempo real y alertas</div>
+                            </div>
+                        </a>
+                        {% endif %}
+                        {% if user.is_superuser or user.perfil.permiso_estadisticas %}
+                        <a href="{% url 'panel_estadisticas_avanzadas' %}" class="mobile-card-sublink" data-modulo="analitica">
+                            <i class="bi bi-bar-chart-line-fill fs-5" style="color: var(--mod-analitica);"></i>
+                            <div>
+                                <div class="fw-bold small text-dark">Estadísticas Avanzadas</div>
+                                <div class="text-muted" style="font-size: 0.72rem;">Mapas parroquiales e informes</div>
+                            </div>
+                        </a>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Acordeón 2: Almacén e Inventario -->
+            {% if user.is_superuser or user.perfil.permiso_inventario or user.perfil.permiso_entradas %}
+            <div class="accordion-item">
+                <h2 class="accordion-header" id="headingMobileInventario">
+                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseMobileInventario" aria-expanded="false" aria-controls="collapseMobileInventario">
+                        <i class="bi bi-box-seam-fill me-2" style="color: var(--mod-inventario);"></i> Almacén e Inventario
+                    </button>
+                </h2>
+                <div id="collapseMobileInventario" class="accordion-collapse collapse" aria-labelledby="headingMobileInventario" data-bs-parent="#accordionMobileNav">
+                    <div class="accordion-body">
+                        {% if user.is_superuser or user.perfil.permiso_inventario %}
+                        <a href="{% url 'inventario' %}" class="mobile-card-sublink" data-modulo="inventario">
+                            <i class="bi bi-boxes fs-5" style="color: var(--mod-inventario);"></i>
+                            <div>
+                                <div class="fw-bold small text-dark">Catálogo de Stock</div>
+                                <div class="text-muted" style="font-size: 0.72rem;">Consulta de productos y stock</div>
+                            </div>
+                        </a>
+                        <a href="{% url 'registrar_inventario' %}" class="mobile-card-sublink" data-modulo="inventario">
+                            <i class="bi bi-plus-circle-fill fs-5" style="color: var(--mod-inventario);"></i>
+                            <div>
+                                <div class="fw-bold small text-dark">Crear Producto Nuevo</div>
+                                <div class="text-muted" style="font-size: 0.72rem;">Alta con código de barras</div>
+                            </div>
+                        </a>
+                        {% endif %}
+                        {% if user.is_superuser or user.perfil.permiso_entradas %}
+                        <a href="{% url 'lista_entradas_inventario' %}" class="mobile-card-sublink" data-modulo="inventario">
+                            <i class="bi bi-box-arrow-in-down fs-5" style="color: var(--mod-inventario);"></i>
+                            <div>
+                                <div class="fw-bold small text-dark">Recepciones de Mercancía</div>
+                                <div class="text-muted" style="font-size: 0.72rem;">Control de compras y entradas</div>
+                            </div>
+                        </a>
+                        <a href="{% url 'registrar_entrada_inventario' %}" class="mobile-card-sublink" data-modulo="inventario">
+                            <i class="bi bi-truck fs-5" style="color: var(--mod-inventario);"></i>
+                            <div>
+                                <div class="fw-bold small text-dark">Registrar Entrada</div>
+                                <div class="text-muted" style="font-size: 0.72rem;">Carga directa al almacén</div>
+                            </div>
+                        </a>
+                        {% endif %}
+                        {% if user.is_superuser or user.perfil.permiso_inventario %}
+                        <a href="{% url 'reporte_pdf' %}" target="_blank" class="mobile-card-sublink">
+                            <i class="bi bi-file-earmark-pdf-fill fs-5" style="color: var(--mod-inventario);"></i>
+                            <div>
+                                <div class="fw-bold small text-dark">Balance Físico (PDF)</div>
+                                <div class="text-muted" style="font-size: 0.72rem;">Descarga reporte valorado</div>
+                            </div>
+                        </a>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Acordeón 3: Atención Social & Beneficios -->
+            {% if user.is_superuser or user.perfil.permiso_atencion_ciudadano or user.perfil.permiso_entregas or user.perfil.permiso_asignaciones_especiales %}
+            <div class="accordion-item">
+                <h2 class="accordion-header" id="headingMobileAtencion">
+                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseMobileAtencion" aria-expanded="false" aria-controls="collapseMobileAtencion">
+                        <i class="bi bi-heart-pulse-fill me-2" style="color: var(--mod-atencion);"></i> Atención Social
+                    </button>
+                </h2>
+                <div id="collapseMobileAtencion" class="accordion-collapse collapse" aria-labelledby="headingMobileAtencion" data-bs-parent="#accordionMobileNav">
+                    <div class="accordion-body">
+                        {% if user.is_superuser or user.perfil.permiso_entregas %}
+                        <a href="{% url 'asignar_beneficio' %}" class="mobile-card-sublink" data-modulo="atencion">
+                            <i class="bi bi-person-heart fs-5" style="color: var(--mod-atencion);"></i>
+                            <div>
+                                <div class="fw-bold small text-dark">Registrar Entrega</div>
+                                <div class="text-muted" style="font-size: 0.72rem;">Despacho directo con acta</div>
+                            </div>
+                        </a>
+                        <a href="{% url 'historial' %}" class="mobile-card-sublink" data-modulo="atencion">
+                            <i class="bi bi-clock-history fs-5" style="color: var(--mod-atencion);"></i>
+                            <div>
+                                <div class="fw-bold small text-dark">Historial de Entregas</div>
+                                <div class="text-muted" style="font-size: 0.72rem;">Consulta de actas completadas</div>
+                            </div>
+                        </a>
+                        <a href="{% url 'consulta_beneficiarios' %}" class="mobile-card-sublink" data-modulo="atencion">
+                            <i class="bi bi-person-vcard-fill fs-5" style="color: var(--mod-atencion);"></i>
+                            <div>
+                                <div class="fw-bold small text-dark">Beneficiarios</div>
+                                <div class="text-muted" style="font-size: 0.72rem;">Búsqueda por C.I. y expediente</div>
+                            </div>
+                        </a>
+                        {% endif %}
+                        {% if user.is_superuser or user.perfil.permiso_atencion_ciudadano %}
+                        <a href="{% url 'lista_solicitudes_ciudadano' %}" class="mobile-card-sublink" data-modulo="atencion">
+                            <i class="bi bi-people-fill fs-5" style="color: var(--mod-atencion);"></i>
+                            <div>
+                                <div class="fw-bold small text-dark">Solicitudes de Ayuda</div>
+                                <div class="text-muted" style="font-size: 0.72rem;">Peticiones ciudadanas y cartas</div>
+                            </div>
+                        </a>
+                        <a href="{% url 'registrar_solicitud_ciudadano' %}" class="mobile-card-sublink" data-modulo="atencion">
+                            <i class="bi bi-person-plus-fill fs-5" style="color: var(--mod-atencion);"></i>
+                            <div>
+                                <div class="fw-bold small text-dark">Nueva Solicitud Social</div>
+                                <div class="text-muted" style="font-size: 0.72rem;">Expediente de ayudas médicas</div>
+                            </div>
+                        </a>
+                        {% endif %}
+                        {% if user.is_superuser or user.perfil.permiso_asignaciones_especiales %}
+                        <a href="{% url 'lista_asignaciones_especiales' %}" class="mobile-card-sublink" data-modulo="atencion">
+                            <i class="bi bi-building-fill-gear fs-5" style="color: var(--mod-atencion);"></i>
+                            <div>
+                                <div class="fw-bold small text-dark">Asignaciones Especiales</div>
+                                <div class="text-muted" style="font-size: 0.72rem;">Dotaciones a dependencias</div>
+                            </div>
+                        </a>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Acordeón 4: Sistema & Seguridad -->
+            {% if user.is_superuser or user.perfil.permiso_usuarios or user.perfil.permiso_auditoria or user.perfil.permiso_respaldos %}
+            <div class="accordion-item">
+                <h2 class="accordion-header" id="headingMobileSistema">
+                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseMobileSistema" aria-expanded="false" aria-controls="collapseMobileSistema">
+                        <i class="bi bi-gear-fill me-2" style="color: var(--mod-sistema);"></i> Sistema & Seguridad
+                    </button>
+                </h2>
+                <div id="collapseMobileSistema" class="accordion-collapse collapse" aria-labelledby="headingMobileSistema" data-bs-parent="#accordionMobileNav">
+                    <div class="accordion-body">
+                        {% if user.is_superuser or user.perfil.permiso_usuarios %}
+                        <a href="{% url 'registrar_usuario' %}" class="mobile-card-sublink" data-modulo="sistema">
+                            <i class="bi bi-people-fill fs-5" style="color: var(--mod-sistema);"></i>
+                            <div>
+                                <div class="fw-bold small text-dark">Gestión de Usuarios</div>
+                                <div class="text-muted" style="font-size: 0.72rem;">Roles, accesos y permisos</div>
+                            </div>
+                        </a>
+                        <a href="{% url 'usuarios_conectados_view' %}" class="mobile-card-sublink" data-modulo="sistema">
+                            <i class="bi bi-wifi fs-5" style="color: var(--mod-sistema);"></i>
+                            <div>
+                                <div class="fw-bold small text-dark">Usuarios Conectados</div>
+                                <div class="text-muted" style="font-size: 0.72rem;">Operadores en vivo</div>
+                            </div>
+                        </a>
+                        {% endif %}
+                        {% if user.is_superuser or user.perfil.permiso_auditoria %}
+                        <a href="{% url 'lista_auditoria' %}" class="mobile-card-sublink" data-modulo="sistema">
+                            <i class="bi bi-shield-check fs-5" style="color: var(--mod-sistema);"></i>
+                            <div>
+                                <div class="fw-bold small text-dark">Auditoría de Operaciones</div>
+                                <div class="text-muted" style="font-size: 0.72rem;">Trazabilidad y actividades</div>
+                            </div>
+                        </a>
+                        {% endif %}
+                        {% if user.is_superuser or user.perfil.permiso_respaldos %}
+                        <a href="{% url 'configurar_institucion' %}" class="mobile-card-sublink" data-modulo="sistema">
+                            <i class="bi bi-building-gear fs-5" style="color: var(--mod-sistema);"></i>
+                            <div>
+                                <div class="fw-bold small text-dark">Identidad Institucional</div>
+                                <div class="text-muted" style="font-size: 0.72rem;">Logos y membretes oficiales</div>
+                            </div>
+                        </a>
+                        <a href="{% url 'gestion_respaldos' %}" class="mobile-card-sublink" data-modulo="sistema">
+                            <i class="bi bi-database-fill-gear fs-5" style="color: var(--mod-sistema);"></i>
+                            <div>
+                                <div class="fw-bold small text-dark">Respaldos de Base de Datos</div>
+                                <div class="text-muted" style="font-size: 0.72rem;">Copias de seguridad</div>
+                            </div>
+                        </a>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+        </div>
+
+        <!-- Pie del Slider Lateral Derecho -->
+        <div class="pt-3 border-top mt-auto">
+            <div class="d-flex align-items-center justify-content-between mb-2">
+                <button type="button" class="btn btn-sm btn-outline-secondary d-flex align-items-center gap-2 rounded-pill px-3" data-bs-toggle="modal" data-bs-target="#modalAtajosTeclado" data-bs-dismiss="offcanvas">
+                    <i class="bi bi-keyboard"></i> Atajos
+                </button>
+                <button type="button" class="btn btn-sm btn-outline-secondary d-flex align-items-center gap-2 rounded-pill px-3" onclick="toggleTheme()">
+                    <i class="bi bi-moon-stars-fill text-primary" id="themeIconMobile"></i> Tema
+                </button>
+            </div>
+            <a href="{% url 'logout' %}" class="btn btn-outline-danger w-100 rounded-pill d-flex align-items-center justify-content-center gap-2 py-2 fw-semibold">
+                <i class="bi bi-box-arrow-right"></i> Cerrar Sesión
+            </a>
+        </div>
+    </div>
+</div>
+
+<!-- ========================================================================= -->
+<!-- 4. BARRA DE PESTAÑAS FIJA INFERIOR PARA MÓVILES (< 992px)                 -->
+<!-- ========================================================================= -->
+<nav class="sia-bottom-nav d-lg-none" aria-label="Navegación móvil inferior por pestañas">
+    <a href="{% url 'dashboard' %}" class="bottom-nav-item" data-bottom-tab="dashboard">
+        <i class="bi bi-speedometer2"></i>
+        <span>Inicio</span>
+    </a>
+    <a href="{% url 'inventario' %}" class="bottom-nav-item" data-bottom-tab="inventario">
+        <i class="bi bi-boxes"></i>
+        <span>Almacén</span>
+    </a>
+    <a href="{% url 'asignar_beneficio' %}" class="bottom-nav-item bottom-nav-action" data-bottom-tab="entregas" title="Registrar Entrega">
+        <div class="bottom-nav-action-btn">
+            <i class="bi bi-person-heart"></i>
+        </div>
+        <span>Entregas</span>
+    </a>
+    <button type="button" class="bottom-nav-item" data-bs-toggle="modal" data-bs-target="#modalBusquedaGlobal" aria-label="Búsqueda Universal">
+        <i class="bi bi-search"></i>
+        <span>Buscar</span>
+    </button>
+    <button type="button" class="bottom-nav-item" data-bs-toggle="offcanvas" data-bs-target="#offcanvasNavRight" aria-controls="offcanvasNavRight" aria-label="Abrir Menú Slider Lateral">
+        <i class="bi bi-grid-fill"></i>
+        <span>Menú</span>
+    </button>
+</nav>
+{% else %}
+</div>
+{% endif %}
+
+<!-- Modal Bloqueo de Sesión por Inactividad -->
+{% if user.is_authenticated %}
+<div class="modal fade" id="modalBloqueoSesion" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content rounded-4 shadow-lg border-0 overflow-hidden text-center">
+            <div class="modal-header bg-dark text-white py-3 justify-content-center">
+                <h5 class="modal-title fw-bold d-flex align-items-center gap-2">
+                    <i class="bi bi-shield-lock-fill text-warning"></i> Sesión Bloqueada por Inactividad
+                </h5>
+            </div>
+            <div class="modal-body p-4">
+                <div class="mb-3">
+                    <div class="bg-primary bg-opacity-10 text-primary rounded-circle d-inline-flex align-items-center justify-content-center p-3 mb-2" style="width: 70px; height: 70px;">
+                        <i class="bi bi-person-fill fs-1"></i>
+                    </div>
+                    <h5 class="fw-extrabold text-dark mb-0">{{ user.username }}</h5>
+                    <small class="text-muted">Protección Automática SIA Web</small>
+                </div>
+                
+                <p class="text-muted small mb-3">
+                    El sistema ha bloqueado la pantalla por transcurrir 15 minutos sin actividad para proteger los datos institucionales.
+                </p>
+
+                <form id="formDesbloquearSesion" onsubmit="desbloquearPantalla(event)">
+                    <div class="mb-3 text-start">
+                        <label class="form-label small fw-semibold text-secondary">Haga clic en Desbloquear o vuelva a ingresar:</label>
+                        <input type="password" id="inputClaveDesbloqueo" class="form-control form-control-lg text-center fw-bold border-primary" placeholder="••••••••" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary-custom btn-lg w-100 fw-bold shadow-sm">
+                        <i class="bi bi-unlock-fill me-1"></i> Desbloquear Pantalla
+                    </button>
+                </form>
+            </div>
+            <div class="modal-footer bg-light py-2 justify-content-center">
+                <a href="{% url 'logout' %}" class="small text-danger fw-bold text-decoration-none">
+                    <i class="bi bi-box-arrow-right me-1"></i> Cerrar Sesión Definitivamente
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+
+<div class="modal fade" id="modalBusquedaGlobal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-top modal-lg mt-5">
+        <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
+            <div class="modal-header border-bottom p-3 bg-light">
+                <div class="input-group input-group-lg border-0 shadow-none">
+                    <span class="input-group-text bg-transparent border-0 pe-2"><i class="bi bi-search fs-4 text-primary"></i></span>
+                    <input type="text" id="inputBusquedaGlobal" class="form-control bg-transparent border-0 shadow-none text-dark fw-semibold fs-5" placeholder="Buscar por Cédula, Nombre o Producto..." autocomplete="off">
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-3" style="max-height: 420px; overflow-y: auto;">
+                <div id="loadingBusquedaGlobal" class="text-center py-4" style="display: none;">
+                    <div class="spinner-border text-primary" role="status"></div>
+                    <p class="small text-muted mt-2 mb-0">Buscando coincidencias...</p>
+                </div>
+                <div id="resultadosBusquedaGlobal" class="list-group list-group-flush gap-1">
+                    <div class="text-center text-muted py-4 small">
+                        <i class="bi bi-fonts fs-2 d-block mb-1 text-secondary opacity-50"></i>
+                        Escribe al menos 2 caracteres para buscar en Solicitudes, Ciudadanos o Inventario.
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer bg-light border-top py-2 px-3 justify-content-between">
+                <small class="text-muted"><kbd class="bg-secondary text-white">ESC</kbd> para cerrar</small>
+                <small class="text-primary fw-semibold"><i class="bi bi-lightning-charge-fill me-1"></i>Búsqueda en tiempo real SIA Web</small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de Atajos de Teclado y Ayuda Accesible -->
+<div class="modal fade" id="modalAtajosTeclado" tabindex="-1" aria-labelledby="modalAtajosTecladoLabel" aria-hidden="true" role="dialog">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
+            <div class="modal-header bg-light border-bottom p-3">
+                <h5 class="modal-title fw-bold d-flex align-items-center gap-2 text-dark" id="modalAtajosTecladoLabel">
+                    <i class="bi bi-keyboard-fill text-primary"></i> Guía de Atajos de Teclado y Ayuda
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar modal de atajos"></button>
+            </div>
+            <div class="modal-body p-4">
+                <p class="text-muted small mb-3">
+                    Optimice sus operaciones diarias en SIA Web mediante los siguientes atajos de teclado accesibles:
+                </p>
+                <div class="list-group list-group-flush gap-2">
+                    <div class="list-group-item border rounded-3 p-2.5 d-flex justify-content-between align-items-center">
+                        <div>
+                            <div class="small fw-bold text-dark">Buscador Universal</div>
+                            <div class="text-muted" style="font-size: 0.72rem;">Búsqueda instantánea de beneficiarios, cédulas y productos</div>
+                        </div>
+                        <span class="d-inline-flex gap-1 ms-2">
+                            <kbd class="kbd-shortcut">Ctrl</kbd>
+                            <span class="text-muted small fw-bold">+</span>
+                            <kbd class="kbd-shortcut">K</kbd>
+                        </span>
+                    </div>
+                    <div class="list-group-item border rounded-3 p-2.5 d-flex justify-content-between align-items-center">
+                        <div>
+                            <div class="small fw-bold text-dark">Registrar Entrega</div>
+                            <div class="text-muted" style="font-size: 0.72rem;">Despacho directo y asignación a ciudadano</div>
+                        </div>
+                        <span class="d-inline-flex gap-1 ms-2">
+                            <kbd class="kbd-shortcut">Alt</kbd>
+                            <span class="text-muted small fw-bold">+</span>
+                            <kbd class="kbd-shortcut">N</kbd>
+                        </span>
+                    </div>
+                    <div class="list-group-item border rounded-3 p-2.5 d-flex justify-content-between align-items-center">
+                        <div>
+                            <div class="small fw-bold text-dark">Catálogo de Inventario</div>
+                            <div class="text-muted" style="font-size: 0.72rem;">Consulta de existencias, stock disponible y lotes</div>
+                        </div>
+                        <span class="d-inline-flex gap-1 ms-2">
+                            <kbd class="kbd-shortcut">Alt</kbd>
+                            <span class="text-muted small fw-bold">+</span>
+                            <kbd class="kbd-shortcut">I</kbd>
+                        </span>
+                    </div>
+                    <div class="list-group-item border rounded-3 p-2.5 d-flex justify-content-between align-items-center">
+                        <div>
+                            <div class="small fw-bold text-dark">Dashboard Operativo</div>
+                            <div class="text-muted" style="font-size: 0.72rem;">Retornar a métricas en tiempo real y alertas</div>
+                        </div>
+                        <span class="d-inline-flex gap-1 ms-2">
+                            <kbd class="kbd-shortcut">Alt</kbd>
+                            <span class="text-muted small fw-bold">+</span>
+                            <kbd class="kbd-shortcut">D</kbd>
+                        </span>
+                    </div>
+                    <div class="list-group-item border rounded-3 p-2.5 d-flex justify-content-between align-items-center">
+                        <div>
+                            <div class="small fw-bold text-dark">Guía de Atajos</div>
+                            <div class="text-muted" style="font-size: 0.72rem;">Abrir esta ventana de ayuda rápida</div>
+                        </div>
+                        <span class="d-inline-flex gap-1 ms-2">
+                            <kbd class="kbd-shortcut">Alt</kbd>
+                            <span class="text-muted small fw-bold">+</span>
+                            <kbd class="kbd-shortcut">H</kbd>
+                        </span>
+                    </div>
+                    <div class="list-group-item border rounded-3 p-2.5 d-flex justify-content-between align-items-center">
+                        <div>
+                            <div class="small fw-bold text-dark">Cerrar Ventanas Emergentes</div>
+                            <div class="text-muted" style="font-size: 0.72rem;">Cierra diálogos, alertas o modales activos</div>
+                        </div>
+                        <kbd class="kbd-shortcut ms-2">Esc</kbd>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer bg-light border-top py-2 px-3 justify-content-between">
+                <small class="text-muted"><i class="bi bi-shield-check text-primary me-1"></i>Accesibilidad WCAG 2.1 AA</small>
+                <button type="button" class="btn btn-primary-custom btn-sm px-4" data-bs-dismiss="modal">Entendido</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+<script>
+    // --- LÓGICA CONMUTADOR DE TEMA CLARO / OSCURO ---
+    function toggleTheme() {
+        const currentTheme = document.documentElement.getAttribute('data-bs-theme') || 'light';
+        const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+        
+        document.documentElement.setAttribute('data-bs-theme', newTheme);
+        document.documentElement.setAttribute('data-theme', newTheme);
+        localStorage.setItem('sia_theme', newTheme);
+        
+        updateThemeIcon(newTheme);
+
+        if (typeof actualizarGraficoTema === 'function') {
+            actualizarGraficoTema(newTheme);
+        }
+    }
+
+    function updateThemeIcon(theme) {
+        const icon = document.getElementById('themeIcon');
+        if (icon) {
+            if (theme === 'dark') {
+                icon.className = 'bi bi-sun-fill text-warning fs-5';
+            } else {
+                icon.className = 'bi bi-moon-stars-fill text-primary fs-5';
+            }
+        }
+        const mobileIcon = document.getElementById('themeIconMobile');
+        if (mobileIcon) {
+            if (theme === 'dark') {
+                mobileIcon.className = 'bi bi-sun-fill text-warning';
+            } else {
+                mobileIcon.className = 'bi bi-moon-stars-fill text-primary';
+            }
+        }
+    }
+
+    // --- LÓGICA DE CENTRO DE NOTIFICACIONES (AJAX) ---
+    function cargarNotificacionesNavbar() {
+        $.ajax({
+            url: "{% url 'api_notificaciones_resumen' %}",
+            type: "GET",
+            success: function(res) {
+                const badge = $('#notifBadge');
+                const list = $('#notifListContainer');
+                const totalHeader = $('#notifTotalHeader');
+                
+                totalHeader.text(res.total_notificaciones);
+
+                if (res.total_notificaciones > 0) {
+                    badge.text(res.total_notificaciones).show();
+                    $('#notifBellIcon').removeClass('text-secondary').addClass('text-warning');
+                    
+                    let html = '';
+                    if (res.alertas_stock && res.alertas_stock.length > 0) {
+                        res.alertas_stock.forEach(p => {
+                            html += `
+                            <li>
+                                <div class="dropdown-item dropdown-item-custom py-2 border-bottom d-flex justify-content-between align-items-center" style="cursor: default; white-space: normal;">
+                                    <div class="d-flex align-items-center gap-2">
+                                        <i class="bi bi-exclamation-triangle-fill text-danger fs-6"></i>
+                                        <div>
+                                            <div class="fw-bold text-dark small mb-0">${p.descripcion}</div>
+                                            <div class="text-danger small">Stock crítico: <strong>${p.cantidad} u.</strong></div>
+                                        </div>
+                                    </div>
+                                    <span class="badge bg-warning-subtle text-warning-emphasis border border-warning rounded-pill px-2 py-1 small ms-2">Bajo Stock</span>
+                                </div>
+                            </li>`;
+                        });
+                    }
+
+                    if (res.pendientes_count > 0) {
+                        html += `
+                        <li>
+                            <div class="dropdown-item dropdown-item-custom py-2 d-flex justify-content-between align-items-center" style="cursor: default; white-space: normal;">
+                                <div class="d-flex align-items-center gap-2">
+                                    <i class="bi bi-clock-history text-warning fs-6"></i>
+                                    <div>
+                                        <div class="fw-bold text-dark small mb-0">Entregas Pendientes</div>
+                                        <div class="text-muted small">Hay <strong>${res.pendientes_count}</strong> entrega(s) sin confirmar</div>
+                                    </div>
+                                </div>
+                                <span class="badge bg-secondary text-white rounded-pill px-2 py-1 small ms-2">Pendiente</span>
+                            </div>
+                        </li>`;
+                    }
+                    list.html(html);
+                } else {
+                    badge.hide();
+                    $('#notifBellIcon').removeClass('text-warning').addClass('text-secondary');
+                    list.html('<li class="text-center text-muted small py-3"><i class="bi bi-check-circle-fill text-success me-1"></i> Sin alertas pendientes</li>');
+                }
+            }
+        });
+    }
+
+    // --- LÓGICA DE ATAJOS DE TECLADO GLOBALES (SHORTCUTS) ---
+    document.addEventListener('keydown', function(e) {
+        if ((e.ctrlKey || e.metaKey) && (e.key === 'f' || e.key === 'F')) {
+            const buscador = document.getElementById('buscadorInventario') || document.getElementById('buscador') || document.getElementById('cedula');
+            if (buscador) {
+                e.preventDefault();
+                buscador.focus();
+            }
+        } else if (e.altKey && (e.key === 'n' || e.key === 'N')) {
+            e.preventDefault();
+            window.location.href = "{% url 'asignar_beneficio' %}";
+        } else if (e.altKey && (e.key === 'i' || e.key === 'I')) {
+            e.preventDefault();
+            window.location.href = "{% url 'inventario' %}";
+        } else if (e.altKey && (e.key === 'd' || e.key === 'D')) {
+            e.preventDefault();
+            window.location.href = "{% url 'dashboard' %}";
+        } else if (e.altKey && (e.key === 'h' || e.key === 'H')) {
+            e.preventDefault();
+            const modalEl = document.getElementById('modalAtajosTeclado');
+            if (modalEl) {
+                const modalShortcuts = bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl);
+                modalShortcuts.show();
+            }
+        }
+    });
+
+    // --- CONTROL DE INACTIVIDAD DE SESIÓN (15 MINUTOS = 900.000 ms) ---
+    {% if user.is_authenticated %}
+    (function() {
+        let timerInactividad;
+        const TIEMPO_MAXIMO_MS = 15 * 60 * 1000;
+
+        function reiniciarTemporizadorInactividad() {
+            if (timerInactividad) clearTimeout(timerInactividad);
+            timerInactividad = setTimeout(function() {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Sesión Expirada por Inactividad',
+                    text: 'Han transcurrido 15 minutos sin interacción. Tu sesión ha sido cerrada por seguridad.',
+                    confirmButtonText: 'Ir a Iniciar Sesión',
+                    confirmButtonColor: '#4f46e5',
+                    allowOutsideClick: false,
+                    allowEscapeKey: false
+                }).then(() => {
+                    window.location.href = "{% url 'logout' %}";
+                });
+            }, TIEMPO_MAXIMO_MS);
+        }
+
+        ['mousemove', 'mousedown', 'keydown', 'scroll', 'touchstart', 'click'].forEach(evt => {
+            document.addEventListener(evt, reiniciarTemporizadorInactividad, { passive: true });
+        });
+
+        reiniciarTemporizadorInactividad();
+    })();
+    {% endif %}
+
+    // --- CONTROL DE COLAPSO DEL MENÚ LATERAL ---
+    function toggleSidebarCollapse() {
+        const isCollapsed = document.documentElement.classList.toggle('sia-sidebar-collapsed');
+        localStorage.setItem('sia_sidebar_collapsed', isCollapsed ? 'true' : 'false');
+        
+        // Limpiar tooltips remanentes
+        document.querySelectorAll('.tooltip').forEach(el => el.remove());
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        const savedTheme = localStorage.getItem('sia_theme') || 'light';
+        updateThemeIcon(savedTheme);
+
+        {% if user.is_authenticated %}
+            cargarNotificacionesNavbar();
+
+            // 1. Inicializar Botones de Colapso del Sidebar
+            const btnToggleSidebar = document.getElementById('sidebarCollapseBtn');
+            const btnToggleHeader = document.getElementById('topbarSidebarToggleBtn');
+            if (btnToggleSidebar) {
+                btnToggleSidebar.addEventListener('click', toggleSidebarCollapse);
+            }
+            if (btnToggleHeader) {
+                btnToggleHeader.addEventListener('click', toggleSidebarCollapse);
+            }
+
+            // 2. Inicializar Tooltips de Bootstrap (útiles en modo mini-rail)
+            if (typeof bootstrap !== 'undefined' && bootstrap.Tooltip) {
+                const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+                tooltipTriggerList.map(function (tooltipTriggerEl) {
+                    return new bootstrap.Tooltip(tooltipTriggerEl, { delay: { show: 250, hide: 100 } });
+                });
+            }
+
+            // 3. DETECCIÓN INTELIGENTE DE MÓDULO ACTIVO Y RESALTADO DE NAVEGACIÓN
+            (function() {
+                const currentPath = window.location.pathname;
+                
+                // Mapeo exhaustivo de rutas
+                const moduleMap = {
+                    'analitica': {
+                        'title': 'Panel & Analítica',
+                        'paths': ['/dashboard/', '/estadisticas/'],
+                        'bottomTab': 'dashboard'
+                    },
+                    'inventario': {
+                        'title': 'Almacén e Inventario',
+                        'paths': ['/inventario/', '/reporte-pdf/', '/verificar-producto/'],
+                        'bottomTab': 'inventario'
+                    },
+                    'atencion': {
+                        'title': 'Atención Social & Beneficios',
+                        'paths': ['/entregar/', '/historial/', '/atencion-ciudadano/', '/asignaciones-especiales/', '/ciudadano/'],
+                        'bottomTab': 'entregas'
+                    },
+                    'sistema': {
+                        'title': 'Sistema & Seguridad',
+                        'paths': ['/usuarios/', '/usuarios-conectados/', '/auditoria/', '/admin-sistema/'],
+                        'bottomTab': null
+                    }
+                };
+
+                let activeModuleKey = null;
+                for (const [key, mod] of Object.entries(moduleMap)) {
+                    if (mod.paths.some(p => currentPath === p || (p !== '/' && currentPath.startsWith(p)))) {
+                        activeModuleKey = key;
+                        break;
+                    }
+                }
+
+                if (activeModuleKey) {
+                    const modData = moduleMap[activeModuleKey];
+
+                    // Actualizar Título del Topbar
+                    const topbarTitle = document.getElementById('topbarModuleTitle');
+                    if (topbarTitle) {
+                        topbarTitle.textContent = modData.title;
+                    }
+
+                    // Resaltar pestaña en barra inferior móvil
+                    if (modData.bottomTab) {
+                        const bottomTabEl = document.querySelector(`.bottom-nav-item[data-bottom-tab="${modData.bottomTab}"]`);
+                        if (bottomTabEl) {
+                            bottomTabEl.classList.add('active');
+                        }
+                    }
+
+                    // Abrir panel acordeón correspondiente en menú slider derecho móvil
+                    const accordionId = `collapseMobile${activeModuleKey.charAt(0).toUpperCase() + activeModuleKey.slice(1)}`;
+                    const mobileCollapseEl = document.getElementById(accordionId);
+                    if (mobileCollapseEl && typeof bootstrap !== 'undefined') {
+                        const bsCollapse = new bootstrap.Collapse(mobileCollapseEl, { toggle: false });
+                        bsCollapse.show();
+                        const accordionBtn = document.querySelector(`[data-bs-target="#${accordionId}"]`);
+                        if (accordionBtn) {
+                            accordionBtn.classList.remove('collapsed');
+                            accordionBtn.setAttribute('aria-expanded', 'true');
+                        }
+                    }
+                }
+
+                // Resaltar enlaces exactos o de submódulo en Sidebar y Drawer
+                document.querySelectorAll('.sidebar-item-link, .mobile-card-sublink').forEach(link => {
+                    const href = link.getAttribute('href');
+                    if (href && href !== '#' && (currentPath === href || (href !== '/' && currentPath.startsWith(href)))) {
+                        link.classList.add('active');
+                        link.setAttribute('aria-current', 'page');
+                    }
+                });
+            })();
+        {% endif %}
+    });
+
+    // --- LÓGICA DE BUSCADOR GLOBAL (CTRL + K) ---
+    let timerBusquedaGlobal;
+    $('#inputBusquedaGlobal').on('input', function() {
+        clearTimeout(timerBusquedaGlobal);
+        const q = $(this).val().trim();
+        const container = $('#resultadosBusquedaGlobal');
+        const loader = $('#loadingBusquedaGlobal');
+
+        if (q.length < 2) {
+            loader.hide();
+            container.html('<div class="text-center text-muted py-4 small"><i class="bi bi-fonts fs-2 d-block mb-1 text-secondary opacity-50"></i>Escribe al menos 2 caracteres para buscar.</div>');
+            return;
+        }
+
+        loader.show();
+        timerBusquedaGlobal = setTimeout(function() {
+            $.ajax({
+                url: "{% url 'api_busqueda_global' %}",
+                data: { 'q': q },
+                success: function(res) {
+                    loader.hide();
+                    if (res.resultados && res.resultados.length > 0) {
+                        let html = '';
+                        res.resultados.forEach(r => {
+                            html += `
+                            <a href="${r.url}" class="list-group-item list-group-item-action border rounded-3 p-2.5 mb-1 d-flex justify-content-between align-items-center">
+                                <div class="d-flex align-items-center gap-3">
+                                    <div class="fs-4"><i class="bi ${r.icono}"></i></div>
+                                    <div>
+                                        <div class="fw-bold text-dark mb-0">${r.titulo}</div>
+                                        <div class="small text-muted">${r.subtitulo}</div>
+                                    </div>
+                                </div>
+                                <span class="badge bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25 px-2.5 py-1 rounded-pill">${r.badge}</span>
+                            </a>`;
+                        });
+                        container.html(html);
+                    } else {
+                        container.html('<div class="text-center text-muted py-4 small"><i class="bi bi-search fs-2 d-block mb-1 text-secondary opacity-50"></i>No se encontraron resultados para "' + q + '".</div>');
+                    }
+                },
+                error: function() {
+                    loader.hide();
+                    container.html('<div class="text-center text-danger py-3 small">Error al conectar con el servidor.</div>');
+                }
+            });
+        }, 300);
+    });
+
+    // Enfoque automático al abrir modal Ctrl+K
+    $('#modalBusquedaGlobal').on('shown.bs.modal', function () {
+        $('#inputBusquedaGlobal').focus();
+    });
+
+    // Event listener para Ctrl + K
+    document.addEventListener('keydown', function(e) {
+        if ((e.ctrlKey || e.metaKey) && (e.key === 'k' || e.key === 'K')) {
+            e.preventDefault();
+            const modalEl = document.getElementById('modalBusquedaGlobal');
+            const modal = bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl);
+            modal.toggle();
+        }
+    });
+
+    {% if messages %}
+        {% for message in messages %}
+            Swal.fire({
+                icon: '{% if message.tags == "error" or message.tags == "danger" %}error{% elif message.tags == "warning" %}warning{% elif message.tags == "info" %}info{% else %}success{% endif %}',
+                title: '{{ message|escapejs }}',
+                showConfirmButton: false,
+                timer: 3500,
+                timerProgressBar: true,
+                toast: true,
+                position: 'top-end'
+            });
+        {% endfor %}
+    {% endif %}
+
+    // --- LÓGICA DE SPLASH SCREEN DE BIENVENIDA (5 SEGUNDOS) ---
+    const splash = document.getElementById('siaWelcomeSplash');
+    if (splash) {
+        const bar = document.getElementById('splashProgressBar');
+        if (bar) {
+            setTimeout(() => { bar.style.transition = 'width 4.5s linear'; bar.style.width = '100%'; }, 50);
+        }
+
+        const dismissSplash = () => {
+            splash.classList.add('splash-hiding');
+            setTimeout(() => {
+                splash.remove();
+                $.get("{% url 'api_clear_welcome_splash' %}");
+            }, 600);
+        };
+
+        const timerSplash = setTimeout(dismissSplash, 5000);
+
+        splash.addEventListener('click', () => {
+            clearTimeout(timerSplash);
+            dismissSplash();
+        });
+
+        document.addEventListener('keydown', function escHandler(e) {
+            if (e.key === 'Escape') {
+                clearTimeout(timerSplash);
+                dismissSplash();
+                document.removeEventListener('keydown', escHandler);
+            }
+        });
+    }
+
+    // --- LÓGICA DE ESCÁNER DE CÁMARA QR EN VIVO (Html5Qrcode) ---
+    let html5QrcodeScanner = null;
+
+    function iniciarEscaneoCamara() {
+        if (html5QrcodeScanner) return;
+        if (typeof Html5Qrcode === 'undefined') {
+            document.getElementById('qr-reader').innerHTML = '<div class="alert alert-warning m-3">Cargando librería de cámara...</div>';
+            return;
+        }
+        
+        html5QrcodeScanner = new Html5Qrcode("qr-reader");
+        const config = { fps: 10, qrbox: { width: 220, height: 220 } };
+
+        html5QrcodeScanner.start(
+            { facingMode: "environment" },
+            config,
+            (decodedText, decodedResult) => {
+                detenerEscaneoCamara();
+                const modalElement = document.getElementById('modalEscanerCamaraQR');
+                if (modalElement) {
+                    const bsModal = bootstrap.Modal.getInstance(modalElement);
+                    if (bsModal) bsModal.hide();
+                }
+                
+                if (decodedText.startsWith('http://') || decodedText.startsWith('https://')) {
+                    window.location.href = decodedText;
+                } else {
+                    window.location.href = `/api/busqueda-global/?q=${encodeURIComponent(decodedText)}`;
+                }
+            },
+            (errorMessage) => { /* escaneando */ }
+        ).catch(err => {
+            document.getElementById('qr-reader').innerHTML = `
+                <div class="alert alert-warning m-3 text-center rounded-3">
+                    <i class="bi bi-camera-video-off fs-2 text-warning d-block mb-1"></i>
+                    <strong>Permiso de cámara requerido</strong><br>
+                    <small>Otorgue permiso de cámara a su navegador o use la búsqueda manual.</small>
+                </div>
+            `;
+        });
+    }
+
+    function detenerEscaneoCamara() {
+        if (html5QrcodeScanner) {
+            html5QrcodeScanner.stop().then(() => {
+                html5QrcodeScanner.clear();
+                html5QrcodeScanner = null;
+            }).catch(err => {
+                html5QrcodeScanner = null;
+            });
+        }
+    }
+
+    document.getElementById('modalEscanerCamaraQR')?.addEventListener('shown.bs.modal', iniciarEscaneoCamara);
+    document.getElementById('modalEscanerCamaraQR')?.addEventListener('hidden.bs.modal', detenerEscaneoCamara);
+
+    // --- LÓGICA DE AUTO-BLOQUEO POR INACTIVIDAD (15 MINUTOS) ---
+    {% if user.is_authenticated %}
+    let idleTimeMinutes = 0;
+    const idleInterval = setInterval(() => {
+        idleTimeMinutes++;
+        if (idleTimeMinutes >= 15) { // 15 minutos de inactividad
+            const modalElement = document.getElementById('modalBloqueoSesion');
+            if (modalElement && !bootstrap.Modal.getInstance(modalElement)) {
+                const bsModal = new bootstrap.Modal(modalElement, { backdrop: 'static', keyboard: false });
+                bsModal.show();
+            }
+        }
+    }, 60000); // comprobar cada minuto
+
+    function resetIdleTimer() {
+        idleTimeMinutes = 0;
+    }
+
+    ['mousemove', 'keydown', 'click', 'scroll', 'touchstart'].forEach(evt => {
+        window.addEventListener(evt, resetIdleTimer, true);
+    });
+
+    function desbloquearPantalla(e) {
+        e.preventDefault();
+        const modalElement = document.getElementById('modalBloqueoSesion');
+        if (modalElement) {
+            const bsModal = bootstrap.Modal.getInstance(modalElement);
+            if (bsModal) bsModal.hide();
+        }
+        resetIdleTimer();
+        Swal.fire({
+            toast: true,
+            position: 'top-end',
+            icon: 'success',
+            title: 'Pantalla desbloqueada con éxito',
+            showConfirmButton: false,
+            timer: 2000
+        });
+    }
+    {% endif %}
+
+    // --- COMPRESIÓN INTELIGENTE DE IMÁGENES CLIENT-SIDE ---
+    window.compressImageFile = function(file, maxWidth = 1280, maxHeight = 1280, quality = 0.82) {
+        return new Promise((resolve) => {
+            if (!file || !file.type || !file.type.startsWith('image/')) {
+                resolve(file);
+                return;
+            }
+            if (file.size < 300 * 1024) {
+                resolve(file);
+                return;
+            }
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const img = new Image();
+                img.onload = function() {
+                    let w = img.width;
+                    let h = img.height;
+                    if (w > h) {
+                        if (w > maxWidth) {
+                            h = Math.round((h * maxWidth) / w);
+                            w = maxWidth;
+                        }
+                    } else {
+                        if (h > maxHeight) {
+                            w = Math.round((w * maxHeight) / h);
+                            h = maxHeight;
+                        }
+                    }
+                    const canvas = document.createElement('canvas');
+                    canvas.width = w;
+                    canvas.height = h;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, w, h);
+                    canvas.toBlob(function(blob) {
+                        if (blob && blob.size < file.size) {
+                            const newName = file.name.replace(/\.[^/.]+$/, "") + ".jpg";
+                            const compressed = new File([blob], newName, {
+                                type: 'image/jpeg',
+                                lastModified: Date.now()
+                            });
+                            resolve(compressed);
+                        } else {
+                            resolve(file);
+                        }
+                    }, 'image/jpeg', quality);
+                };
+                img.onerror = function() { resolve(file); };
+                img.src = e.target.result;
+            };
+            reader.onerror = function() { resolve(file); };
+            reader.readAsDataURL(file);
+        });
+    };
+</script>
+
+{% block scripts %}{% endblock %}
+
+</body>
+</html>

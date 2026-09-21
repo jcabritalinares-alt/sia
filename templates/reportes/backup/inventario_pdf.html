@@ -1,0 +1,16 @@
+<h1>Reporte de Inventario</h1>
+<table border="1">
+    <thead>
+        <tr><th>Código</th><th>Descripción</th><th>Almacén</th><th>Cantidad</th></tr>
+    </thead>
+    <tbody>
+        {% for p in productos %}
+        <tr>
+            <td>{{ p.codigo }}</td>
+            <td>{{ p.descripcion }}</td>
+            <td>{{ p.almacen }}</td>
+            <td>{{ p.cantidad }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>

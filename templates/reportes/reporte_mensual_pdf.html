@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Reporte Ejecutivo Mensual de Entregas - SIA Web</title>
+    <style>
+        @page {
+            size: letter portrait;
+            margin: 1.2cm;
+        }
+        body {
+            font-family: Helvetica, Arial, sans-serif;
+            color: #0f172a;
+            font-size: 11px;
+            line-height: 1.4;
+        }
+        .header-table {
+            width: 100%;
+            border-bottom: 2px solid #312e81;
+            padding-bottom: 10px;
+            margin-bottom: 15px;
+        }
+        .logo {
+            max-height: 55px;
+        }
+        .title {
+            font-size: 16px;
+            font-weight: bold;
+            color: #312e81;
+            text-align: center;
+        }
+        .subtitle {
+            font-size: 10px;
+            color: #64748b;
+            text-align: center;
+        }
+        .stats-table {
+            width: 100%;
+            margin-bottom: 15px;
+        }
+        .stat-card {
+            border: 1px solid #cbd5e1;
+            background-color: #f8fafc;
+            border-radius: 6px;
+            padding: 10px;
+            text-align: center;
+        }
+        .stat-num {
+            font-size: 18px;
+            font-weight: bold;
+            color: #4f46e5;
+        }
+        .stat-label {
+            font-size: 9px;
+            color: #475569;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+        .section-title {
+            font-size: 12px;
+            font-weight: bold;
+            color: #1e1b4b;
+            background-color: #e0e7ff;
+            padding: 6px 10px;
+            border-left: 4px solid #4f46e5;
+            margin-bottom: 10px;
+        }
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 15px;
+        }
+        .data-table th {
+            background-color: #312e81;
+            color: #ffffff;
+            font-weight: bold;
+            padding: 6px 8px;
+            text-align: left;
+            font-size: 10px;
+        }
+        .data-table td {
+            padding: 5px 8px;
+            border-bottom: 1px solid #e2e8f0;
+            font-size: 10px;
+        }
+        .signatures-table {
+            width: 100%;
+            margin-top: 35px;
+        }
+        .signature-box {
+            text-align: center;
+        }
+        .signature-line {
+            border-top: 1px solid #64748b;
+            margin-top: 45px;
+            padding-top: 4px;
+            font-weight: bold;
+            color: #1e293b;
+            font-size: 10px;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Encabezado -->
+    <table class="header-table">
+        <tr>
+            <td width="110">
+                <img src="https://res.cloudinary.com/tehn5bfb/image/upload/v1783630731/efad9adhn201uv8xemcn.jpg" class="logo" alt="Alcaldía">
+            </td>
+            <td width="320" align="center">
+                <div class="title">REPORTE EJECUTIVO MENSUAL DE ENTREGAS</div>
+                <div class="subtitle">Alcaldía / Sistema de Gestión e Inventario (SIA Web)</div>
+                <div style="font-size: 10px; font-weight: bold; color: #4f46e5; margin-top: 4px;">Período Evaluado: {{ mes_nombre }} {{ anio }}</div>
+            </td>
+            <td width="110" align="right">
+                <img src="https://res.cloudinary.com/tehn5bfb/image/upload/v1783630731/hgb44vfc0d8wirbnz2th.jpg" class="logo" alt="Valera Renace">
+            </td>
+        </tr>
+    </table>
+
+    <!-- Métricas Resumen -->
+    <table class="stats-table">
+        <tr>
+            <td width="32%">
+                <div class="stat-card">
+                    <div class="stat-num">{{ total_entregas }}</div>
+                    <div class="stat-label">Total Entregas Realizadas</div>
+                </div>
+            </td>
+            <td width="2%"></td>
+            <td width="32%">
+                <div class="stat-card">
+                    <div class="stat-num">{{ total_articulos }}</div>
+                    <div class="stat-label">Unidades Entregadas</div>
+                </div>
+            </td>
+            <td width="2%"></td>
+            <td width="32%">
+                <div class="stat-card">
+                    <div class="stat-num">{{ total_beneficiarios }}</div>
+                    <div class="stat-label">Beneficiarios Atendidos</div>
+                </div>
+            </td>
+        </tr>
+    </table>
+
+    <!-- Desglose de Productos Entregados -->
+    <div class="section-title">RESUMEN POR TIPO DE PRODUCTO ATENDIDO</div>
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th width="300">Producto / Beneficio</th>
+                <th width="120" align="center">Total Entregado</th>
+                <th width="120" align="center">Estado Promedio</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in resumen_productos %}
+            <tr>
+                <td><strong>{{ item.descripcion_prod }}</strong></td>
+                <td align="center"><strong>{{ item.total_cant }} u.</strong></td>
+                <td align="center">Completado</td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="3" align="center">No hay registros de entregas en el período evaluado.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <!-- Tabla Detallada Reciente -->
+    <div class="section-title">REGISTRO DE ATENCIONES SOCIALES EN EL MES</div>
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th width="70">Fecha</th>
+                <th width="80">Cédula</th>
+                <th width="160">Beneficiario</th>
+                <th width="170">Producto Asignado</th>
+                <th width="60" align="center">Cantidad</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for e in entregas_mes %}
+            <tr>
+                <td>{{ e.fecha_entrega|default:e.fecha|date:"d/m/Y" }}</td>
+                <td>C.I. {{ e.cedula }}</td>
+                <td>{{ e.nombre_beneficiario }}</td>
+                <td>{{ e.descripcion_prod }}</td>
+                <td align="center"><strong>{{ e.cantidad_dada }} u.</strong></td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="5" align="center">No hay registros.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <!-- Firmas Oficiales -->
+    <table class="signatures-table">
+        <tr>
+            <td width="230" class="signature-box">
+                <div class="signature-line">Dirección de Atención Social</div>
+                <div style="font-size: 9px; color: #64748b;">Revisado y Conformado</div>
+            </td>
+            <td width="80"></td>
+            <td width="230" class="signature-box">
+                <div class="signature-line">Coordinación de Almacén SIA</div>
+                <div style="font-size: 9px; color: #64748b;">Control de Inventarios</div>
+            </td>
+        </tr>
+    </table>
+
+</body>
+</html>

@@ -1,0 +1,126 @@
+{% extends 'base.html' %}
+
+{% block contenido %}
+<div class="container-fluid px-0">
+    <!-- Encabezado -->
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-4 gap-3">
+        <div>
+            <h2 class="fw-extrabold text-dark mb-1 d-flex align-items-center gap-2">
+                <i class="bi bi-shield-check text-primary"></i> Registro de Auditoría del Sistema
+            </h2>
+            <p class="text-muted small mb-0">Historial completo de eventos, modificaciones y acciones de usuarios</p>
+        </div>
+        <div>
+            <a href="{% url 'exportar_auditoria_excel' %}" class="btn btn-outline-success no-print d-flex align-items-center gap-2 rounded-3 fw-bold shadow-sm">
+                <i class="bi bi-file-earmark-excel-fill"></i> Exportar Auditoría a Excel
+            </a>
+        </div>
+    </div>
+
+    <!-- Barra de Filtros -->
+    <div class="card border border-light rounded-4 p-3 mb-4 shadow-sm">
+        <form method="GET" action="{% url 'lista_auditoria' %}" class="row g-3 align-items-end">
+            <div class="col-12 col-md-3">
+                <label class="form-label fw-semibold text-secondary small">Filtrar por Módulo</label>
+                <select name="modulo" class="form-select">
+                    <option value="Todos" {% if modulo_actual == 'Todos' %}selected{% endif %}>Todos los módulos</option>
+                    <option value="Entregas" {% if modulo_actual == 'Entregas' %}selected{% endif %}>Entregas</option>
+                    <option value="Inventario" {% if modulo_actual == 'Inventario' %}selected{% endif %}>Inventario</option>
+                    <option value="Atención al Ciudadano" {% if modulo_actual == 'Atención al Ciudadano' %}selected{% endif %}>Atención al Ciudadano</option>
+                    <option value="Usuarios" {% if modulo_actual == 'Usuarios' %}selected{% endif %}>Usuarios y Roles</option>
+                </select>
+            </div>
+
+            <div class="col-12 col-md-4">
+                <label class="form-label fw-semibold text-secondary small">Buscar Evento o Usuario</label>
+                <div class="input-group">
+                    <span class="input-group-text bg-light text-muted border-end-0"><i class="bi bi-search"></i></span>
+                    <input type="text" name="q" class="form-control border-start-0" placeholder="Buscar por acción, usuario o detalle..." value="{{ q }}">
+                </div>
+            </div>
+
+            <div class="col-6 col-md-2">
+                <label class="form-label fw-semibold text-secondary small">Registros/Pág</label>
+                <select name="per_page" class="form-select px-2" onchange="this.form.submit()">
+                    <option value="15" {% if per_page == 15 %}selected{% endif %}>15</option>
+                    <option value="30" {% if per_page == 30 %}selected{% endif %}>30</option>
+                    <option value="50" {% if per_page == 50 %}selected{% endif %}>50</option>
+                    <option value="100" {% if per_page == 100 %}selected{% endif %}>100</option>
+                </select>
+            </div>
+
+            <div class="col-12 col-md-3 d-flex gap-2">
+                <button type="submit" class="btn btn-primary-custom flex-grow-1">
+                    <i class="bi bi-funnel-fill me-1"></i> Filtrar
+                </button>
+                <a href="{% url 'lista_auditoria' %}" class="btn btn-outline-secondary" title="Limpiar Filtros">
+                    <i class="bi bi-x-circle"></i>
+                </a>
+            </div>
+        </form>
+    </div>
+
+    <!-- Tabla de Eventos de Auditoría -->
+    <div class="card border border-light rounded-4 shadow-sm overflow-hidden mb-4">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="bg-light text-secondary small text-uppercase fw-bold border-bottom">
+                    <tr>
+                        <th class="ps-3" style="width: 170px;">Fecha y Hora</th>
+                        <th style="width: 150px;">Usuario</th>
+                        <th style="width: 170px;">Módulo</th>
+                        <th>Acción / Evento Registrado</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for reg in registros %}
+                    <tr>
+                        <td class="ps-3 text-muted small fw-semibold font-monospace">
+                            {{ reg.timestamp|date:"d/m/Y H:i:s" }}
+                        </td>
+                        <td>
+                            <span class="badge bg-light text-dark border px-2.5 py-1.5 fw-bold">
+                                <i class="bi bi-person-fill text-primary me-1"></i>{{ reg.usuario.username|default:"Sistema" }}
+                            </span>
+                        </td>
+                        <td>
+                            <span class="badge bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25 px-2.5 py-1 fw-semibold">
+                                {{ reg.modulo|default:"General" }}
+                            </span>
+                        </td>
+                        <td class="fw-semibold text-dark">{{ reg.accion }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="4" class="text-center py-4 text-muted fst-italic">
+                            No se encontraron eventos de auditoría registrados.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Paginación -->
+    {% if page_obj.has_other_pages %}
+    <nav class="d-flex justify-content-between align-items-center mt-3">
+        <div class="text-muted small">Página <strong>{{ page_obj.number }}</strong> de <strong>{{ page_obj.paginator.num_pages }}</strong></div>
+        <ul class="pagination pagination-sm mb-0">
+            {% if page_obj.has_previous %}
+                <li class="page-item"><a class="page-link" href="?page=1{% if modulo_actual != 'Todos' %}&modulo={{ modulo_actual }}{% endif %}{% if per_page %}&per_page={{ per_page }}{% endif %}{% if q %}&q={{ q }}{% endif %}">&laquo; Primero</a></li>
+                <li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if modulo_actual != 'Todos' %}&modulo={{ modulo_actual }}{% endif %}{% if per_page %}&per_page={{ per_page }}{% endif %}{% if q %}&q={{ q }}{% endif %}">Anterior</a></li>
+            {% endif %}
+            
+            <li class="page-item active"><span class="page-link">{{ page_obj.number }}</span></li>
+
+            {% if page_obj.has_next %}
+                <li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}{% if modulo_actual != 'Todos' %}&modulo={{ modulo_actual }}{% endif %}{% if per_page %}&per_page={{ per_page }}{% endif %}{% if q %}&q={{ q }}{% endif %}">Siguiente</a></li>
+                <li class="page-item"><a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if modulo_actual != 'Todos' %}&modulo={{ modulo_actual }}{% endif %}{% if per_page %}&per_page={{ per_page }}{% endif %}{% if q %}&q={{ q }}{% endif %}">Último &raquo;</a></li>
+            {% endif %}
+        </ul>
+    </nav>
+    {% endif %}
+
+</div>
+{% endblock %}

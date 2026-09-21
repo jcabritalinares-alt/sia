@@ -1,0 +1,154 @@
+{% extends 'base.html' %}
+
+{% block contenido %}
+<div class="container-fluid px-0">
+
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-4 gap-3">
+        <div>
+            <h2 class="fw-extrabold text-dark mb-1 d-flex align-items-center gap-2">
+                <i class="bi bi-map-fill text-primary"></i> Catastro Municipal y Control Urbano (GIS)
+            </h2>
+            <p class="text-muted small mb-0">Cédula Catastral Inmobiliaria, Avalúos Fisico-Fiscales, Parcelas Urbanas y Permisología de Construcción</p>
+        </div>
+        <div class="d-flex flex-wrap gap-2">
+            <button class="btn btn-primary-custom fw-bold shadow-sm d-flex align-items-center gap-2" data-bs-toggle="modal" data-bs-target="#modalNuevoInmueble">
+                <i class="bi bi-house-add-fill"></i> Registrar Inmueble Catastral
+            </button>
+        </div>
+    </div>
+
+    <!-- KPIs Catastro -->
+    <div class="row g-3 mb-4">
+        <div class="col-12 col-sm-6 col-xl-6">
+            <div class="card border-0 shadow-sm rounded-4 bg-primary bg-opacity-10 border border-primary border-opacity-25 p-3 h-100">
+                <div class="small text-primary fw-bold uppercase">Valoración Catastral Inmobiliaria Total</div>
+                <div class="fs-3 fw-extrabold text-dark mt-1">{{ total_valor_catastral|floatformat:2 }} BS</div>
+            </div>
+        </div>
+        <div class="col-12 col-sm-6 col-xl-6">
+            <div class="card border-0 shadow-sm rounded-4 bg-success bg-opacity-10 border border-success border-opacity-25 p-3 h-100">
+                <div class="small text-success fw-bold uppercase">Parcelas e Inmuebles Cadastrados</div>
+                <div class="fs-3 fw-extrabold text-dark mt-1">{{ cnt_inmuebles }} Inmuebles</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabla Inmuebles Catastrales -->
+    <div class="card border border-light rounded-4 shadow-sm p-4 mb-4 bg-white">
+        <h5 class="fw-bold text-dark mb-3 border-bottom pb-2 d-flex align-items-center gap-2">
+            <i class="bi bi-geo-alt-fill text-primary"></i> Registro Inmobiliario de Parcelas Urbanas y Rurales
+        </h5>
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="bg-light">
+                    <tr>
+                        <th>Código Catastral</th>
+                        <th>Propietario / RIF</th>
+                        <th>Parroquia / Sector</th>
+                        <th>Superficie Terreno / Const.</th>
+                        <th>Uso Suelo</th>
+                        <th class="text-end">Valor Avalúo (BS)</th>
+                        <th class="text-center">Cédula Catastral</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for i in inmuebles %}
+                    <tr>
+                        <td><span class="badge bg-dark font-monospace px-2.5 py-1.5 fs-6">{{ i.codigo_catastral }}</span></td>
+                        <td>
+                            <strong class="text-dark d-block">{{ i.propietario_nombre }}</strong>
+                            <small class="text-muted font-monospace">{{ i.propietario_cedula_rif }}</small>
+                        </td>
+                        <td class="small">
+                            <strong class="text-primary d-block">{{ i.parroquia }}</strong>
+                            <span class="text-secondary">{{ i.sector_direccion }}</span>
+                        </td>
+                        <td class="small font-monospace">Terreno: {{ i.superficie_terreno_m2 }} m²<br>Const: {{ i.superficie_construccion_m2 }} m²</td>
+                        <td><span class="badge bg-primary bg-opacity-10 text-primary border px-2.5 py-1">{{ i.uso_inmueble }}</span></td>
+                        <td class="text-end fw-extrabold text-dark fs-6">{{ i.valor_catastral_bs|floatformat:2 }} BS</td>
+                        <td class="text-center">
+                            <button class="btn btn-sm btn-outline-primary rounded-pill px-3" onclick="Swal.fire('Cédula Catastral Emitida', 'Código Catastral {{ i.codigo_catastral }} verificado en sistema GIS.', 'info')">
+                                <i class="bi bi-file-earmark-pdf me-1"></i> Emisión Digital
+                            </button>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="7" class="text-center py-4 text-muted">No hay inmuebles registrados en el catastro municipal.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</div>
+
+<!-- Modal Nuevo Inmueble -->
+<div class="modal fade" id="modalNuevoInmueble" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content rounded-4 shadow-lg border-0 overflow-hidden">
+            <div class="modal-header bg-primary text-white py-3">
+                <h5 class="modal-title fw-bold d-flex align-items-center gap-2">
+                    <i class="bi bi-house-add-fill"></i> Registrar Inmueble en Catastro Municipal
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST">
+                {% csrf_token %}
+                <div class="modal-body p-4">
+                    <div class="row g-3 mb-3">
+                        <div class="col-12 col-md-6">
+                            <label class="form-label fw-semibold text-dark">Código Catastral Nacional:</label>
+                            <input type="text" name="codigo_catastral" class="form-control font-monospace fw-bold border-primary" placeholder="05-01-02-004-0012" required>
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <label class="form-label fw-semibold text-dark">Uso del Inmueble:</label>
+                            <select name="uso_inmueble" class="form-select border-primary" required>
+                                <option value="Residencial">Residencial</option>
+                                <option value="Comercial">Comercial</option>
+                                <option value="Industrial">Industrial</option>
+                                <option value="Institucional">Institucional / Público</option>
+                            </select>
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <label class="form-label fw-semibold text-dark">Nombre del Propietario:</label>
+                            <input type="text" name="propietario_nombre" class="form-control" required>
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <label class="form-label fw-semibold text-dark">Cédula / RIF del Propietario:</label>
+                            <input type="text" name="propietario_cedula_rif" class="form-control font-monospace" required>
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <label class="form-label fw-semibold text-dark">Parroquia:</label>
+                            <input type="text" name="parroquia" class="form-control" placeholder="Ej: Juan Ignacio Montilla" required>
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <label class="form-label fw-semibold text-dark">Sector / Dirección Exacta:</label>
+                            <input type="text" name="sector_direccion" class="form-control" placeholder="Ej: Av. Bolívar con Calle 10" required>
+                        </div>
+                        <div class="col-12 col-md-4">
+                            <label class="form-label fw-semibold text-dark">Sup. Terreno (m²):</label>
+                            <input type="number" step="0.01" name="superficie_terreno_m2" class="form-control font-monospace" required>
+                        </div>
+                        <div class="col-12 col-md-4">
+                            <label class="form-label fw-semibold text-dark">Sup. Construcción (m²):</label>
+                            <input type="number" step="0.01" name="superficie_construccion_m2" class="form-control font-monospace" required>
+                        </div>
+                        <div class="col-12 col-md-4">
+                            <label class="form-label fw-semibold text-dark">Valor Avalúo (BS):</label>
+                            <input type="number" step="0.01" name="valor_catastral_bs" class="form-control font-monospace fw-bold" required>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light py-2 justify-content-between">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary-custom fw-bold shadow-sm px-4">
+                        <i class="bi bi-floppy-fill me-1"></i> Guardar Ficha Catastral
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

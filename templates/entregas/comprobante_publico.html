@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Comprobante Oficial de Entrega #{{ entrega.id }} - SIA Web</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <style>
+        :root {
+            --primary: #4f46e5;
+            --primary-dark: #3730a3;
+            --bg-body: #f8fafc;
+        }
+        body {
+            background-color: var(--bg-body);
+            font-family: system-ui, -apple-system, sans-serif;
+            color: #0f172a;
+            padding: 15px 10px;
+        }
+        .comprobante-card {
+            max-width: 650px;
+            margin: 0 auto;
+            background: #ffffff;
+            border-radius: 16px;
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.08);
+            overflow: hidden;
+        }
+        .header-bar {
+            background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+            color: #ffffff;
+            padding: 20px;
+            text-align: center;
+        }
+        .logo-img {
+            max-height: 55px;
+            width: auto;
+        }
+        .info-label {
+            color: #64748b;
+            font-weight: 600;
+            font-size: 0.85rem;
+            width: 140px;
+        }
+        .info-value {
+            font-weight: 700;
+            color: #0f172a;
+            font-size: 0.95rem;
+        }
+        .verification-badge {
+            background-color: #ecfdf5;
+            border: 1px solid #a7f3d0;
+            color: #065f46;
+            border-radius: 12px;
+            padding: 12px 16px;
+        }
+        @media print {
+            .no-print { display: none !important; }
+            body { background: #ffffff !important; padding: 0 !important; }
+            .comprobante-card { box-shadow: none !important; border: 1px solid #000 !important; max-width: 100% !important; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="comprobante-card">
+        <!-- Encabezado Oficial -->
+        <div class="header-bar">
+            <div class="d-flex justify-content-between align-items-center mb-2 px-2">
+                <img src="https://res.cloudinary.com/tehn5bfb/image/upload/v1783630731/efad9adhn201uv8xemcn.jpg" class="logo-img rounded" alt="Alcaldía">
+                <img src="https://res.cloudinary.com/tehn5bfb/image/upload/v1783630731/hgb44vfc0d8wirbnz2th.jpg" class="logo-img rounded" alt="Valera Renace">
+            </div>
+            <h5 class="fw-bold text-white mb-0 text-uppercase" style="letter-spacing: 0.5px;">Comprobante de Entrega</h5>
+            <small class="text-white-50">Sistema de Inventario y Atención Social (SIA Web)</small>
+        </div>
+
+        <div class="p-4">
+            <!-- Insignia y Sello de Firma Digital de Autenticidad Legal -->
+            <div class="verification-badge shadow-sm mb-4">
+                <div class="d-flex align-items-center justify-content-between mb-2 pb-2 border-bottom border-success border-opacity-25">
+                    <div class="d-flex align-items-center gap-2">
+                        <i class="bi bi-patch-check-fill fs-3 text-success"></i>
+                        <div>
+                            <div class="fw-bold small text-dark">🛡️ Sello Digital de Autenticidad Legal</div>
+                            <small class="text-muted d-block" style="font-size: 0.72rem;">Ley de Mensajes de Datos y Firmas Electrónicas • ISO/IEC 27001</small>
+                        </div>
+                    </div>
+                    <div>
+                        {% if entrega.status == 'Entregado' %}
+                            <span class="badge bg-success px-3 py-1.5 rounded-pill fs-6"><i class="bi bi-check-circle-fill me-1"></i> ENTREGADO</span>
+                        {% else %}
+                            <span class="badge bg-warning text-dark px-3 py-1.5 rounded-pill fs-6"><i class="bi bi-clock-fill me-1"></i> PENDIENTE</span>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="bg-white p-2 rounded-3 border">
+                    <small class="text-secondary fw-semibold d-block" style="font-size: 0.7rem;">Firma Criptográfica SHA-256 de Validación:</small>
+                    <code class="fw-bold text-primary font-monospace d-block text-break mt-0.5" style="font-size: 0.76rem; letter-spacing: 0.5px;">{{ firma_hash }}</code>
+                </div>
+            </div>
+
+            <!-- Datos de la Entrega -->
+            <div class="card bg-light border-0 p-3 rounded-4 mb-4">
+                <h6 class="fw-bold text-secondary border-bottom pb-2 mb-3" style="font-size: 0.88rem;">
+                    <i class="bi bi-file-earmark-text text-primary me-1"></i> Datos de la Asignación #{{ entrega.id }}
+                </h6>
+                <table class="table table-borderless table-sm mb-0">
+                    <tbody>
+                        <tr>
+                            <td class="info-label">Fecha de Registro:</td>
+                            <td class="info-value">{{ entrega.fecha|date:"d/m/Y" }}</td>
+                        </tr>
+                        <tr>
+                            <td class="info-label">Fecha de Entrega:</td>
+                            <td class="info-value">
+                                {% if entrega.status == "Entregado" %}
+                                    <span class="fw-bold text-success"><i class="bi bi-calendar2-check-fill me-1"></i>{{ entrega.fecha_entrega|date:"d/m/Y"|default:entrega.fecha|date:"d/m/Y" }}</span>
+                                {% else %}
+                                    <span class="text-warning fw-semibold fst-italic">Pendiente por entregar</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="info-label">Cédula:</td>
+                            <td class="info-value font-monospace text-primary">C.I. {{ entrega.cedula }}</td>
+                        </tr>
+                        <tr>
+                            <td class="info-label">Beneficiario:</td>
+                            <td class="info-value">{{ entrega.nombre_beneficiario }}</td>
+                        </tr>
+                        <tr>
+                            <td class="info-label">Artículo Entregado:</td>
+                            <td class="info-value">{{ entrega.descripcion_prod }}</td>
+                        </tr>
+                        <tr>
+                            <td class="info-label">Cantidad:</td>
+                            <td class="info-value"><span class="badge bg-primary fs-6 px-2.5 py-1">{{ entrega.cantidad_dada }} unidad(es)</span></td>
+                        </tr>
+                        <tr>
+                            <td class="info-label">Observaciones / Vía:</td>
+                            <td class="info-value text-dark fw-semibold" style="font-size: 0.88rem;">{{ entrega.via|default:"Atención Directa Institucional" }}</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Evidencia Fotográfica Respaldo -->
+            <div class="card bg-light border-0 p-3 rounded-4 mb-4">
+                <h6 class="fw-bold text-dark border-bottom pb-2 mb-3 d-flex align-items-center justify-content-between">
+                    <span><i class="bi bi-camera-fill text-primary me-2"></i>Evidencias Fotográficas Respaldo</span>
+                    {% if evidencias %}
+                        <span class="badge bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25 px-2.5 py-1 rounded-pill small">{{ evidencias|length }} foto(s)</span>
+                    {% endif %}
+                </h6>
+                {% if evidencias %}
+                    <div class="row g-2 justify-content-center">
+                        {% for foto_url in evidencias %}
+                            <div class="col-6 col-sm-4 text-center">
+                                <a href="{{ foto_url }}" target="_blank" class="d-block text-decoration-none">
+                                    <img src="{{ foto_url }}" class="img-fluid rounded-3 border shadow-sm" style="max-height: 160px; width: 100%; object-fit: cover;" alt="Evidencia Fotográfica">
+                                    <small class="text-primary fw-semibold d-block mt-1" style="font-size: 0.72rem;"><i class="bi bi-zoom-in me-1"></i>Ver foto completa</small>
+                                </a>
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div class="text-center py-3 bg-white rounded-3 border border-dashed">
+                        <i class="bi bi-image text-secondary fs-2 d-block mb-1 opacity-50"></i>
+                        <span class="text-muted fw-semibold small">Sin evidencias fotográficas adjuntas</span>
+                    </div>
+                {% endif %}
+            </div>
+
+            <!-- Sección de Firma Digital y Registro Biométrico -->
+            <div class="row text-center mt-4 pt-3 border-top justify-content-center align-items-end g-3">
+                <div class="{% if entrega.huella_dactilar %}col-4{% else %}col-6{% endif %}">
+                    {% if entrega.firma_beneficiario %}
+                        <img src="{{ entrega.firma_beneficiario }}" style="max-height: 60px; max-width: 140px;" alt="Firma"><br>
+                    {% else %}
+                        <div style="height: 45px;"></div>
+                    {% endif %}
+                    <div style="border-top: 1.5px solid #000; padding-top: 3px; font-weight: bold; font-size: 0.82rem;">Firma Beneficiario</div>
+                    <small class="text-muted" style="font-size: 0.72rem;">C.I. {{ entrega.cedula }}</small>
+                </div>
+                {% if entrega.huella_dactilar %}
+                <div class="col-4">
+                    <img src="{{ entrega.huella_dactilar }}" style="max-height: 65px; max-width: 55px; border: 1.5px solid #0f172a; border-radius: 4px; padding: 2px; background: #fff;" alt="Huella Dactilar"><br>
+                    <div style="border-top: 1.5px solid #000; padding-top: 3px; font-weight: bold; font-size: 0.82rem;">Huella Dactilar</div>
+                    <small class="text-muted" style="font-size: 0.72rem;">Pulgar / Biometría</small>
+                </div>
+                {% endif %}
+                <div class="{% if entrega.huella_dactilar %}col-4{% else %}col-6{% endif %}">
+                    <div style="height: 45px;"></div>
+                    <div style="border-top: 1.5px solid #000; padding-top: 3px; font-weight: bold; font-size: 0.82rem;">Firma / Sello Responsable</div>
+                    <small class="text-muted" style="font-size: 0.72rem;">Atención Social SIA</small>
+                </div>
+            </div>
+
+            <!-- Botón de Impresión -->
+            <div class="text-center no-print mt-4 pt-2 border-top">
+                <button onclick="window.print()" class="btn btn-primary fw-bold px-4 rounded-3 shadow-sm">
+                    <i class="bi bi-printer-fill me-1"></i> Imprimir Planilla
+                </button>
+            </div>
+        </div>
+    </div>
+
+</body>
+</html>

@@ -1,0 +1,19 @@
+{
+    "logs": [
+        {
+            "outputFile": "com.sia.inventario.app-mergeDebugResources-31:/values-ldltr-v21/values-ldltr-v21.xml",
+            "map": [
+                {
+                    "source": "C:\\Users\\Jean\\.gradle\\caches\\8.10.2\\transforms\\5d2648144aa0d40e585949c8cf76495a\\transformed\\appcompat-1.6.1\\res\\values-ldltr-v21\\values-ldltr-v21.xml",
+                    "from": {
+                        "startLines": "2",
+                        "startColumns": "4",
+                        "startOffsets": "55",
+                        "endColumns": "112",
+                        "endOffsets": "163"
+                    }
+                }
+            ]
+        }
+    ]
+}

@@ -1,0 +1,230 @@
+{% extends 'base.html' %}
+
+{% block contenido %}
+<div class="container-fluid px-0">
+
+    <!-- Encabezado y Acciones -->
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-4 gap-3">
+        <div>
+            <h2 class="fw-extrabold text-dark mb-1 d-flex align-items-center gap-2">
+                <i class="bi bi-database-fill-gear text-warning"></i> Respaldo y Restauración de Base de Datos
+            </h2>
+            <p class="text-muted small mb-0">Gestión de copias de seguridad de la base de datos para administradores del sistema</p>
+        </div>
+        <div class="d-flex flex-wrap gap-2">
+            <button type="button" class="btn btn-outline-primary fw-bold d-inline-flex align-items-center gap-2" data-bs-toggle="modal" data-bs-target="#modalSubirRespaldo">
+                <i class="bi bi-upload"></i> Subir y Restaurar Archivo
+            </button>
+            <a href="{% url 'generar_respaldo_manual' %}" class="btn btn-primary-custom fw-bold shadow-sm d-inline-flex align-items-center gap-2 px-3 py-2">
+                <i class="bi bi-database-fill-add fs-5"></i> Generar Respaldo Ahora
+            </a>
+        </div>
+    </div>
+
+    <!-- Tarjetas de Resumen KPI -->
+    <div class="row g-3 mb-4">
+        <div class="col-12 col-sm-4">
+            <div class="card border-0 shadow-sm rounded-4 bg-primary text-white p-3 h-100">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <div class="small text-white-50 fw-bold uppercase">Total Copias Guardadas</div>
+                        <div class="fs-2 fw-bold mt-1">{{ total_respaldos }}</div>
+                    </div>
+                    <div class="fs-1 text-white-50"><i class="bi bi-archive-fill"></i></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-12 col-sm-4">
+            <div class="card border-0 shadow-sm rounded-4 bg-light border p-3 h-100">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <div class="small text-muted fw-bold uppercase">Espacio Total Almacenado</div>
+                        <div class="fs-2 fw-bold text-dark mt-1">{{ total_mb }} MB</div>
+                    </div>
+                    <div class="fs-1 text-secondary"><i class="bi bi-hdd-stack-fill"></i></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-12 col-sm-4">
+            <div class="card border-0 shadow-sm rounded-4 bg-success bg-opacity-10 border border-success border-opacity-25 p-3 h-100">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <div class="small text-success fw-bold uppercase">Último Respaldo Generado</div>
+                        <div class="fs-5 fw-bold text-dark mt-1">
+                            {% if ultimo_respaldo %}
+                                {{ ultimo_respaldo|date:"d/m/Y H:i" }}
+                            {% else %}
+                                Sin respaldos
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="fs-1 text-success"><i class="bi bi-clock-history"></i></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Lista de Archivos de Respaldo -->
+    <div class="card border border-light rounded-4 shadow-sm overflow-hidden mb-4">
+        <div class="card-header bg-light border-bottom py-3 px-3 d-flex justify-content-between align-items-center">
+            <h6 class="mb-0 fw-bold text-dark d-flex align-items-center gap-2">
+                <i class="bi bi-folder-fill text-warning"></i> Archivos de Respaldo Disponibles en Servidor
+            </h6>
+            <span class="badge bg-secondary rounded-pill">{{ archivos|length }} archivos</span>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="bg-light text-secondary small text-uppercase fw-bold border-bottom">
+                    <tr>
+                        <th class="ps-3">Nombre del Archivo</th>
+                        <th style="width: 120px;">Tamaño</th>
+                        <th style="width: 180px;">Fecha de Creación</th>
+                        <th style="width: 120px;" class="text-center">Tipo / Formato</th>
+                        <th style="width: 220px;" class="text-end pe-3">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in archivos %}
+                    <tr>
+                        <td class="ps-3 fw-bold text-dark">
+                            <i class="bi bi-file-earmark-code-fill me-2 {% if item.es_json %}text-primary{% else %}text-info{% endif %}"></i>
+                            {{ item.nombre }}
+                        </td>
+                        <td class="fw-semibold text-secondary">{{ item.tamano_mb }} MB</td>
+                        <td class="small text-muted">{{ item.fecha|date:"d/m/Y H:i:s" }}</td>
+                        <td class="text-center">
+                            {% if item.es_json %}
+                                <span class="badge bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25 rounded-pill px-3">JSON Dump</span>
+                            {% else %}
+                                <span class="badge bg-info bg-opacity-10 text-info border border-info border-opacity-25 rounded-pill px-3">SQLite DB</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-end pe-3">
+                            <div class="d-flex justify-content-end gap-2">
+                                <a href="{% url 'descargar_respaldo' item.nombre %}" class="btn btn-sm btn-outline-success d-inline-flex align-items-center gap-1" title="Descargar Copia">
+                                    <i class="bi bi-download"></i> Descargar
+                                </a>
+                                <button type="button" class="btn btn-sm btn-outline-warning text-dark fw-semibold d-inline-flex align-items-center gap-1" data-bs-toggle="modal" data-bs-target="#modalRestaurar-{{ forloop.counter }}">
+                                    <i class="bi bi-box-arrow-in-down"></i> Restaurar
+                                </button>
+                                <button type="button" class="btn btn-sm btn-outline-danger d-inline-flex align-items-center gap-1" data-bs-toggle="modal" data-bs-target="#modalEliminar-{{ forloop.counter }}" title="Eliminar copia de seguridad">
+                                    <i class="bi bi-trash3-fill"></i> Eliminar
+                                </button>
+                            </div>
+
+                            <!-- Modal de Confirmación de Restauración para cada archivo -->
+                            <div class="modal fade text-start" id="modalRestaurar-{{ forloop.counter }}" tabindex="-1" aria-hidden="true">
+                                <div class="modal-dialog modal-dialog-centered">
+                                    <div class="modal-content rounded-4 shadow border-0">
+                                        <div class="modal-header bg-warning bg-opacity-10 border-bottom border-warning border-opacity-25 py-3">
+                                            <h5 class="modal-title fw-bold text-warning-emphasis d-flex align-items-center gap-2">
+                                                <i class="bi bi-exclamation-triangle-fill text-warning"></i> Confirmar Restauración de Base de Datos
+                                            </h5>
+                                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                        </div>
+                                        <div class="modal-body p-4">
+                                            <p class="mb-3 text-dark">
+                                                ¿Estás completamente seguro de restaurar el sistema a la copia de seguridad <strong>{{ item.nombre }}</strong>?
+                                            </p>
+                                            <div class="alert alert-warning border border-warning border-opacity-50 rounded-3 mb-0 small">
+                                                <i class="bi bi-shield-exclamation me-1 fw-bold"></i>
+                                                <strong>ADVERTENCIA:</strong> Esta acción actualizará y/o reemplazará los registros actuales en la base de datos con la información contenida en el respaldo.
+                                            </div>
+                                        </div>
+                                        <div class="modal-footer bg-light border-top py-2">
+                                            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+                                            <form method="POST" action="{% url 'restaurar_respaldo' %}">
+                                                {% csrf_token %}
+                                                <input type="hidden" name="nombre_archivo" value="{{ item.nombre }}">
+                                                <button type="submit" class="btn btn-warning fw-bold text-dark">
+                                                    <i class="bi bi-check-circle-fill me-1"></i> Sí, Restaurar Ahora
+                                                </button>
+                                            </form>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Modal de Confirmación de Eliminación para cada archivo -->
+                            <div class="modal fade text-start" id="modalEliminar-{{ forloop.counter }}" tabindex="-1" aria-hidden="true">
+                                <div class="modal-dialog modal-dialog-centered">
+                                    <div class="modal-content rounded-4 shadow border-0">
+                                        <div class="modal-header bg-danger bg-opacity-10 border-bottom border-danger border-opacity-25 py-3">
+                                            <h5 class="modal-title fw-bold text-danger d-flex align-items-center gap-2">
+                                                <i class="bi bi-trash3-fill"></i> Eliminar Copia de Respaldo
+                                            </h5>
+                                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                        </div>
+                                        <div class="modal-body p-4">
+                                            <p class="mb-3 text-dark">
+                                                ¿Estás seguro de que deseas eliminar permanentemente el archivo de respaldo <strong>{{ item.nombre }}</strong> ({{ item.tamano_mb }} MB)?
+                                            </p>
+                                            <div class="alert alert-danger border border-danger border-opacity-50 rounded-3 mb-0 small">
+                                                <i class="bi bi-exclamation-triangle-fill me-1"></i>
+                                                <strong>ATENCIÓN:</strong> El archivo será borrado del almacenamiento del servidor y esta acción no se puede deshacer.
+                                            </div>
+                                        </div>
+                                        <div class="modal-footer bg-light border-top py-2">
+                                            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+                                            <form method="POST" action="{% url 'eliminar_respaldo' item.nombre %}">
+                                                {% csrf_token %}
+                                                <button type="submit" class="btn btn-danger fw-bold">
+                                                    <i class="bi bi-trash3-fill me-1"></i> Eliminar Definitivamente
+                                                </button>
+                                            </form>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="5" class="text-center py-5 text-muted fst-italic">
+                            <i class="bi bi-inbox fs-1 d-block mb-2 text-secondary"></i>
+                            No hay archivos de respaldo creados en el servidor. Haz clic en "Generar Respaldo Ahora" para crear la primera copia.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</div>
+
+<!-- Modal para Subir y Restaurar Archivo Externo -->
+<div class="modal fade" id="modalSubirRespaldo" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content rounded-4 shadow border-0">
+            <div class="modal-header bg-primary text-white py-3">
+                <h5 class="modal-title fw-bold d-flex align-items-center gap-2">
+                    <i class="bi bi-upload"></i> Subir y Restaurar Archivo de Respaldo
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form method="POST" action="{% url 'restaurar_respaldo' %}" enctype="multipart/form-data">
+                {% csrf_token %}
+                <div class="modal-body p-4">
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold text-secondary">Seleccionar Archivo de Respaldo (.json o .sqlite3)</label>
+                        <input type="file" name="archivo_respaldo" class="form-control form-control-lg" accept=".json,.sqlite3" required>
+                    </div>
+                    <div class="alert alert-info border border-info border-opacity-25 rounded-3 mb-0 small">
+                        <i class="bi bi-info-circle-fill me-1"></i>
+                        Selecciona un archivo <strong>.json</strong> exportado por SIA Web o una copia física de base de datos <strong>.sqlite3</strong>.
+                    </div>
+                </div>
+                <div class="modal-footer bg-light border-top py-2">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary-custom fw-bold px-4">
+                        <i class="bi bi-box-arrow-in-down me-1"></i> Subir y Restaurar
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

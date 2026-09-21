@@ -1,0 +1,217 @@
+{% extends 'base.html' %}
+
+{% block contenido %}
+<div class="container-fluid px-0">
+
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-4 gap-3">
+        <div>
+            <h2 class="fw-extrabold text-dark mb-1 d-flex align-items-center gap-2">
+                <i class="bi bi-cash-coin text-success"></i> Tesorería y Recaudación Tributaria Municipal (SUMAR)
+            </h2>
+            <p class="text-muted small mb-0">Gestión de Contribuyentes, Licencias de Actividades Económicas, Liquidaciones y Solvencias Municipales</p>
+        </div>
+        <div class="d-flex flex-wrap gap-2">
+            <button class="btn btn-outline-primary fw-bold shadow-sm d-flex align-items-center gap-2" data-bs-toggle="modal" data-bs-target="#modalNuevoContribuyente">
+                <i class="bi bi-person-plus-fill"></i> Registrar Contribuyente
+            </button>
+            <button class="btn btn-success-custom fw-bold shadow-sm d-flex align-items-center gap-2 text-white" data-bs-toggle="modal" data-bs-target="#modalNuevaLiquidacion">
+                <i class="bi bi-receipt"></i> Emitir Liquidación Tributaria
+            </button>
+        </div>
+    </div>
+
+    <!-- KPIs Recaudación -->
+    <div class="row g-3 mb-4">
+        <div class="col-12 col-sm-6 col-xl-4">
+            <div class="card border-0 shadow-sm rounded-4 bg-success bg-opacity-10 border border-success border-opacity-25 p-3 h-100">
+                <div class="small text-success fw-bold uppercase">Total Recaudación Efectiva</div>
+                <div class="fs-3 fw-extrabold text-dark mt-1">{{ total_recaudado|floatformat:2 }} BS</div>
+            </div>
+        </div>
+        <div class="col-12 col-sm-6 col-xl-4">
+            <div class="card border-0 shadow-sm rounded-4 bg-warning bg-opacity-10 border border-warning border-opacity-25 p-3 h-100">
+                <div class="small text-warning fw-bold uppercase">Liquidaciones Pendientes por Cobrar</div>
+                <div class="fs-3 fw-extrabold text-dark mt-1">{{ total_pendiente|floatformat:2 }} BS</div>
+            </div>
+        </div>
+        <div class="col-12 col-sm-6 col-xl-4">
+            <div class="card border-0 shadow-sm rounded-4 bg-primary bg-opacity-10 border border-primary border-opacity-25 p-3 h-100">
+                <div class="small text-primary fw-bold uppercase">Contribuyentes Registrados</div>
+                <div class="fs-3 fw-extrabold text-dark mt-1">{{ contribuyentes.count }} Contribuyentes</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabla de Liquidaciones Tributarias -->
+    <div class="card border border-light rounded-4 shadow-sm p-4 mb-4 bg-white">
+        <h5 class="fw-bold text-dark mb-3 border-bottom pb-2 d-flex align-items-center gap-2">
+            <i class="bi bi-file-earmark-spreadsheet-fill text-primary"></i> Liquidaciones de Tributos Municipales
+        </h5>
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="bg-light">
+                    <tr>
+                        <th>N° Liquidación</th>
+                        <th>Contribuyente (RIF)</th>
+                        <th>Tributo / Concepto</th>
+                        <th>Periodo</th>
+                        <th class="text-end">Total A Pagar</th>
+                        <th class="text-center">Estado Solvencia</th>
+                        <th class="text-center">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for l in liquidaciones %}
+                    <tr>
+                        <td><span class="badge bg-dark font-monospace px-2.5 py-1.5 fs-6">#{{ l.id }}</span></td>
+                        <td>
+                            <strong class="text-dark d-block">{{ l.contribuyente.nombre_razon_social }}</strong>
+                            <small class="text-muted font-monospace">{{ l.contribuyente.rif_cedula }}</small>
+                        </td>
+                        <td><span class="badge bg-primary bg-opacity-10 text-primary border px-2.5 py-1">{{ l.tipo_tributo }}</span></td>
+                        <td class="small font-monospace">{{ l.periodo_mes }}/{{ l.periodo_ano }}</td>
+                        <td class="text-end fw-extrabold text-dark">{{ l.total_pagar|floatformat:2 }} BS</td>
+                        <td class="text-center">
+                            {% if l.estatus == 'Pagado' %}
+                            <span class="badge bg-success fw-bold px-3 py-1.5"><i class="bi bi-check-circle-fill me-1"></i> Solvente</span>
+                            {% else %}
+                            <span class="badge bg-warning text-dark fw-bold px-3 py-1.5"><i class="bi bi-clock-history me-1"></i> Pendiente</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-center">
+                            {% if l.estatus == 'Pendiente' %}
+                            <form method="POST" class="d-inline">
+                                {% csrf_token %}
+                                <input type="hidden" name="accion" value="pagar_liquidacion">
+                                <input type="hidden" name="liquidacion_id" value="{{ l.id }}">
+                                <button type="submit" class="btn btn-sm btn-success fw-bold rounded-pill px-3">
+                                    <i class="bi bi-cash me-1"></i> Procesar Pago
+                                </button>
+                            </form>
+                            {% else %}
+                            <button class="btn btn-sm btn-outline-primary rounded-pill px-3" onclick="Swal.fire('Solvencia Emitida', 'El contribuyente se encuentra 100% Solvente. Código de Verificación QR Habilitado.', 'success')">
+                                <i class="bi bi-qr-code me-1"></i> Ver Solvencia QR
+                            </button>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="7" class="text-center py-4 text-muted">No hay liquidaciones tributarias registradas.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</div>
+
+<!-- Modal Nuevo Contribuyente -->
+<div class="modal fade" id="modalNuevoContribuyente" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content rounded-4 shadow-lg border-0 overflow-hidden">
+            <div class="modal-header bg-primary text-white py-3">
+                <h5 class="modal-title fw-bold d-flex align-items-center gap-2">
+                    <i class="bi bi-person-plus-fill"></i> Registrar Nuevo Contribuyente
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST">
+                {% csrf_token %}
+                <input type="hidden" name="accion" value="registrar_contribuyente">
+                <div class="modal-body p-4">
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold text-dark">Tipo Persona:</label>
+                        <select name="tipo_persona" class="form-select border-primary" required>
+                            <option value="Juridica">Persona Jurídica (Empresa / Comercio)</option>
+                            <option value="Natural">Persona Natural</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold text-dark">RIF / Cédula:</label>
+                        <input type="text" name="rif_cedula" class="form-control font-monospace fw-bold" placeholder="J-30000000-0" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold text-dark">Nombre / Razón Social:</label>
+                        <input type="text" name="nombre_razon_social" class="form-control" placeholder="Nombre completo o Razón Social" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold text-dark">Dirección Fiscal:</label>
+                        <textarea name="direccion_fiscal" class="form-control" rows="2" required></textarea>
+                    </div>
+                    <div class="row g-2">
+                        <div class="col-6">
+                            <label class="form-label fw-semibold text-dark">Teléfono:</label>
+                            <input type="text" name="telefono" class="form-control" required>
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label fw-semibold text-dark">Correo Electrónico:</label>
+                            <input type="email" name="email" class="form-control" required>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light py-2 justify-content-between">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary-custom fw-bold shadow-sm px-4">
+                        <i class="bi bi-floppy-fill me-1"></i> Guardar Contribuyente
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Nueva Liquidación -->
+<div class="modal fade" id="modalNuevaLiquidacion" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content rounded-4 shadow-lg border-0 overflow-hidden">
+            <div class="modal-header bg-success text-white py-3">
+                <h5 class="modal-title fw-bold d-flex align-items-center gap-2">
+                    <i class="bi bi-receipt"></i> Emitir Liquidación Tributaria
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST">
+                {% csrf_token %}
+                <input type="hidden" name="accion" value="registrar_liquidacion">
+                <div class="modal-body p-4">
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold text-dark">Seleccionar Contribuyente:</label>
+                        <select name="contribuyente_id" class="form-select border-success" required>
+                            {% for c in contribuyentes %}
+                            <option value="{{ c.id }}">{{ c.nombre_razon_social }} ({{ c.rif_cedula }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold text-dark">Tipo de Tributo Municipal:</label>
+                        <select name="tipo_tributo" class="form-select border-success" required>
+                            <option value="ActividadesEconomicas">Patente de Actividades Económicas</option>
+                            <option value="InmueblesUrbanos">Impuesto a Inmuebles Urbanos</option>
+                            <option value="Vehiculos">Impuesto a Vehículos</option>
+                            <option value="AseoUrbano">Tasa de Aseo y Servicios Públicos</option>
+                        </select>
+                    </div>
+                    <div class="row g-2">
+                        <div class="col-6">
+                            <label class="form-label fw-semibold text-dark">Monto Base (BS):</label>
+                            <input type="number" step="0.01" name="monto_base" class="form-control font-monospace" placeholder="0.00" required>
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label fw-semibold text-dark">Monto Impuesto (BS):</label>
+                            <input type="number" step="0.01" name="monto_impuesto" class="form-control font-monospace" placeholder="0.00" required>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light py-2 justify-content-between">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-success fw-bold shadow-sm px-4">
+                        <i class="bi bi-floppy-fill me-1"></i> Emitir Liquidación
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
