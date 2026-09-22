@@ -107,84 +107,92 @@ def obtener_datos_estadisticas_entregas(filtro='7d', fecha_inicio_str=None, fech
 
     promedio_diario = round(total_entregas / dias_conteo, 1) if dias_conteo > 0 else 0
 
-    # Top productos entregados en el período
-    top_prods_qs = qs.values('descripcion_prod').annotate(
+    # 1. Agrupación por Insumo/Producto (la cantidad de cada cosa entregada en el período)
+    prods_qs = qs.values('descripcion_prod').annotate(
         total_cant=Sum('cantidad_dada'),
         total_entregas=Count('id')
-    ).order_by('-total_cant')[:6]
+    ).order_by('-total_cant')
+
+    prods_labels = []
+    prods_unidades = []
+    prods_entregas = []
+    for p in prods_qs:
+        desc = p['descripcion_prod'] or 'Sin descripción'
+        prods_labels.append(desc)
+        prods_unidades.append(int(p['total_cant'] or 0))
+        prods_entregas.append(p['total_entregas'])
+
+    # Si no hay entregas en el período seleccionado, incluir insumos de referencia con cantidad 0
+    # para que el gráfico siempre muestre las cosas y sus cantidades (0 unid.)
+    if not prods_labels:
+        ultimos_prods = BeneficioEntregado.objects.filter(
+            status__iexact='Entregado'
+        ).values('descripcion_prod').annotate(
+            t=Count('id')
+        ).order_by('-t')[:6]
+
+        for p in ultimos_prods:
+            desc = p['descripcion_prod'] or 'Sin descripción'
+            prods_labels.append(desc)
+            prods_unidades.append(0)
+            prods_entregas.append(0)
 
     top_productos = [{
-        'descripcion': p['descripcion_prod'] or 'Sin descripción',
-        'cantidad': int(p['total_cant'] or 0),
-        'entregas': p['total_entregas']
-    } for p in top_prods_qs]
+        'descripcion': prods_labels[i],
+        'cantidad': prods_unidades[i],
+        'entregas': prods_entregas[i]
+    } for i in range(min(5, len(prods_labels)))]
 
-    chart_labels = []
-    chart_entregas = []
-    chart_unidades = []
+    # 2. Agrupación por Fechas (Evolución cronológica)
+    fechas_labels = []
+    fechas_entregas = []
+    fechas_unidades = []
 
-    # Configuración específica para el filtro HOY
     if filtro == 'hoy':
-        chart_tipo = 'bar'
-        if total_entregas > 0 and top_productos:
-            # Si hoy hubo entregas, graficamos los insumos entregados hoy
-            chart_subtitulo = f"Entregas de hoy ({hoy.strftime('%d/%m')}) por insumo"
-            chart_labels = [p['descripcion'] for p in top_productos]
-            chart_entregas = [p['entregas'] for p in top_productos]
-            chart_unidades = [p['cantidad'] for p in top_productos]
-        else:
-            # Si hoy aún no hay entregas, mostramos la actividad de los últimos 7 días terminando en Hoy
-            # para que el gráfico NUNCA quede vacío ni desaparezca
-            chart_subtitulo = f"Actividad reciente (Hoy: 0 entregas)"
-            curr = hoy - timedelta(days=6)
-            entregas_recientes = BeneficioEntregado.objects.filter(
-                status__iexact='Entregado'
-            ).annotate(f_op=Coalesce('fecha_entrega', 'fecha')).filter(
-                f_op__gte=curr, f_op__lte=hoy
-            ).values('f_op').annotate(
-                cnt=Count('id'), cant=Sum('cantidad_dada')
-            )
-            dict_recientes = {item['f_op']: item for item in entregas_recientes}
-            while curr <= hoy:
-                lbl = curr.strftime('%d/%m') + (' (Hoy)' if curr == hoy else '')
-                chart_labels.append(lbl)
-                if curr in dict_recientes:
-                    chart_entregas.append(dict_recientes[curr]['cnt'])
-                    chart_unidades.append(int(dict_recientes[curr]['cant'] or 0))
-                else:
-                    chart_entregas.append(0)
-                    chart_unidades.append(0)
-                curr += timedelta(days=1)
+        fechas_labels = [hoy.strftime('%d/%m') + ' (Hoy)']
+        fechas_entregas = [total_entregas]
+        fechas_unidades = [total_articulos]
+    elif filtro in ['7d', '30d', 'mes'] and fecha_desde and fecha_hasta:
+        agrupado = qs.filter(fecha_efectiva__isnull=False).values('fecha_efectiva').annotate(
+            entregas_cnt=Count('id'),
+            unidades_cnt=Sum('cantidad_dada')
+        )
+        dict_fechas = {item['fecha_efectiva']: item for item in agrupado}
+        curr = fecha_desde
+        while curr <= fecha_hasta:
+            fechas_labels.append(curr.strftime('%d/%m'))
+            if curr in dict_fechas:
+                fechas_entregas.append(dict_fechas[curr]['entregas_cnt'])
+                fechas_unidades.append(int(dict_fechas[curr]['unidades_cnt'] or 0))
+            else:
+                fechas_entregas.append(0)
+                fechas_unidades.append(0)
+            curr += timedelta(days=1)
     else:
-        # Agrupación por fecha para evolución temporal (7d, 30d, mes, personalizado, todos)
         agrupado = qs.filter(fecha_efectiva__isnull=False).values('fecha_efectiva').annotate(
             entregas_cnt=Count('id'),
             unidades_cnt=Sum('cantidad_dada')
         ).order_by('fecha_efectiva')
+        for item in agrupado:
+            f = item['fecha_efectiva']
+            lbl = f.strftime('%d/%m/%y') if filtro == 'todos' else f.strftime('%d/%m')
+            fechas_labels.append(lbl)
+            fechas_entregas.append(item['entregas_cnt'])
+            fechas_unidades.append(int(item['unidades_cnt'] or 0))
 
-        dict_fechas = {item['fecha_efectiva']: item for item in agrupado}
-
-        if filtro in ['7d', '30d', 'mes'] and fecha_desde and fecha_hasta:
-            curr = fecha_desde
-            while curr <= fecha_hasta:
-                lbl = curr.strftime('%d/%m')
-                chart_labels.append(lbl)
-                if curr in dict_fechas:
-                    chart_entregas.append(dict_fechas[curr]['entregas_cnt'])
-                    chart_unidades.append(int(dict_fechas[curr]['unidades_cnt'] or 0))
-                else:
-                    chart_entregas.append(0)
-                    chart_unidades.append(0)
-                curr += timedelta(days=1)
-            chart_tipo = 'line'
-        else:
-            for item in agrupado:
-                f = item['fecha_efectiva']
-                lbl = f.strftime('%d/%m/%y') if filtro == 'todos' else f.strftime('%d/%m')
-                chart_labels.append(lbl)
-                chart_entregas.append(item['entregas_cnt'])
-                chart_unidades.append(int(item['unidades_cnt'] or 0))
-            chart_tipo = 'bar' if len(chart_labels) <= 2 else 'line'
+    # Configuración de visualización según filtro
+    if filtro == 'hoy':
+        chart_tipo = 'bar'
+        chart_labels = prods_labels
+        chart_entregas = prods_entregas
+        chart_unidades = prods_unidades
+        chart_subtitulo = f"Cantidad de cada insumo entregado hoy ({hoy.strftime('%d/%m')})" if total_entregas > 0 else "Hoy: 0 entregas registradas"
+    else:
+        chart_tipo = 'bar' if len(fechas_labels) <= 2 else 'line'
+        chart_labels = fechas_labels
+        chart_entregas = fechas_entregas
+        chart_unidades = fechas_unidades
+        chart_subtitulo = ''
 
     return {
         'filtro': filtro,
@@ -200,6 +208,12 @@ def obtener_datos_estadisticas_entregas(filtro='7d', fecha_inicio_str=None, fech
         'chart_labels': chart_labels,
         'chart_entregas': chart_entregas,
         'chart_unidades': chart_unidades,
+        'prods_labels': prods_labels,
+        'prods_entregas': prods_entregas,
+        'prods_unidades': prods_unidades,
+        'fechas_labels': fechas_labels,
+        'fechas_entregas': fechas_entregas,
+        'fechas_unidades': fechas_unidades,
         'top_productos': top_productos,
     }
 
@@ -218,14 +232,15 @@ def dashboard(request):
     
     entregas = BeneficioEntregado.objects.all()
     pendientes = entregas.filter(status__iexact='Pendiente').count()
-    entregados = entregas.filter(status__iexact='Entregado').count()
+    entregados_qs = entregas.filter(status__iexact='Entregado')
+    entregados = entregados_qs.count()
     total_articulos = SIA_producto.objects.count()
     
-    recientes = list(BeneficioEntregado.objects.all().order_by('-id')[:5].values(
+    recientes = list(entregados_qs.order_by('-id')[:5].values(
         'nombre_beneficiario', 'descripcion_prod', 'fecha'
     ))
     
-    resumen_productos = entregas.values('descripcion_prod').annotate(total_cant=Sum('cantidad_dada')).order_by('-total_cant')
+    resumen_productos = entregados_qs.values('descripcion_prod').annotate(total_cant=Sum('cantidad_dada')).order_by('-total_cant')
     nombres_productos = [item['descripcion_prod'] or 'Desconocido' for item in resumen_productos]
     cantidades_productos = [int(item['total_cant'] or 0) for item in resumen_productos]
 

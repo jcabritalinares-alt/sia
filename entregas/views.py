@@ -206,8 +206,7 @@ def dashboard(request):
     entregados_qs = entregas.filter(status='Entregado')
     entregados = entregados_qs.count()
      
-    total_articulos = entregados_qs.aggregate(total=Sum('cantidad_dada'))['total'] or 0
-    recientes = BeneficioEntregado.objects.all().order_by('-id')[:5]
+    recientes = entregados_qs.order_by('-id')[:5]
      
     lista_recientes = [{
         'nombre_beneficiario': r.nombre_beneficiario,
@@ -215,7 +214,7 @@ def dashboard(request):
         'fecha': r.fecha
     } for r in recientes]
      
-    resumen_productos = entregas.values('descripcion_prod').annotate(total_cant=Sum('cantidad_dada')).order_by('-total_cant')
+    resumen_productos = entregados_qs.values('descripcion_prod').annotate(total_cant=Sum('cantidad_dada')).order_by('-total_cant')
     nombres_productos = [item['descripcion_prod'] or 'Desconocido' for item in resumen_productos]
     cantidades_productos = [int(item['total_cant'] or 0) for item in resumen_productos]
 
@@ -437,16 +436,43 @@ def verificar_beneficio(request):
 
 @login_required
 def confirmar_entrega(request, entrega_id):
-    if request.method == 'POST' and request.FILES.get('evidencia'):
+    if not request.user.is_superuser:
+        perfil = getattr(request.user, 'perfil', None)
+        if perfil and not perfil.permiso_entregas:
+            messages.error(request, "Acceso restringido: No tienes permiso para gestionar evidencias de entregas.")
+            return redirect(obtener_url_inicio_usuario(request.user))
+
+    if request.method == 'POST':
+        # 1. Archivos directos por slot específico
+        file_slot_1 = request.FILES.get('evidencia_1')
+        file_slot_2 = request.FILES.get('evidencia_2')
+        file_slot_3 = request.FILES.get('evidencia_3')
+
+        # 2. Archivos múltiples en lote (todas a la vez o las que falten)
+        archivos_lote = request.FILES.getlist('evidencias')
+        if not archivos_lote and request.FILES.getlist('evidencia'):
+            archivos_lote = request.FILES.getlist('evidencia')
+
+        # 3. Solicitud de eliminación puntual de slot
+        eliminar_slot = request.POST.get('eliminar_slot', '').strip()
+
+        if not (file_slot_1 or file_slot_2 or file_slot_3 or archivos_lote or eliminar_slot):
+            messages.error(request, "No se seleccionó ninguna imagen para cargar.")
+            return redirect('historial')
+
         try:
-            url_foto = subir_archivo_evidencia_seguro(request.FILES['evidencia'], request)
-             
             with transaction.atomic():
                 entrega = BeneficioEntregado.objects.select_for_update().get(id=entrega_id)
-                 
+
+                if eliminar_slot == '1':
+                    entrega.url_evidencia_1 = None
+                elif eliminar_slot == '2':
+                    entrega.url_evidencia_2 = None
+                elif eliminar_slot == '3':
+                    entrega.url_evidencia_3 = None
+
                 if entrega.status == 'Pendiente':
                     producto = obtener_producto_de_entrega(entrega, for_update=True)
-                    
                     if producto:
                         if producto.cantidad < entrega.cantidad_dada:
                             messages.error(request, f"Stock insuficiente para confirmar entrega. Disponible: {producto.cantidad}")
@@ -455,14 +481,50 @@ def confirmar_entrega(request, entrega_id):
                         producto.save(update_fields=['cantidad'])
                         if not entrega.producto_id:
                             entrega.producto = producto
-                 
-                if not entrega.url_evidencia_1:
-                    entrega.url_evidencia_1 = url_foto
-                elif not entrega.url_evidencia_2:
-                    entrega.url_evidencia_2 = url_foto
-                else:
-                    entrega.url_evidencia_3 = url_foto
-      
+
+                contador_subidas = 0
+
+                # Asignar archivo explícito de slot 1 si fue enviado
+                if file_slot_1:
+                    url1 = subir_archivo_evidencia_seguro(file_slot_1, request)
+                    if url1:
+                        entrega.url_evidencia_1 = url1
+                        contador_subidas += 1
+
+                # Asignar archivo explícito de slot 2 si fue enviado
+                if file_slot_2:
+                    url2 = subir_archivo_evidencia_seguro(file_slot_2, request)
+                    if url2:
+                        entrega.url_evidencia_2 = url2
+                        contador_subidas += 1
+
+                # Asignar archivo explícito de slot 3 si fue enviado
+                if file_slot_3:
+                    url3 = subir_archivo_evidencia_seguro(file_slot_3, request)
+                    if url3:
+                        entrega.url_evidencia_3 = url3
+                        contador_subidas += 1
+
+                # Asignar archivos del lote a los slots que estén vacíos/faltantes
+                for f in archivos_lote:
+                    if not entrega.url_evidencia_1:
+                        url = subir_archivo_evidencia_seguro(f, request)
+                        if url:
+                            entrega.url_evidencia_1 = url
+                            contador_subidas += 1
+                    elif not entrega.url_evidencia_2:
+                        url = subir_archivo_evidencia_seguro(f, request)
+                        if url:
+                            entrega.url_evidencia_2 = url
+                            contador_subidas += 1
+                    elif not entrega.url_evidencia_3:
+                        url = subir_archivo_evidencia_seguro(f, request)
+                        if url:
+                            entrega.url_evidencia_3 = url
+                            contador_subidas += 1
+                    else:
+                        break
+
                 entrega.status = "Entregado"
                 fecha_entrega_input = request.POST.get('fecha_entrega', '').strip()
                 fecha_equipo = parse_date_safe(fecha_entrega_input) or date.today()
@@ -475,16 +537,22 @@ def confirmar_entrega(request, entrega_id):
 
                 RegistroAuditoria.objects.create(
                     usuario=request.user,
-                    accion=f"Confirmación de entrega #{entrega.id} para {entrega.nombre_beneficiario} con carga de evidencia fotográfica.",
+                    accion=f"Carga/actualización de evidencias ({contador_subidas} foto(s)) para entrega #{entrega.id} ({entrega.nombre_beneficiario}).",
                     modulo="Entregas",
                     timestamp=timezone.now()
                 )
-            
-            messages.success(request, "Evidencia agregada correctamente.")
+
+            if contador_subidas > 0:
+                messages.success(request, f"¡Éxito! Se cargaron {contador_subidas} evidencia(s) fotográfica(s) correctamente.")
+            elif eliminar_slot:
+                messages.info(request, "Evidencia eliminada correctamente.")
+            else:
+                messages.warning(request, "No se procesaron nuevas imágenes.")
         except Exception as e:
-            messages.error(request, f"Error al subir evidencia: {str(e)}")
+            logger.error(f"Error al procesar evidencias de entrega #{entrega_id}: {e}")
+            messages.error(request, f"Error al procesar evidencias: {str(e)}")
     else:
-        messages.error(request, "No se seleccionó ninguna imagen.")
+        messages.error(request, "Método de solicitud no válido.")
     return redirect('historial')
 
 @login_required

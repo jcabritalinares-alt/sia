@@ -192,20 +192,32 @@
                 <div class="p-3 rounded-4 border border-light-subtle h-100 d-flex flex-column bg-white position-relative" style="min-height: 290px;" id="boxChartDiario">
                     <div class="d-flex align-items-center justify-content-between mb-2 flex-wrap gap-2">
                         <div class="d-flex align-items-center gap-2">
-                            <span class="fw-bold small text-dark d-flex align-items-center gap-1.5">
-                                <i class="bi bi-graph-up text-primary"></i> Evolución Diaria de Entregas
+                            <span class="fw-bold small text-dark d-flex align-items-center gap-1.5" id="lblTituloGraficoDiario">
+                                <i class="bi bi-bar-chart-fill text-primary" id="iconoTipoGrafico"></i> <span id="textoTituloGrafico">Estadística de Entregas</span>
                             </span>
                             <span class="badge bg-secondary bg-opacity-10 text-secondary rounded-pill small" id="lblDetalleRango">Últimos 7 días</span>
                         </div>
 
-                        <!-- Selector de métrica en gráfico: Entregas vs Unidades -->
-                        <div class="btn-group btn-group-sm" role="group">
-                            <button type="button" class="btn btn-outline-secondary py-0.5 px-2 active fw-semibold" id="btnMetricaEntregas" onclick="cambiarMetricaGraficoDiario('entregas')" style="font-size: 0.75rem;">
-                                Por Entregas
-                            </button>
-                            <button type="button" class="btn btn-outline-secondary py-0.5 px-2 fw-semibold" id="btnMetricaUnidades" onclick="cambiarMetricaGraficoDiario('unidades')" style="font-size: 0.75rem;">
-                                Por Unidades
-                            </button>
+                        <div class="d-flex align-items-center gap-2 flex-wrap">
+                            <!-- Selector de Modo de Gráfico: Por Insumos ("Cada Cosa") vs Por Fechas (Evolución) -->
+                            <div class="btn-group btn-group-sm" role="group" aria-label="Modo de visualización">
+                                <button type="button" class="btn btn-outline-primary py-0.5 px-2 active fw-semibold" id="btnVistaInsumos" onclick="cambiarModoVistaGrafico('insumos')" title="Ver la cantidad entregada de cada insumo/cosa" style="font-size: 0.74rem;">
+                                    <i class="bi bi-boxes"></i> Por Insumos
+                                </button>
+                                <button type="button" class="btn btn-outline-primary py-0.5 px-2 fw-semibold" id="btnVistaFechas" onclick="cambiarModoVistaGrafico('fechas')" title="Ver evolución cronológica por fechas" style="font-size: 0.74rem;">
+                                    <i class="bi bi-calendar3"></i> Por Fechas
+                                </button>
+                            </div>
+
+                            <!-- Selector de métrica en gráfico: Cantidad (Unidades) vs Operaciones -->
+                            <div class="btn-group btn-group-sm" role="group" aria-label="Métrica">
+                                <button type="button" class="btn btn-outline-secondary py-0.5 px-2 active fw-semibold" id="btnMetricaUnidades" onclick="cambiarMetricaGraficoDiario('unidades')" style="font-size: 0.74rem;" title="Contar unidades despachadas de cada insumo">
+                                    Por Cantidad
+                                </button>
+                                <button type="button" class="btn btn-outline-secondary py-0.5 px-2 fw-semibold" id="btnMetricaEntregas" onclick="cambiarMetricaGraficoDiario('entregas')" style="font-size: 0.74rem;" title="Contar número de operaciones de entrega">
+                                    Por Operaciones
+                                </button>
+                            </div>
                         </div>
                     </div>
 
@@ -353,7 +365,7 @@
                 meta.data.forEach((bar, index) => {
                     const rawVal = dataset.data[index];
                     if (rawVal === undefined || rawVal === null) return;
-                    const text = Number(rawVal).toLocaleString();
+                    const text = Number(rawVal).toLocaleString() + ' unid.';
 
                     if (isHorizontal) {
                         // Modo Renglones (horizontal): bar.x es el extremo derecho, bar.y es el centro vertical
@@ -363,7 +375,7 @@
                         const barWidth = Math.abs(barTipX - bar.base);
 
                         // Si la barra llega cerca del borde derecho y es ancha, dibujar dentro en blanco
-                        if (barTipX + textWidth + 14 > chartArea.right && barWidth > textWidth + 20) {
+                        if (barTipX + textWidth + 14 > chartArea.right && barWidth > textWidth + 24) {
                             ctx.fillStyle = '#ffffff';
                             ctx.textAlign = 'right';
                             ctx.textBaseline = 'middle';
@@ -382,7 +394,7 @@
                         const barHeight = Math.abs(bar.base - barTipY);
 
                         // Si la barra está pegada al tope superior y es alta, dibujar dentro
-                        if (barTipY - 14 < chartArea.top && barHeight > 25) {
+                        if (barTipY - 16 < chartArea.top && barHeight > 28) {
                             ctx.fillStyle = '#ffffff';
                             ctx.textAlign = 'center';
                             ctx.textBaseline = 'top';
@@ -471,8 +483,8 @@
                 maintainAspectRatio: false,
                 layout: {
                     padding: {
-                        top: currentOrientation === 'x' ? 22 : 8,
-                        right: currentOrientation === 'y' ? 32 : 12,
+                        top: currentOrientation === 'x' ? 28 : 8,
+                        right: currentOrientation === 'y' ? 75 : 12,
                         bottom: 8,
                         left: 8
                     }
@@ -498,7 +510,7 @@
                 scales: currentOrientation === 'y' ? {
                     x: {
                         beginAtZero: true,
-                        grace: '15%',
+                        grace: '20%',
                         ticks: { 
                             color: textColor,
                             precision: 0,
@@ -516,7 +528,7 @@
                 } : {
                     y: {
                         beginAtZero: true,
-                        grace: '15%',
+                        grace: '20%',
                         ticks: { 
                             color: textColor,
                             precision: 0,
@@ -546,7 +558,8 @@
     // SECCIÓN: ESTADÍSTICAS Y TENDENCIA DE ENTREGAS (JS)
     // ========================================================
     let chartEntregasDiariasInstance = null;
-    let metricaActualDiario = 'entregas'; // 'entregas' o 'unidades'
+    let metricaActualDiario = 'unidades'; // 'unidades' (por cantidad de cosas, por defecto) o 'entregas' (operaciones)
+    let modoVistaActual = 'insumos'; // 'insumos' (la cantidad de cada cosa) o 'fechas' (cronológico)
     let filtroActual = '7d';
     let fechaInicioActual = '';
     let fechaFinActual = '';
@@ -558,10 +571,32 @@
         datosEstadisticasActuales = null;
     }
 
+    function cambiarModoVistaGrafico(modo) {
+        modoVistaActual = modo;
+        const btnInsumos = document.getElementById('btnVistaInsumos');
+        const btnFechas = document.getElementById('btnVistaFechas');
+        if (btnInsumos && btnFechas) {
+            if (modo === 'insumos') {
+                btnInsumos.classList.add('active');
+                btnFechas.classList.remove('active');
+            } else {
+                btnFechas.classList.add('active');
+                btnInsumos.classList.remove('active');
+            }
+        }
+        if (datosEstadisticasActuales) {
+            renderizarGraficoDiario(datosEstadisticasActuales);
+        }
+    }
+
     function aplicarFiltroEntregas(filtro, btnElement) {
         filtroActual = filtro;
         fechaInicioActual = '';
         fechaFinActual = '';
+
+        if (filtro === 'hoy') {
+            modoVistaActual = 'insumos';
+        }
 
         const grupo = document.getElementById('grupoFiltrosEntregas');
         if (grupo) {
@@ -760,15 +795,119 @@
         renderizarGraficoDiario(data);
     }
 
+    // Plugin para dibujar la cantidad numérica exacta sobre cada barra o punto del gráfico de entregas
+    const pluginValoresEntregas = {
+        id: 'pluginValoresEntregas',
+        afterDatasetsDraw(chart) {
+            const { ctx, chartArea } = chart;
+            const savedTheme = localStorage.getItem('sia_theme') || 'light';
+            const labelColor = savedTheme === 'dark' ? '#f8fafc' : '#0f172a';
+            const isBar = chart.config.type === 'bar';
+            const isUnidades = metricaActualDiario === 'unidades';
+            const suffix = isUnidades ? ' unid.' : ' op.';
+
+            ctx.save();
+            ctx.font = 'bold 11px "Plus Jakarta Sans", system-ui, -apple-system, sans-serif';
+
+            chart.data.datasets.forEach((dataset, datasetIndex) => {
+                const meta = chart.getDatasetMeta(datasetIndex);
+                if (meta.hidden) return;
+
+                meta.data.forEach((element, index) => {
+                    const rawVal = dataset.data[index];
+                    if (rawVal === undefined || rawVal === null) return;
+                    const text = Number(rawVal).toLocaleString() + suffix;
+
+                    if (isBar) {
+                        const barCenterX = element.x;
+                        const barTipY = element.y;
+                        const barHeight = Math.abs(element.base - barTipY);
+
+                        // Si la barra está pegada al borde superior y es alta, dibujar adentro
+                        if (barTipY - 18 < chartArea.top && barHeight > 30) {
+                            ctx.fillStyle = '#ffffff';
+                            ctx.textAlign = 'center';
+                            ctx.textBaseline = 'top';
+                            ctx.fillText(text, barCenterX, barTipY + 6);
+                        } else {
+                            // Dibujar justo encima de la barra
+                            ctx.fillStyle = labelColor;
+                            ctx.textAlign = 'center';
+                            ctx.textBaseline = 'bottom';
+                            ctx.fillText(text, barCenterX, barTipY - 6);
+                        }
+                    } else {
+                        // En gráfico de líneas, dibujar sobre los puntos si no hay demasiadas fechas
+                        if (chart.data.labels.length <= 31) {
+                            const pointX = element.x;
+                            const pointY = element.y;
+                            ctx.fillStyle = labelColor;
+                            ctx.textAlign = 'center';
+                            if (pointY - 16 < chartArea.top) {
+                                ctx.textBaseline = 'top';
+                                ctx.fillText(text, pointX, pointY + 8);
+                            } else {
+                                ctx.textBaseline = 'bottom';
+                                ctx.fillText(text, pointX, pointY - 8);
+                            }
+                        }
+                    }
+                });
+            });
+            ctx.restore();
+        }
+    };
+
     function renderizarGraficoDiario(data) {
         const canvas = document.getElementById('graficoEntregasDiarias');
         if (!canvas) return;
         const ctxDiario = canvas.getContext('2d');
         const emptyState = document.getElementById('emptyGraficoDiario');
 
-        const labels = data.chart_labels || [];
         const isEntregas = metricaActualDiario === 'entregas';
-        const values = isEntregas ? (data.chart_entregas || []) : (data.chart_unidades || []);
+        const isModoInsumos = modoVistaActual === 'insumos';
+
+        // Determinar etiquetas y valores según el modo de vista ("insumos" vs "fechas")
+        let labels = [];
+        let values = [];
+        let chartType = 'bar';
+
+        if (isModoInsumos) {
+            labels = (data.prods_labels && data.prods_labels.length > 0) ? data.prods_labels : (data.chart_labels || []);
+            values = isEntregas ? 
+                ((data.prods_entregas && data.prods_entregas.length > 0) ? data.prods_entregas : (data.chart_entregas || [])) :
+                ((data.prods_unidades && data.prods_unidades.length > 0) ? data.prods_unidades : (data.chart_unidades || []));
+            chartType = 'bar';
+        } else {
+            labels = (data.fechas_labels && data.fechas_labels.length > 0) ? data.fechas_labels : (data.chart_labels || []);
+            values = isEntregas ? 
+                ((data.fechas_entregas && data.fechas_entregas.length > 0) ? data.fechas_entregas : (data.chart_entregas || [])) :
+                ((data.fechas_unidades && data.fechas_unidades.length > 0) ? data.fechas_unidades : (data.chart_unidades || []));
+            chartType = labels.length <= 2 ? 'bar' : 'line';
+        }
+
+        // Actualizar icono y texto del título del gráfico
+        const textoTitulo = document.getElementById('textoTituloGrafico');
+        const iconoTipo = document.getElementById('iconoTipoGrafico');
+        if (textoTitulo) {
+            textoTitulo.textContent = isModoInsumos ? 'Cantidad de Insumos Entregados' : 'Evolución Temporal de Entregas';
+        }
+        if (iconoTipo) {
+            iconoTipo.className = isModoInsumos ? 'bi bi-boxes text-primary' : 'bi bi-graph-up text-primary';
+        }
+
+        // Actualizar botones de modo de vista
+        const btnInsumos = document.getElementById('btnVistaInsumos');
+        const btnFechas = document.getElementById('btnVistaFechas');
+        if (btnInsumos && btnFechas) {
+            if (isModoInsumos) {
+                btnInsumos.classList.add('active');
+                btnFechas.classList.remove('active');
+            } else {
+                btnFechas.classList.add('active');
+                btnInsumos.classList.remove('active');
+            }
+        }
 
         // Solo mostramos overlay vacío si no hay etiquetas en absoluto
         if (labels.length === 0) {
@@ -792,7 +931,6 @@
         const textColor = savedTheme === 'dark' ? '#cbd5e1' : '#475569';
         const gridColor = savedTheme === 'dark' ? 'rgba(51, 65, 85, 0.4)' : 'rgba(226, 232, 240, 0.7)';
 
-        const chartType = data.chart_tipo || (labels.length <= 2 ? 'bar' : 'line');
         const borderColor = isEntregas ? '#4f46e5' : '#10b981';
         const labelMetrica = isEntregas ? 'Entregas registradas' : 'Unidades despachadas';
 
@@ -851,9 +989,18 @@
                 labels: labels,
                 datasets: [datasetConfig]
             },
+            plugins: [pluginValoresEntregas],
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
+                layout: {
+                    padding: {
+                        top: 28, // Espacio superior para las cantidades impresas sobre las barras/puntos
+                        right: 18,
+                        bottom: 8,
+                        left: 8
+                    }
+                },
                 interaction: {
                     intersect: false,
                     mode: 'index',
@@ -885,12 +1032,12 @@
                             font: { family: 'Plus Jakarta Sans', size: 11 },
                             maxRotation: 45,
                             autoSkip: true,
-                            maxTicksLimit: 14
+                            maxTicksLimit: isModoInsumos ? 16 : 14
                         }
                     },
                     y: {
                         beginAtZero: true,
-                        grace: '10%',
+                        grace: '20%', // Holgura vertical para que los números no se corten en el techo
                         grid: { color: gridColor },
                         ticks: {
                             precision: 0,

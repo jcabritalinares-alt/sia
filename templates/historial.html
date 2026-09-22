@@ -152,15 +152,26 @@
                     </td>
                     <td class="align-middle no-print">
                         {% if e.urls_evidencia %}
-                            {% for url in e.urls_evidencia %}
-                                <a href="{{ url }}" target="_blank" class="link-evidencia-foto btn btn-sm btn-outline-info mb-1 d-flex align-items-center gap-1 rounded-3">
-                                    <i class="bi bi-image"></i> Foto {{ forloop.counter }}
-                                </a>
-                            {% endfor %}
+                            <div class="d-flex flex-column gap-1 mb-1">
+                                {% for url in e.urls_evidencia %}
+                                    <a href="{{ url }}" target="_blank" class="link-evidencia-foto btn btn-sm btn-outline-info py-0.5 px-2 d-flex align-items-center justify-content-between rounded-3" title="Ver foto {{ forloop.counter }} en tamaño completo">
+                                        <span class="small fw-semibold"><i class="bi bi-image me-1"></i>Foto {{ forloop.counter }}</span>
+                                        <i class="bi bi-box-arrow-up-right" style="font-size: 0.7rem;"></i>
+                                    </a>
+                                {% endfor %}
+                            </div>
                         {% endif %}
-                        {% if e.urls_evidencia|length < 3 %}
-                            <button class="btn btn-sm {% if not e.urls_evidencia %}btn-outline-success{% else %}btn-outline-warning{% endif %} w-100 rounded-3 mt-1" data-bs-toggle="modal" data-bs-target="#modalEvidencia{{ e.id }}">
-                                <i class="bi bi-camera-fill me-1"></i> {% if not e.urls_evidencia %}Cargar{% else %}Agregar{% endif %}
+                        {% if e.urls_evidencia|length == 0 %}
+                            <button class="btn btn-sm btn-outline-success w-100 rounded-3 py-1 shadow-xs d-flex align-items-center justify-content-center gap-1" data-bs-toggle="modal" data-bs-target="#modalEvidencia{{ e.id }}" title="Cargar todas las evidencias fotográficas (hasta 3 fotos)">
+                                <i class="bi bi-camera-fill"></i> <span class="small fw-bold">Cargar (0/3)</span>
+                            </button>
+                        {% elif e.urls_evidencia|length < 3 %}
+                            <button class="btn btn-sm btn-outline-warning w-100 rounded-3 py-1 shadow-xs d-flex align-items-center justify-content-center gap-1 text-dark fw-bold" data-bs-toggle="modal" data-bs-target="#modalEvidencia{{ e.id }}" title="Cargar las fotos que faltan o todas al mismo tiempo">
+                                <i class="bi bi-plus-circle-fill text-warning"></i> <span class="small">{% if e.urls_evidencia|length == 1 %}Faltan 2 (1/3){% else %}Falta 1 (2/3){% endif %}</span>
+                            </button>
+                        {% else %}
+                            <button class="btn btn-sm btn-outline-secondary w-100 rounded-3 py-1 shadow-xs d-flex align-items-center justify-content-center gap-1" data-bs-toggle="modal" data-bs-target="#modalEvidencia{{ e.id }}" title="Ver o gestionar las 3 fotos de evidencia">
+                                <i class="bi bi-images text-primary"></i> <span class="small fw-semibold">Gestionar (3/3)</span>
                             </button>
                         {% endif %}
                     </td>
@@ -251,24 +262,226 @@
 </div>
 
 <!-- Modales de Evidencia -->
+<!-- Modales de Evidencia -->
 {% for e in entregas %}
     <div class="modal fade" id="modalEvidencia{{ e.id }}" data-bs-backdrop="static" tabindex="-1">
-        <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
             <form method="POST" action="{% url 'confirmar_entrega' e.id %}" class="form-evidencia" enctype="multipart/form-data">
                 {% csrf_token %}
-                <div class="modal-content border-0 shadow-lg rounded-4">
-                    <div class="modal-header border-bottom pb-2">
-                        <h5 class="modal-title fw-bold text-dark"><i class="bi bi-camera-fill text-primary me-2"></i>Cargar Foto de Evidencia</h5>
+                <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
+                    <div class="modal-header bg-light border-bottom py-3">
+                        <div>
+                            <h5 class="modal-title fw-bold text-dark d-flex align-items-center gap-2 mb-1">
+                                <i class="bi bi-camera-fill text-primary"></i> Gestionar Evidencias Fotográficas
+                            </h5>
+                            <span class="small text-muted d-block">
+                                Entrega #{{ e.id }} · Beneficiario: <strong>{{ e.nombre_beneficiario }}</strong> (C.I: {{ e.cedula }}) · Insumo: <strong>{{ e.descripcion_prod }}</strong>
+                            </span>
+                        </div>
                         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                     </div>
-                    <div class="modal-body py-3">
+
+                    <div class="modal-body p-3 p-md-4">
                         <input type="hidden" name="fecha_entrega" class="input-fecha-equipo" value="">
-                        <label class="form-label small text-muted">Selecciona la imagen de respaldo para la entrega:</label>
-                        <input type="file" name="evidencia" class="form-control" accept="image/*" required>
+                        <input type="hidden" name="eliminar_slot" id="inputEliminarSlot_{{ e.id }}" value="">
+
+                        <!-- Indicador general de capacidad -->
+                        <div class="d-flex align-items-center justify-content-between p-2.5 px-3 rounded-3 bg-light border mb-3 flex-wrap gap-2">
+                            <div class="d-flex align-items-center gap-2">
+                                <i class="bi bi-info-circle-fill text-primary"></i>
+                                <span class="small fw-semibold text-dark">Límite oficial: hasta 3 fotos de evidencia por entrega</span>
+                            </div>
+                            <div>
+                                {% if e.urls_evidencia|length == 3 %}
+                                    <span class="badge bg-success rounded-pill px-3 py-1.5"><i class="bi bi-check-all me-1"></i> Completo (3 de 3 fotos cargadas)</span>
+                                {% elif e.urls_evidencia|length == 2 %}
+                                    <span class="badge bg-warning text-dark rounded-pill px-3 py-1.5"><i class="bi bi-camera me-1"></i> Falta 1 foto (2 de 3 cargadas)</span>
+                                {% elif e.urls_evidencia|length == 1 %}
+                                    <span class="badge bg-warning text-dark rounded-pill px-3 py-1.5"><i class="bi bi-camera me-1"></i> Faltan 2 fotos (1 de 3 cargadas)</span>
+                                {% else %}
+                                    <span class="badge bg-secondary rounded-pill px-3 py-1.5"><i class="bi bi-camera me-1"></i> Faltan 3 fotos (0 de 3 cargadas)</span>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        {% if e.urls_evidencia|length < 3 %}
+                        <!-- 1. Carga Múltiple Simultánea: Subir todas a la vez o las que falten -->
+                        <div class="p-3 mb-4 rounded-4 border-2 border-dashed border-primary bg-primary bg-opacity-10">
+                            <div class="d-flex align-items-center gap-3 mb-2">
+                                <div class="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center flex-shrink-0" style="width: 42px; height: 42px;">
+                                    <i class="bi bi-cloud-arrow-up-fill fs-5"></i>
+                                </div>
+                                <div class="flex-grow-1">
+                                    <h6 class="fw-bold mb-0 text-dark">Cargar todas al mismo tiempo (Selección Múltiple)</h6>
+                                    <small class="text-muted">
+                                        Selecciona 
+                                        {% if e.urls_evidencia|length == 0 %}hasta 3 fotos{% elif e.urls_evidencia|length == 1 %}las 2 fotos faltantes{% else %}la foto faltante{% endif %}
+                                        de una sola vez desde tu equipo o dispositivo móvil:
+                                    </small>
+                                </div>
+                            </div>
+                            <input type="file" name="evidencias" id="inputLote{{ e.id }}" class="form-control" accept="image/*" multiple onchange="previsualizarLoteEvidencias(this, '{{ e.id }}')">
+                            <div id="previewLoteContainer{{ e.id }}" class="mt-2.5 d-none">
+                                <span class="small fw-bold text-success d-block mb-1.5"><i class="bi bi-check-circle-fill me-1"></i> Fotos seleccionadas listas para subirse:</span>
+                                <div id="previewLoteGrid{{ e.id }}" class="d-flex flex-wrap gap-2"></div>
+                            </div>
+                        </div>
+                        {% endif %}
+
+                        <!-- 2. Desglose individual de Slots de Evidencia -->
+                        <div class="d-flex align-items-center justify-content-between mb-2">
+                            <span class="small fw-bold text-secondary text-uppercase" style="letter-spacing: 0.5px;">
+                                <i class="bi bi-collection me-1"></i> Detalle por Foto de Evidencia
+                            </span>
+                            <small class="text-muted">Puedes cargar o reemplazar fotos individualmente</small>
+                        </div>
+
+                        <div class="row g-3">
+                            <!-- Slot 1 -->
+                            <div class="col-12 col-md-4">
+                                <div class="p-2.5 rounded-3 border bg-white h-100 d-flex flex-column justify-content-between shadow-xs">
+                                    <div class="d-flex justify-content-between align-items-center mb-2">
+                                        <span class="fw-bold small text-dark"><i class="bi bi-1-circle-fill text-primary me-1"></i> Foto 1</span>
+                                        {% if e.url_evidencia_1 %}
+                                            <span class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25 rounded-pill small">Cargada</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary bg-opacity-10 text-secondary border rounded-pill small">Faltante</span>
+                                        {% endif %}
+                                    </div>
+
+                                    {% if e.url_evidencia_1 %}
+                                        <div class="position-relative text-center mb-2 overflow-hidden rounded-2 border bg-light" style="height: 110px;">
+                                            <img src="{{ e.url_evidencia_1 }}" class="w-100 h-100 object-fit-cover" alt="Evidencia 1">
+                                            <a href="{{ e.url_evidencia_1 }}" target="_blank" class="position-absolute bottom-0 start-0 end-0 bg-dark bg-opacity-75 text-white py-1 small text-decoration-none" title="Ver foto completa">
+                                                <i class="bi bi-zoom-in me-1"></i> Ver grande
+                                            </a>
+                                        </div>
+                                        <div class="mt-auto">
+                                            <div class="d-flex gap-1">
+                                                <button type="button" class="btn btn-sm btn-outline-secondary flex-grow-1 py-1 small d-flex align-items-center justify-content-center gap-1" onclick="toggleReemplazoSlot('{{ e.id }}', 1)">
+                                                    <i class="bi bi-arrow-repeat"></i> Reemplazar
+                                                </button>
+                                                <button type="button" class="btn btn-sm btn-outline-danger py-1 px-2 small" onclick="eliminarEvidenciaSlot('{{ e.id }}', 1)" title="Eliminar Foto 1">
+                                                    <i class="bi bi-trash"></i>
+                                                </button>
+                                            </div>
+                                            <div id="boxReemplazo_{{ e.id }}_1" class="mt-1.5 d-none">
+                                                <label class="form-label small text-muted mb-0">Nueva Foto 1:</label>
+                                                <input type="file" name="evidencia_1" class="form-control form-control-sm" accept="image/*">
+                                            </div>
+                                        </div>
+                                    {% else %}
+                                        <div class="border border-dashed rounded-3 p-3 text-center bg-light mb-2 d-flex flex-column align-items-center justify-content-center" style="height: 110px;">
+                                            <i class="bi bi-camera text-muted fs-3 mb-1"></i>
+                                            <span class="small text-muted">Sin foto asignada</span>
+                                        </div>
+                                        <div class="mt-auto">
+                                            <label class="form-label small text-muted mb-1">Subir Foto 1:</label>
+                                            <input type="file" name="evidencia_1" class="form-control form-control-sm" accept="image/*">
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+
+                            <!-- Slot 2 -->
+                            <div class="col-12 col-md-4">
+                                <div class="p-2.5 rounded-3 border bg-white h-100 d-flex flex-column justify-content-between shadow-xs">
+                                    <div class="d-flex justify-content-between align-items-center mb-2">
+                                        <span class="fw-bold small text-dark"><i class="bi bi-2-circle-fill text-primary me-1"></i> Foto 2</span>
+                                        {% if e.url_evidencia_2 %}
+                                            <span class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25 rounded-pill small">Cargada</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary bg-opacity-10 text-secondary border rounded-pill small">Faltante</span>
+                                        {% endif %}
+                                    </div>
+
+                                    {% if e.url_evidencia_2 %}
+                                        <div class="position-relative text-center mb-2 overflow-hidden rounded-2 border bg-light" style="height: 110px;">
+                                            <img src="{{ e.url_evidencia_2 }}" class="w-100 h-100 object-fit-cover" alt="Evidencia 2">
+                                            <a href="{{ e.url_evidencia_2 }}" target="_blank" class="position-absolute bottom-0 start-0 end-0 bg-dark bg-opacity-75 text-white py-1 small text-decoration-none" title="Ver foto completa">
+                                                <i class="bi bi-zoom-in me-1"></i> Ver grande
+                                            </a>
+                                        </div>
+                                        <div class="mt-auto">
+                                            <div class="d-flex gap-1">
+                                                <button type="button" class="btn btn-sm btn-outline-secondary flex-grow-1 py-1 small d-flex align-items-center justify-content-center gap-1" onclick="toggleReemplazoSlot('{{ e.id }}', 2)">
+                                                    <i class="bi bi-arrow-repeat"></i> Reemplazar
+                                                </button>
+                                                <button type="button" class="btn btn-sm btn-outline-danger py-1 px-2 small" onclick="eliminarEvidenciaSlot('{{ e.id }}', 2)" title="Eliminar Foto 2">
+                                                    <i class="bi bi-trash"></i>
+                                                </button>
+                                            </div>
+                                            <div id="boxReemplazo_{{ e.id }}_2" class="mt-1.5 d-none">
+                                                <label class="form-label small text-muted mb-0">Nueva Foto 2:</label>
+                                                <input type="file" name="evidencia_2" class="form-control form-control-sm" accept="image/*">
+                                            </div>
+                                        </div>
+                                    {% else %}
+                                        <div class="border border-dashed rounded-3 p-3 text-center bg-light mb-2 d-flex flex-column align-items-center justify-content-center" style="height: 110px;">
+                                            <i class="bi bi-camera text-muted fs-3 mb-1"></i>
+                                            <span class="small text-muted">Sin foto asignada</span>
+                                        </div>
+                                        <div class="mt-auto">
+                                            <label class="form-label small text-muted mb-1">Subir Foto 2:</label>
+                                            <input type="file" name="evidencia_2" class="form-control form-control-sm" accept="image/*">
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+
+                            <!-- Slot 3 -->
+                            <div class="col-12 col-md-4">
+                                <div class="p-2.5 rounded-3 border bg-white h-100 d-flex flex-column justify-content-between shadow-xs">
+                                    <div class="d-flex justify-content-between align-items-center mb-2">
+                                        <span class="fw-bold small text-dark"><i class="bi bi-3-circle-fill text-primary me-1"></i> Foto 3</span>
+                                        {% if e.url_evidencia_3 %}
+                                            <span class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25 rounded-pill small">Cargada</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary bg-opacity-10 text-secondary border rounded-pill small">Faltante</span>
+                                        {% endif %}
+                                    </div>
+
+                                    {% if e.url_evidencia_3 %}
+                                        <div class="position-relative text-center mb-2 overflow-hidden rounded-2 border bg-light" style="height: 110px;">
+                                            <img src="{{ e.url_evidencia_3 }}" class="w-100 h-100 object-fit-cover" alt="Evidencia 3">
+                                            <a href="{{ e.url_evidencia_3 }}" target="_blank" class="position-absolute bottom-0 start-0 end-0 bg-dark bg-opacity-75 text-white py-1 small text-decoration-none" title="Ver foto completa">
+                                                <i class="bi bi-zoom-in me-1"></i> Ver grande
+                                            </a>
+                                        </div>
+                                        <div class="mt-auto">
+                                            <div class="d-flex gap-1">
+                                                <button type="button" class="btn btn-sm btn-outline-secondary flex-grow-1 py-1 small d-flex align-items-center justify-content-center gap-1" onclick="toggleReemplazoSlot('{{ e.id }}', 3)">
+                                                    <i class="bi bi-arrow-repeat"></i> Reemplazar
+                                                </button>
+                                                <button type="button" class="btn btn-sm btn-outline-danger py-1 px-2 small" onclick="eliminarEvidenciaSlot('{{ e.id }}', 3)" title="Eliminar Foto 3">
+                                                    <i class="bi bi-trash"></i>
+                                                </button>
+                                            </div>
+                                            <div id="boxReemplazo_{{ e.id }}_3" class="mt-1.5 d-none">
+                                                <label class="form-label small text-muted mb-0">Nueva Foto 3:</label>
+                                                <input type="file" name="evidencia_3" class="form-control form-control-sm" accept="image/*">
+                                            </div>
+                                        </div>
+                                    {% else %}
+                                        <div class="border border-dashed rounded-3 p-3 text-center bg-light mb-2 d-flex flex-column align-items-center justify-content-center" style="height: 110px;">
+                                            <i class="bi bi-camera text-muted fs-3 mb-1"></i>
+                                            <span class="small text-muted">Sin foto asignada</span>
+                                        </div>
+                                        <div class="mt-auto">
+                                            <label class="form-label small text-muted mb-1">Subir Foto 3:</label>
+                                            <input type="file" name="evidencia_3" class="form-control form-control-sm" accept="image/*">
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
                     </div>
-                    <div class="modal-footer border-top pt-2">
-                        <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancelar</button>
-                        <button type="submit" class="btn btn-primary-custom">Subir Evidencia</button>
+
+                    <div class="modal-footer bg-light border-top py-2.5 justify-content-between">
+                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cerrar</button>
+                        <button type="submit" class="btn btn-primary-custom px-4 fw-bold shadow-sm" id="btnSubmitEvidencia{{ e.id }}">
+                            <i class="bi bi-cloud-arrow-up-fill me-1"></i> Guardar Evidencias
+                        </button>
                     </div>
                 </div>
             </form>
@@ -1042,5 +1255,86 @@
                 }
             });
     }
+
+    // --- GESTIÓN AVANZADA DE EVIDENCIAS FOTOGRÁFICAS ---
+
+    // 1. Previsualización inmediata de imágenes seleccionadas en lote
+    function previsualizarLoteEvidencias(input, entregaId) {
+        const container = document.getElementById('previewLoteContainer' + entregaId);
+        const grid = document.getElementById('previewLoteGrid' + entregaId);
+        if (!container || !grid) return;
+
+        grid.innerHTML = '';
+        const files = input.files;
+        if (!files || files.length === 0) {
+            container.classList.add('d-none');
+            return;
+        }
+
+        container.classList.remove('d-none');
+        Array.from(files).forEach((file, index) => {
+            if (!file.type.startsWith('image/')) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const item = document.createElement('div');
+                item.className = 'position-relative border rounded-2 overflow-hidden shadow-xs';
+                item.style.width = '75px';
+                item.style.height = '75px';
+                item.innerHTML = `
+                    <img src="${e.target.result}" class="w-100 h-100 object-fit-cover" alt="Previa ${index + 1}">
+                    <span class="position-absolute bottom-0 start-0 end-0 bg-dark bg-opacity-75 text-white text-center fw-bold" style="font-size: 0.65rem; padding: 1px 0;">
+                        Foto ${index + 1}
+                    </span>
+                `;
+                grid.appendChild(item);
+            };
+            reader.readAsDataURL(file);
+        });
+    }
+
+    // 2. Alternar visibilidad de caja de reemplazo individual por slot
+    function toggleReemplazoSlot(entregaId, slotNum) {
+        const box = document.getElementById(`boxReemplazo_${entregaId}_${slotNum}`);
+        if (!box) return;
+        if (box.classList.contains('d-none')) {
+            box.classList.remove('d-none');
+            const fileInput = box.querySelector('input[type="file"]');
+            if (fileInput) fileInput.focus();
+        } else {
+            box.classList.add('d-none');
+        }
+    }
+
+    // 3. Eliminar individualmente una foto de evidencia existente
+    function eliminarEvidenciaSlot(entregaId, slotNum) {
+        if (confirm(`¿Estás seguro de que deseas eliminar la Foto ${slotNum} de esta entrega?`)) {
+            const inputEliminar = document.getElementById('inputEliminarSlot_' + entregaId);
+            if (inputEliminar) {
+                inputEliminar.value = slotNum;
+                const form = inputEliminar.closest('form');
+                if (form) {
+                    const btnSubmit = form.querySelector('button[type="submit"]');
+                    if (btnSubmit) {
+                        btnSubmit.disabled = true;
+                        btnSubmit.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span> Eliminando foto...';
+                    }
+                    form.submit();
+                }
+            }
+        }
+    }
+
+    // 4. Prevenir doble envío y mostrar spinner en subida de evidencias
+    document.addEventListener('DOMContentLoaded', function() {
+        document.querySelectorAll('.form-evidencia').forEach(form => {
+            form.addEventListener('submit', function(e) {
+                const submitBtn = this.querySelector('button[type="submit"]');
+                if (submitBtn && !submitBtn.disabled) {
+                    submitBtn.disabled = true;
+                    submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span> Subiendo evidencias...';
+                }
+            });
+        });
+    });
 </script>
 {% endblock %}
