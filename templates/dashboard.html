@@ -131,12 +131,10 @@
                     </div>
                 </div>
 
-                <!-- Filtro de Estado -->
-                <select class="form-select form-select-sm fw-semibold rounded-3 border-secondary border-opacity-25" id="selectStatusEntrega" style="width: auto;" onchange="recargarEstadisticasEntregas()">
-                    <option value="todos">Todos los Estados</option>
-                    <option value="Entregado">Solo Entregados</option>
-                    <option value="Pendiente">Solo Pendientes</option>
-                </select>
+                <!-- Indicador fijo de Estatus: Entregado -->
+                <span class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25 py-1.5 px-2.5 rounded-3 fw-semibold small d-inline-flex align-items-center gap-1.5 shadow-xs" title="Solo se contabilizan entregas completadas">
+                    <i class="bi bi-check-circle-fill"></i> Estatus: Entregado
+                </span>
             </div>
         </div>
 
@@ -629,14 +627,11 @@
             loader.classList.add('d-flex');
         }
 
-        const statusSelect = document.getElementById('selectStatusEntrega');
-        const statusVal = statusSelect ? statusSelect.value : 'todos';
-
         const params = new URLSearchParams({
             filtro: filtroActual,
             fecha_inicio: fechaInicioActual,
             fecha_fin: fechaFinActual,
-            status: statusVal
+            status: 'Entregado'
         });
 
         fetch(`/api/estadisticas-entregas-dashboard/?${params.toString()}`)
@@ -697,25 +692,25 @@
 
         // Etiqueta descriptiva del período
         let textoFiltro = '7 Días';
-        let textoDetalle = 'Últimos 7 días';
+        let textoDetalle = data.chart_subtitulo || 'Últimos 7 días';
         if (data.filtro === 'hoy') {
             textoFiltro = 'Hoy';
-            textoDetalle = 'Entregas del día de hoy';
+            if (!data.chart_subtitulo) textoDetalle = 'Entregas del día de hoy';
         } else if (data.filtro === '7d') {
             textoFiltro = '7 Días';
-            textoDetalle = 'Últimos 7 días';
+            if (!data.chart_subtitulo) textoDetalle = 'Últimos 7 días';
         } else if (data.filtro === '30d') {
             textoFiltro = '30 Días';
-            textoDetalle = 'Últimos 30 días';
+            if (!data.chart_subtitulo) textoDetalle = 'Últimos 30 días';
         } else if (data.filtro === 'mes') {
             textoFiltro = 'Este Mes';
-            textoDetalle = 'Mes en curso';
+            if (!data.chart_subtitulo) textoDetalle = 'Mes en curso';
         } else if (data.filtro === 'todos') {
             textoFiltro = 'Histórico';
-            textoDetalle = 'Todo el historial acumulado';
+            if (!data.chart_subtitulo) textoDetalle = 'Todo el historial acumulado';
         } else if (data.filtro === 'personalizado') {
             textoFiltro = 'Rango';
-            textoDetalle = `${data.fecha_desde || 'Inicio'} al ${data.fecha_hasta || 'Hoy'}`;
+            if (!data.chart_subtitulo) textoDetalle = `${data.fecha_desde || 'Inicio'} al ${data.fecha_hasta || 'Hoy'}`;
         }
 
         if (elBadge) elBadge.textContent = textoFiltro;
@@ -729,7 +724,7 @@
                 contenedorTop.innerHTML = `
                     <div class="d-flex flex-column align-items-center justify-content-center h-100 py-4 text-muted">
                         <i class="bi bi-box-seam fs-3 opacity-50 mb-1"></i>
-                        <span class="small fw-semibold">Sin insumos despachados</span>
+                        <span class="small fw-semibold">Sin insumos despachados hoy</span>
                     </div>
                 `;
             } else {
@@ -774,13 +769,18 @@
         const labels = data.chart_labels || [];
         const isEntregas = metricaActualDiario === 'entregas';
         const values = isEntregas ? (data.chart_entregas || []) : (data.chart_unidades || []);
-        const totalVal = values.reduce((acc, curr) => acc + curr, 0);
 
-        if (values.length === 0 || totalVal === 0) {
+        // Solo mostramos overlay vacío si no hay etiquetas en absoluto
+        if (labels.length === 0) {
             if (emptyState) {
                 emptyState.classList.remove('d-none');
                 emptyState.classList.add('d-flex');
             }
+            if (chartEntregasDiariasInstance) {
+                chartEntregasDiariasInstance.destroy();
+                chartEntregasDiariasInstance = null;
+            }
+            return;
         } else {
             if (emptyState) {
                 emptyState.classList.add('d-none');
@@ -792,40 +792,64 @@
         const textColor = savedTheme === 'dark' ? '#cbd5e1' : '#475569';
         const gridColor = savedTheme === 'dark' ? 'rgba(51, 65, 85, 0.4)' : 'rgba(226, 232, 240, 0.7)';
 
-        const gradient = ctxDiario.createLinearGradient(0, 0, 0, 220);
-        if (isEntregas) {
-            gradient.addColorStop(0, 'rgba(79, 70, 229, 0.75)');
-            gradient.addColorStop(1, 'rgba(79, 70, 229, 0.04)');
+        const chartType = data.chart_tipo || (labels.length <= 2 ? 'bar' : 'line');
+        const borderColor = isEntregas ? '#4f46e5' : '#10b981';
+        const labelMetrica = isEntregas ? 'Entregas registradas' : 'Unidades despachadas';
+
+        // Gradiente adaptado al tipo de gráfico
+        let gradient;
+        if (chartType === 'bar') {
+            gradient = ctxDiario.createLinearGradient(0, 0, 0, 220);
+            if (isEntregas) {
+                gradient.addColorStop(0, 'rgba(79, 70, 229, 0.9)');
+                gradient.addColorStop(1, 'rgba(79, 70, 229, 0.35)');
+            } else {
+                gradient.addColorStop(0, 'rgba(16, 185, 129, 0.9)');
+                gradient.addColorStop(1, 'rgba(16, 185, 129, 0.35)');
+            }
         } else {
-            gradient.addColorStop(0, 'rgba(16, 185, 129, 0.75)');
-            gradient.addColorStop(1, 'rgba(16, 185, 129, 0.04)');
+            gradient = ctxDiario.createLinearGradient(0, 0, 0, 220);
+            if (isEntregas) {
+                gradient.addColorStop(0, 'rgba(79, 70, 229, 0.75)');
+                gradient.addColorStop(1, 'rgba(79, 70, 229, 0.04)');
+            } else {
+                gradient.addColorStop(0, 'rgba(16, 185, 129, 0.75)');
+                gradient.addColorStop(1, 'rgba(16, 185, 129, 0.04)');
+            }
         }
 
         if (chartEntregasDiariasInstance) {
             chartEntregasDiariasInstance.destroy();
         }
 
-        const borderColor = isEntregas ? '#4f46e5' : '#10b981';
-        const labelMetrica = isEntregas ? 'Entregas registradas' : 'Unidades despachadas';
+        const datasetConfig = {
+            label: labelMetrica,
+            data: values,
+            borderColor: borderColor,
+            backgroundColor: gradient,
+            borderWidth: chartType === 'bar' ? 1.5 : 2.5,
+        };
+
+        if (chartType === 'line') {
+            datasetConfig.fill = true;
+            datasetConfig.tension = 0.35;
+            datasetConfig.pointBackgroundColor = borderColor;
+            datasetConfig.pointBorderColor = '#ffffff';
+            datasetConfig.pointBorderWidth = 2;
+            datasetConfig.pointRadius = labels.length > 25 ? 2.5 : 4.5;
+            datasetConfig.pointHoverRadius = 6;
+        } else {
+            datasetConfig.borderRadius = 8;
+            datasetConfig.borderSkipped = false;
+            datasetConfig.barPercentage = labels.length === 1 ? 0.35 : Math.min(0.65, 0.85 / Math.max(1, labels.length * 0.12));
+            datasetConfig.categoryPercentage = 0.8;
+        }
 
         chartEntregasDiariasInstance = new Chart(ctxDiario, {
-            type: 'line',
+            type: chartType,
             data: {
                 labels: labels,
-                datasets: [{
-                    label: labelMetrica,
-                    data: values,
-                    borderColor: borderColor,
-                    backgroundColor: gradient,
-                    borderWidth: 2.5,
-                    fill: true,
-                    tension: 0.35,
-                    pointBackgroundColor: borderColor,
-                    pointBorderColor: '#ffffff',
-                    pointBorderWidth: 2,
-                    pointRadius: labels.length > 25 ? 2.5 : 4.5,
-                    pointHoverRadius: 6,
-                }]
+                datasets: [datasetConfig]
             },
             options: {
                 responsive: true,

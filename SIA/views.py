@@ -22,55 +22,71 @@ import json
 from datetime import date, timedelta, datetime
 from django.utils import timezone
 from django.db.models import Sum, Count, Q
+from django.db.models.functions import Coalesce
 
 from SIA.models import SIA_producto, EntradaInventario, DetalleEntradaInventario
 from entregas.models import BeneficioEntregado
 from core.models import RegistroAuditoria
 from core.utils import registrar_auditoria, obtener_url_inicio_usuario, parse_date_safe
 
-def obtener_datos_estadisticas_entregas(filtro='7d', fecha_inicio_str=None, fecha_fin_str=None, status_filtro='todos'):
+def obtener_datos_estadisticas_entregas(filtro='7d', fecha_inicio_str=None, fecha_fin_str=None, status_filtro='Entregado'):
     """
     Calcula estadísticas agregadas y series temporales diarias de entregas
     para el Dashboard según el filtro seleccionado (hoy, 7d, 30d, mes, personalizado, todos).
+    Filtra y contabiliza de manera exclusiva los registros con estatus 'Entregado'.
     """
     hoy = timezone.localdate() if hasattr(timezone, 'localdate') else date.today()
-    qs = BeneficioEntregado.objects.all()
+    
+    # Filtro estricto: solo beneficios con estatus 'Entregado'
+    # Usamos Coalesce para tomar fecha_entrega si existe, de lo contrario fecha de registro
+    qs = BeneficioEntregado.objects.filter(status__iexact='Entregado').annotate(
+        fecha_efectiva=Coalesce('fecha_entrega', 'fecha')
+    )
 
-    # Filtro opcional por Estado de Entrega
-    if status_filtro and status_filtro != 'todos':
-        qs = qs.filter(status__iexact=status_filtro)
-
-    # Determinación del rango temporal
     fecha_desde = None
     fecha_hasta = hoy
+    chart_tipo = 'line'
+    chart_subtitulo = ''
 
     if filtro == 'hoy':
         fecha_desde = hoy
         fecha_hasta = hoy
-        qs = qs.filter(fecha=hoy)
+        qs = qs.filter(Q(fecha_efectiva=hoy) | Q(fecha=hoy) | Q(fecha_entrega=hoy))
     elif filtro == '7d':
         fecha_desde = hoy - timedelta(days=6)
         fecha_hasta = hoy
-        qs = qs.filter(fecha__gte=fecha_desde, fecha__lte=fecha_hasta)
+        qs = qs.filter(
+            Q(fecha_efectiva__gte=fecha_desde, fecha_efectiva__lte=fecha_hasta) |
+            Q(fecha__gte=fecha_desde, fecha__lte=fecha_hasta)
+        )
     elif filtro == '30d':
         fecha_desde = hoy - timedelta(days=29)
         fecha_hasta = hoy
-        qs = qs.filter(fecha__gte=fecha_desde, fecha__lte=fecha_hasta)
+        qs = qs.filter(
+            Q(fecha_efectiva__gte=fecha_desde, fecha_efectiva__lte=fecha_hasta) |
+            Q(fecha__gte=fecha_desde, fecha__lte=fecha_hasta)
+        )
     elif filtro == 'mes':
         fecha_desde = date(hoy.year, hoy.month, 1)
         fecha_hasta = hoy
-        qs = qs.filter(fecha__year=hoy.year, fecha__month=hoy.month)
+        qs = qs.filter(
+            Q(fecha_efectiva__year=hoy.year, fecha_efectiva__month=hoy.month) |
+            Q(fecha__year=hoy.year, fecha__month=hoy.month)
+        )
     elif filtro == 'personalizado':
+        q_filt = Q()
         if fecha_inicio_str:
             d_ini = parse_date_safe(fecha_inicio_str)
             if d_ini:
                 fecha_desde = d_ini
-                qs = qs.filter(fecha__gte=d_ini)
+                q_filt &= (Q(fecha_efectiva__gte=d_ini) | Q(fecha__gte=d_ini))
         if fecha_fin_str:
             d_fin = parse_date_safe(fecha_fin_str)
             if d_fin:
                 fecha_hasta = d_fin
-                qs = qs.filter(fecha__lte=d_fin)
+                q_filt &= (Q(fecha_efectiva__lte=d_fin) | Q(fecha__lte=d_fin))
+        if q_filt:
+            qs = qs.filter(q_filt)
     elif filtro == 'todos':
         fecha_desde = None
         fecha_hasta = None
@@ -86,54 +102,89 @@ def obtener_datos_estadisticas_entregas(filtro='7d', fecha_inicio_str=None, fech
     elif fecha_desde and fecha_hasta:
         dias_conteo = max(1, (fecha_hasta - fecha_desde).days + 1)
     else:
-        dias_activos = qs.filter(fecha__isnull=False).values('fecha').distinct().count()
+        dias_activos = qs.filter(fecha_efectiva__isnull=False).values('fecha_efectiva').distinct().count()
         dias_conteo = max(1, dias_activos)
 
     promedio_diario = round(total_entregas / dias_conteo, 1) if dias_conteo > 0 else 0
-
-    # Agrupación por fecha para evolución temporal / gráfico diario
-    agrupado = qs.filter(fecha__isnull=False).values('fecha').annotate(
-        entregas_cnt=Count('id'),
-        unidades_cnt=Sum('cantidad_dada')
-    ).order_by('fecha')
-
-    dict_fechas = {item['fecha']: item for item in agrupado}
-
-    chart_labels = []
-    chart_entregas = []
-    chart_unidades = []
-
-    if filtro in ['hoy', '7d', '30d', 'mes'] and fecha_desde and fecha_hasta:
-        curr = fecha_desde
-        while curr <= fecha_hasta:
-            lbl = curr.strftime('%d/%m')
-            chart_labels.append(lbl)
-            if curr in dict_fechas:
-                chart_entregas.append(dict_fechas[curr]['entregas_cnt'])
-                chart_unidades.append(int(dict_fechas[curr]['unidades_cnt'] or 0))
-            else:
-                chart_entregas.append(0)
-                chart_unidades.append(0)
-            curr += timedelta(days=1)
-    else:
-        for item in agrupado:
-            f = item['fecha']
-            lbl = f.strftime('%d/%m/%y') if filtro == 'todos' else f.strftime('%d/%m')
-            chart_labels.append(lbl)
-            chart_entregas.append(item['entregas_cnt'])
-            chart_unidades.append(int(item['unidades_cnt'] or 0))
 
     # Top productos entregados en el período
     top_prods_qs = qs.values('descripcion_prod').annotate(
         total_cant=Sum('cantidad_dada'),
         total_entregas=Count('id')
-    ).order_by('-total_cant')[:5]
+    ).order_by('-total_cant')[:6]
 
     top_productos = [{
         'descripcion': p['descripcion_prod'] or 'Sin descripción',
         'cantidad': int(p['total_cant'] or 0),
         'entregas': p['total_entregas']
     } for p in top_prods_qs]
+
+    chart_labels = []
+    chart_entregas = []
+    chart_unidades = []
+
+    # Configuración específica para el filtro HOY
+    if filtro == 'hoy':
+        chart_tipo = 'bar'
+        if total_entregas > 0 and top_productos:
+            # Si hoy hubo entregas, graficamos los insumos entregados hoy
+            chart_subtitulo = f"Entregas de hoy ({hoy.strftime('%d/%m')}) por insumo"
+            chart_labels = [p['descripcion'] for p in top_productos]
+            chart_entregas = [p['entregas'] for p in top_productos]
+            chart_unidades = [p['cantidad'] for p in top_productos]
+        else:
+            # Si hoy aún no hay entregas, mostramos la actividad de los últimos 7 días terminando en Hoy
+            # para que el gráfico NUNCA quede vacío ni desaparezca
+            chart_subtitulo = f"Actividad reciente (Hoy: 0 entregas)"
+            curr = hoy - timedelta(days=6)
+            entregas_recientes = BeneficioEntregado.objects.filter(
+                status__iexact='Entregado'
+            ).annotate(f_op=Coalesce('fecha_entrega', 'fecha')).filter(
+                f_op__gte=curr, f_op__lte=hoy
+            ).values('f_op').annotate(
+                cnt=Count('id'), cant=Sum('cantidad_dada')
+            )
+            dict_recientes = {item['f_op']: item for item in entregas_recientes}
+            while curr <= hoy:
+                lbl = curr.strftime('%d/%m') + (' (Hoy)' if curr == hoy else '')
+                chart_labels.append(lbl)
+                if curr in dict_recientes:
+                    chart_entregas.append(dict_recientes[curr]['cnt'])
+                    chart_unidades.append(int(dict_recientes[curr]['cant'] or 0))
+                else:
+                    chart_entregas.append(0)
+                    chart_unidades.append(0)
+                curr += timedelta(days=1)
+    else:
+        # Agrupación por fecha para evolución temporal (7d, 30d, mes, personalizado, todos)
+        agrupado = qs.filter(fecha_efectiva__isnull=False).values('fecha_efectiva').annotate(
+            entregas_cnt=Count('id'),
+            unidades_cnt=Sum('cantidad_dada')
+        ).order_by('fecha_efectiva')
+
+        dict_fechas = {item['fecha_efectiva']: item for item in agrupado}
+
+        if filtro in ['7d', '30d', 'mes'] and fecha_desde and fecha_hasta:
+            curr = fecha_desde
+            while curr <= fecha_hasta:
+                lbl = curr.strftime('%d/%m')
+                chart_labels.append(lbl)
+                if curr in dict_fechas:
+                    chart_entregas.append(dict_fechas[curr]['entregas_cnt'])
+                    chart_unidades.append(int(dict_fechas[curr]['unidades_cnt'] or 0))
+                else:
+                    chart_entregas.append(0)
+                    chart_unidades.append(0)
+                curr += timedelta(days=1)
+            chart_tipo = 'line'
+        else:
+            for item in agrupado:
+                f = item['fecha_efectiva']
+                lbl = f.strftime('%d/%m/%y') if filtro == 'todos' else f.strftime('%d/%m')
+                chart_labels.append(lbl)
+                chart_entregas.append(item['entregas_cnt'])
+                chart_unidades.append(int(item['unidades_cnt'] or 0))
+            chart_tipo = 'bar' if len(chart_labels) <= 2 else 'line'
 
     return {
         'filtro': filtro,
@@ -144,6 +195,8 @@ def obtener_datos_estadisticas_entregas(filtro='7d', fecha_inicio_str=None, fech
         'total_articulos': total_articulos,
         'total_beneficiarios': total_beneficiarios,
         'promedio_diario': promedio_diario,
+        'chart_tipo': chart_tipo,
+        'chart_subtitulo': chart_subtitulo,
         'chart_labels': chart_labels,
         'chart_entregas': chart_entregas,
         'chart_unidades': chart_unidades,
@@ -176,8 +229,8 @@ def dashboard(request):
     nombres_productos = [item['descripcion_prod'] or 'Desconocido' for item in resumen_productos]
     cantidades_productos = [int(item['total_cant'] or 0) for item in resumen_productos]
 
-    # Pre-cálculo de estadísticas de entregas (por defecto: últimos 7 días)
-    stats_entregas_init = obtener_datos_estadisticas_entregas(filtro='7d', status_filtro='todos')
+    # Pre-cálculo de estadísticas de entregas (por defecto: últimos 7 días con estatus 'Entregado')
+    stats_entregas_init = obtener_datos_estadisticas_entregas(filtro='7d', status_filtro='Entregado')
 
     context = {
         'pendientes': pendientes,
@@ -195,17 +248,17 @@ def dashboard(request):
 def api_estadisticas_entregas_dashboard(request):
     """
     Endpoint JSON para filtrar dinámicamente las estadísticas de entregas del Dashboard.
+    Filtra y procesa exclusivamente registros con estatus 'Entregado'.
     """
     filtro = request.GET.get('filtro', '7d').strip().lower()
     fecha_inicio = request.GET.get('fecha_inicio', '').strip()
     fecha_fin = request.GET.get('fecha_fin', '').strip()
-    status = request.GET.get('status', 'todos').strip()
 
     datos = obtener_datos_estadisticas_entregas(
         filtro=filtro,
         fecha_inicio_str=fecha_inicio,
         fecha_fin_str=fecha_fin,
-        status_filtro=status
+        status_filtro='Entregado'
     )
     return JsonResponse(datos)
 

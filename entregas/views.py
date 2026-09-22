@@ -221,7 +221,7 @@ def dashboard(request):
 
     from SIA.views import obtener_datos_estadisticas_entregas
     import json
-    stats_entregas_init = obtener_datos_estadisticas_entregas(filtro='7d', status_filtro='todos')
+    stats_entregas_init = obtener_datos_estadisticas_entregas(filtro='7d', status_filtro='Entregado')
 
     context = {
         'pendientes': pendientes, 
