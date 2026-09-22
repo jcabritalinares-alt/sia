@@ -32,6 +32,7 @@ urlpatterns = [
 
     # Entregas
     path('dashboard/', inv_views.dashboard, name='dashboard'),
+    path('api/estadisticas-entregas-dashboard/', inv_views.api_estadisticas_entregas_dashboard, name='api_estadisticas_entregas_dashboard'),
     path('entregar/', entregas_views.registrar_entrega, name='asignar_beneficio'),
     path('historial/', entregas_views.historial_entregas, name='historial'),
     path('historial/exportar-excel/', entregas_views.exportar_historial_excel, name='exportar_historial_excel'),

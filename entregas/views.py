@@ -207,7 +207,6 @@ def dashboard(request):
     entregados = entregados_qs.count()
      
     total_articulos = entregados_qs.aggregate(total=Sum('cantidad_dada'))['total'] or 0
-    productos_bajos = SIA_producto.objects.filter(cantidad__lte=5).values('descripcion', 'cantidad')
     recientes = BeneficioEntregado.objects.all().order_by('-id')[:5]
      
     lista_recientes = [{
@@ -216,18 +215,22 @@ def dashboard(request):
         'fecha': r.fecha
     } for r in recientes]
      
-    resumen_productos = entregas.values('descripcion_prod').annotate(total_cant=Sum('cantidad_dada'))
+    resumen_productos = entregas.values('descripcion_prod').annotate(total_cant=Sum('cantidad_dada')).order_by('-total_cant')
     nombres_productos = [item['descripcion_prod'] or 'Desconocido' for item in resumen_productos]
-    cantidades_productos = [item['total_cant'] for item in resumen_productos]
+    cantidades_productos = [int(item['total_cant'] or 0) for item in resumen_productos]
+
+    from SIA.views import obtener_datos_estadisticas_entregas
+    import json
+    stats_entregas_init = obtener_datos_estadisticas_entregas(filtro='7d', status_filtro='todos')
 
     context = {
         'pendientes': pendientes, 
         'entregados': entregados, 
-        'total_entregado': total_articulos,
-        'alertas': list(productos_bajos), 
+        'total_articulos': total_articulos,
         'recientes': lista_recientes,
         'nombres_productos': nombres_productos, 
         'cantidades_productos': cantidades_productos,
+        'stats_entregas_init_json': json.dumps(stats_entregas_init),
     }
     return render(request, 'dashboard.html', context)
 

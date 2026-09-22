@@ -66,24 +66,183 @@
         </div>
     </div>
 
-    <!-- Alertas de Stock Bajo -->
-    {% if alertas %}
-    <div class="alert alert-warning border-0 shadow-sm rounded-4 p-3 mb-4 d-flex align-items-start gap-3">
-        <div class="bg-warning text-dark rounded-circle p-2 d-flex align-items-center justify-content-center flex-shrink-0 mt-1">
-            <i class="bi bi-exclamation-triangle-fill fs-5"></i>
+    <!-- Módulo de Estadísticas y Tendencia de Entregas Diarias / Filtros -->
+    <div class="card border border-light shadow-sm rounded-4 p-4 mb-4" id="seccionEstadisticasEntregas">
+        <!-- Header: Título y Barra de Filtros -->
+        <div class="d-flex flex-column flex-xl-row justify-content-between align-items-xl-center pb-3 mb-3 border-bottom gap-3">
+            <div>
+                <div class="d-flex align-items-center gap-2.5">
+                    <div class="d-flex align-items-center justify-content-center bg-primary bg-opacity-10 text-primary rounded-3" style="width: 44px; height: 44px;">
+                        <i class="bi bi-calendar2-week-fill fs-5"></i>
+                    </div>
+                    <div>
+                        <h5 class="fw-extrabold text-dark mb-0">Estadísticas y Tendencia de Entregas</h5>
+                        <p class="text-muted small mb-0">Monitoreo de entregas diarias, artículos despachados y comportamiento por filtros</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Grupo de Filtros Interactivos -->
+            <div class="d-flex flex-wrap align-items-center gap-2">
+                <!-- Botones de rango rápido -->
+                <div class="btn-group btn-group-sm" role="group" id="grupoFiltrosEntregas">
+                    <button type="button" class="btn btn-outline-primary fw-semibold px-2.5" data-filtro="hoy" onclick="aplicarFiltroEntregas('hoy', this)" title="Ver entregas de hoy">
+                        <i class="bi bi-lightning-charge-fill text-warning me-1"></i>Hoy
+                    </button>
+                    <button type="button" class="btn btn-outline-primary fw-semibold px-2.5 active" data-filtro="7d" onclick="aplicarFiltroEntregas('7d', this)" title="Últimos 7 días">
+                        7 Días
+                    </button>
+                    <button type="button" class="btn btn-outline-primary fw-semibold px-2.5" data-filtro="30d" onclick="aplicarFiltroEntregas('30d', this)" title="Últimos 30 días">
+                        30 Días
+                    </button>
+                    <button type="button" class="btn btn-outline-primary fw-semibold px-2.5" data-filtro="mes" onclick="aplicarFiltroEntregas('mes', this)" title="Mes actual">
+                        Este Mes
+                    </button>
+                    <button type="button" class="btn btn-outline-primary fw-semibold px-2.5" data-filtro="todos" onclick="aplicarFiltroEntregas('todos', this)" title="Todo el historial">
+                        Todos
+                    </button>
+                </div>
+
+                <!-- Botón desplegable para Rango Personalizado -->
+                <div class="dropdown">
+                    <button class="btn btn-sm btn-outline-secondary dropdown-toggle fw-semibold d-flex align-items-center gap-1.5 rounded-3" type="button" id="btnDropdownRangoFechas" data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false">
+                        <i class="bi bi-calendar-range"></i> Fechas
+                    </button>
+                    <div class="dropdown-menu dropdown-menu-end p-3 shadow-lg rounded-4 border-0" style="min-width: 290px;">
+                        <h6 class="fw-bold mb-2 text-dark small d-flex align-items-center gap-1.5">
+                            <i class="bi bi-funnel text-primary"></i> Rango Personalizado
+                        </h6>
+                        <div class="mb-2">
+                            <label class="form-label small text-muted mb-1">Fecha Desde:</label>
+                            <input type="date" class="form-control form-control-sm rounded-3" id="inputFechaDesde">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label small text-muted mb-1">Fecha Hasta:</label>
+                            <input type="date" class="form-control form-control-sm rounded-3" id="inputFechaHasta">
+                        </div>
+                        <div class="d-flex gap-2">
+                            <button type="button" class="btn btn-primary-custom btn-sm flex-grow-1" onclick="aplicarRangoPersonalizado()">
+                                <i class="bi bi-check2 me-1"></i> Aplicar
+                            </button>
+                            <button type="button" class="btn btn-outline-secondary btn-sm" onclick="limpiarRangoPersonalizado()">
+                                Limpiar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Filtro de Estado -->
+                <select class="form-select form-select-sm fw-semibold rounded-3 border-secondary border-opacity-25" id="selectStatusEntrega" style="width: auto;" onchange="recargarEstadisticasEntregas()">
+                    <option value="todos">Todos los Estados</option>
+                    <option value="Entregado">Solo Entregados</option>
+                    <option value="Pendiente">Solo Pendientes</option>
+                </select>
+            </div>
         </div>
-        <div class="flex-grow-1">
-            <h5 class="fw-bold mb-1 text-dark">Alerta de Stock Crítico (≤ 5 unidades)</h5>
-            <div class="d-flex flex-wrap gap-2 mt-2">
-                {% for p in alertas %}
-                    <span class="badge bg-white text-dark border border-warning shadow-sm rounded-pill px-3 py-2">
-                        <strong>{{ p.descripcion }}</strong>: Quedan <span class="text-danger fw-extrabold">{{ p.cantidad }}</span>
-                    </span>
-                {% endfor %}
+
+        <!-- Indicadores KPIs Rápidos del Período Filtrado -->
+        <div class="row g-3 mb-4">
+            <!-- Entregas del Período -->
+            <div class="col-6 col-md-3">
+                <div class="p-3 rounded-4 bg-light bg-opacity-75 border border-light-subtle h-100 d-flex flex-column justify-content-between">
+                    <span class="text-uppercase fw-bold text-muted" style="font-size: 0.72rem; letter-spacing: 0.5px;">Entregas en Período</span>
+                    <div class="d-flex align-items-baseline justify-content-between mt-1">
+                        <h3 class="fw-extrabold text-primary mb-0" id="kpiEntregasPeriodo">0</h3>
+                        <span class="badge bg-primary bg-opacity-10 text-primary rounded-pill small" id="badgeFiltroActivo">7 Días</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Unidades Despachadas -->
+            <div class="col-6 col-md-3">
+                <div class="p-3 rounded-4 bg-light bg-opacity-75 border border-light-subtle h-100 d-flex flex-column justify-content-between">
+                    <span class="text-uppercase fw-bold text-muted" style="font-size: 0.72rem; letter-spacing: 0.5px;">Artículos / Unidades</span>
+                    <div class="d-flex align-items-baseline justify-content-between mt-1">
+                        <h3 class="fw-extrabold text-success mb-0" id="kpiUnidadesPeriodo">0</h3>
+                        <span class="text-muted small">despachadas</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Beneficiarios Atendidos -->
+            <div class="col-6 col-md-3">
+                <div class="p-3 rounded-4 bg-light bg-opacity-75 border border-light-subtle h-100 d-flex flex-column justify-content-between">
+                    <span class="text-uppercase fw-bold text-muted" style="font-size: 0.72rem; letter-spacing: 0.5px;">Beneficiarios Únicos</span>
+                    <div class="d-flex align-items-baseline justify-content-between mt-1">
+                        <h3 class="fw-extrabold text-dark mb-0" id="kpiBeneficiariosPeriodo">0</h3>
+                        <span class="text-muted small">ciudadanos</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Promedio Diario -->
+            <div class="col-6 col-md-3">
+                <div class="p-3 rounded-4 bg-light bg-opacity-75 border border-light-subtle h-100 d-flex flex-column justify-content-between">
+                    <span class="text-uppercase fw-bold text-muted" style="font-size: 0.72rem; letter-spacing: 0.5px;">Promedio Diario</span>
+                    <div class="d-flex align-items-baseline justify-content-between mt-1">
+                        <h3 class="fw-extrabold text-info mb-0" id="kpiPromedioPeriodo">0</h3>
+                        <span class="text-muted small">entregas/día</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Cuerpo: Gráfico Diario + Ranking de Productos -->
+        <div class="row g-4 align-items-stretch">
+            <!-- Gráfico de Evolución Diaria -->
+            <div class="col-12 col-lg-8">
+                <div class="p-3 rounded-4 border border-light-subtle h-100 d-flex flex-column bg-white position-relative" style="min-height: 290px;" id="boxChartDiario">
+                    <div class="d-flex align-items-center justify-content-between mb-2 flex-wrap gap-2">
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="fw-bold small text-dark d-flex align-items-center gap-1.5">
+                                <i class="bi bi-graph-up text-primary"></i> Evolución Diaria de Entregas
+                            </span>
+                            <span class="badge bg-secondary bg-opacity-10 text-secondary rounded-pill small" id="lblDetalleRango">Últimos 7 días</span>
+                        </div>
+
+                        <!-- Selector de métrica en gráfico: Entregas vs Unidades -->
+                        <div class="btn-group btn-group-sm" role="group">
+                            <button type="button" class="btn btn-outline-secondary py-0.5 px-2 active fw-semibold" id="btnMetricaEntregas" onclick="cambiarMetricaGraficoDiario('entregas')" style="font-size: 0.75rem;">
+                                Por Entregas
+                            </button>
+                            <button type="button" class="btn btn-outline-secondary py-0.5 px-2 fw-semibold" id="btnMetricaUnidades" onclick="cambiarMetricaGraficoDiario('unidades')" style="font-size: 0.75rem;">
+                                Por Unidades
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Canvas del Gráfico Diario -->
+                    <div class="position-relative flex-grow-1" style="min-height: 220px;" id="contenedorCanvasDiario">
+                        <canvas id="graficoEntregasDiarias"></canvas>
+                        <div id="loaderGraficoDiario" class="position-absolute top-0 start-0 w-100 h-100 d-none flex-column align-items-center justify-content-center bg-white bg-opacity-75 rounded-4">
+                            <div class="spinner-border spinner-border-sm text-primary mb-2" role="status"></div>
+                            <span class="small text-muted fw-semibold">Actualizando estadísticas...</span>
+                        </div>
+                        <div id="emptyGraficoDiario" class="position-absolute top-0 start-0 w-100 h-100 d-none flex-column align-items-center justify-content-center text-muted">
+                            <i class="bi bi-inbox fs-2 opacity-50 mb-1"></i>
+                            <span class="small fw-semibold">No se encontraron entregas en el período seleccionado</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Top Insumos Entregados en el Período -->
+            <div class="col-12 col-lg-4">
+                <div class="p-3 rounded-4 border border-light-subtle h-100 d-flex flex-column bg-white">
+                    <div class="d-flex align-items-center justify-content-between mb-3 border-bottom pb-2">
+                        <span class="fw-bold small text-dark d-flex align-items-center gap-1.5">
+                            <i class="bi bi-trophy-fill text-warning"></i> Insumos Más Entregados
+                        </span>
+                        <span class="badge bg-light text-muted border small" id="badgeTopProdsCount">Top 5</span>
+                    </div>
+
+                    <div class="flex-grow-1 d-flex flex-column justify-content-start" id="listaTopProductos">
+                        <!-- Llenado dinámicamente -->
+                    </div>
+                </div>
             </div>
         </div>
     </div>
-    {% endif %}
 
     <!-- Sección Inferior: Tabla de Operaciones + Gráfico -->
     <div class="row g-4 mt-1">
@@ -385,12 +544,355 @@
         renderizarGrafico();
     }
 
+    // ========================================================
+    // SECCIÓN: ESTADÍSTICAS Y TENDENCIA DE ENTREGAS (JS)
+    // ========================================================
+    let chartEntregasDiariasInstance = null;
+    let metricaActualDiario = 'entregas'; // 'entregas' o 'unidades'
+    let filtroActual = '7d';
+    let fechaInicioActual = '';
+    let fechaFinActual = '';
+    let datosEstadisticasActuales = null;
+
+    try {
+        datosEstadisticasActuales = {{ stats_entregas_init_json|safe }};
+    } catch (e) {
+        datosEstadisticasActuales = null;
+    }
+
+    function aplicarFiltroEntregas(filtro, btnElement) {
+        filtroActual = filtro;
+        fechaInicioActual = '';
+        fechaFinActual = '';
+
+        const grupo = document.getElementById('grupoFiltrosEntregas');
+        if (grupo) {
+            grupo.querySelectorAll('button').forEach(btn => btn.classList.remove('active'));
+        }
+        if (btnElement) {
+            btnElement.classList.add('active');
+        }
+
+        const dIni = document.getElementById('inputFechaDesde');
+        const dFin = document.getElementById('inputFechaHasta');
+        if (dIni) dIni.value = '';
+        if (dFin) dFin.value = '';
+
+        consultarApiEstadisticas();
+    }
+
+    function aplicarRangoPersonalizado() {
+        const dIni = document.getElementById('inputFechaDesde')?.value || '';
+        const dFin = document.getElementById('inputFechaHasta')?.value || '';
+
+        if (!dIni && !dFin) {
+            alert('Por favor selecciona al menos una fecha de inicio o fin.');
+            return;
+        }
+
+        filtroActual = 'personalizado';
+        fechaInicioActual = dIni;
+        fechaFinActual = dFin;
+
+        const grupo = document.getElementById('grupoFiltrosEntregas');
+        if (grupo) {
+            grupo.querySelectorAll('button').forEach(btn => btn.classList.remove('active'));
+        }
+
+        const btnDropdown = document.getElementById('btnDropdownRangoFechas');
+        if (btnDropdown && typeof bootstrap !== 'undefined' && bootstrap.Dropdown) {
+            const dropdownInstance = bootstrap.Dropdown.getInstance(btnDropdown);
+            if (dropdownInstance) dropdownInstance.hide();
+        }
+
+        consultarApiEstadisticas();
+    }
+
+    function limpiarRangoPersonalizado() {
+        const dIni = document.getElementById('inputFechaDesde');
+        const dFin = document.getElementById('inputFechaHasta');
+        if (dIni) dIni.value = '';
+        if (dFin) dFin.value = '';
+        
+        const btn7d = document.querySelector('#grupoFiltrosEntregas button[data-filtro="7d"]');
+        aplicarFiltroEntregas('7d', btn7d);
+    }
+
+    function recargarEstadisticasEntregas() {
+        consultarApiEstadisticas();
+    }
+
+    function consultarApiEstadisticas() {
+        const loader = document.getElementById('loaderGraficoDiario');
+        if (loader) {
+            loader.classList.remove('d-none');
+            loader.classList.add('d-flex');
+        }
+
+        const statusSelect = document.getElementById('selectStatusEntrega');
+        const statusVal = statusSelect ? statusSelect.value : 'todos';
+
+        const params = new URLSearchParams({
+            filtro: filtroActual,
+            fecha_inicio: fechaInicioActual,
+            fecha_fin: fechaFinActual,
+            status: statusVal
+        });
+
+        fetch(`/api/estadisticas-entregas-dashboard/?${params.toString()}`)
+            .then(res => {
+                if (!res.ok) throw new Error('Error al cargar estadísticas');
+                return res.json();
+            })
+            .then(data => {
+                datosEstadisticasActuales = data;
+                renderizarDatosEstadisticasEntregas(data);
+            })
+            .catch(err => {
+                console.error('Error cargando estadísticas de entregas:', err);
+            })
+            .finally(() => {
+                if (loader) {
+                    loader.classList.add('d-none');
+                    loader.classList.remove('d-flex');
+                }
+            });
+    }
+
+    function cambiarMetricaGraficoDiario(metrica) {
+        metricaActualDiario = metrica;
+
+        const btnEntregas = document.getElementById('btnMetricaEntregas');
+        const btnUnidades = document.getElementById('btnMetricaUnidades');
+        if (btnEntregas && btnUnidades) {
+            if (metrica === 'entregas') {
+                btnEntregas.classList.add('active');
+                btnUnidades.classList.remove('active');
+            } else {
+                btnUnidades.classList.add('active');
+                btnEntregas.classList.remove('active');
+            }
+        }
+
+        if (datosEstadisticasActuales) {
+            renderizarGraficoDiario(datosEstadisticasActuales);
+        }
+    }
+
+    function renderizarDatosEstadisticasEntregas(data) {
+        if (!data) return;
+
+        // 1. Actualizar KPIs con formato numérico
+        const elEntregas = document.getElementById('kpiEntregasPeriodo');
+        const elUnidades = document.getElementById('kpiUnidadesPeriodo');
+        const elBeneficiarios = document.getElementById('kpiBeneficiariosPeriodo');
+        const elPromedio = document.getElementById('kpiPromedioPeriodo');
+        const elBadge = document.getElementById('badgeFiltroActivo');
+        const elLblDetalle = document.getElementById('lblDetalleRango');
+
+        if (elEntregas) elEntregas.textContent = Number(data.total_entregas || 0).toLocaleString();
+        if (elUnidades) elUnidades.textContent = Number(data.total_articulos || 0).toLocaleString();
+        if (elBeneficiarios) elBeneficiarios.textContent = Number(data.total_beneficiarios || 0).toLocaleString();
+        if (elPromedio) elPromedio.textContent = Number(data.promedio_diario || 0).toLocaleString(undefined, {minimumFractionDigits: 1, maximumFractionDigits: 1});
+
+        // Etiqueta descriptiva del período
+        let textoFiltro = '7 Días';
+        let textoDetalle = 'Últimos 7 días';
+        if (data.filtro === 'hoy') {
+            textoFiltro = 'Hoy';
+            textoDetalle = 'Entregas del día de hoy';
+        } else if (data.filtro === '7d') {
+            textoFiltro = '7 Días';
+            textoDetalle = 'Últimos 7 días';
+        } else if (data.filtro === '30d') {
+            textoFiltro = '30 Días';
+            textoDetalle = 'Últimos 30 días';
+        } else if (data.filtro === 'mes') {
+            textoFiltro = 'Este Mes';
+            textoDetalle = 'Mes en curso';
+        } else if (data.filtro === 'todos') {
+            textoFiltro = 'Histórico';
+            textoDetalle = 'Todo el historial acumulado';
+        } else if (data.filtro === 'personalizado') {
+            textoFiltro = 'Rango';
+            textoDetalle = `${data.fecha_desde || 'Inicio'} al ${data.fecha_hasta || 'Hoy'}`;
+        }
+
+        if (elBadge) elBadge.textContent = textoFiltro;
+        if (elLblDetalle) elLblDetalle.textContent = textoDetalle;
+
+        // 2. Renderizar Top Insumos
+        const contenedorTop = document.getElementById('listaTopProductos');
+        if (contenedorTop) {
+            const topList = data.top_productos || [];
+            if (topList.length === 0) {
+                contenedorTop.innerHTML = `
+                    <div class="d-flex flex-column align-items-center justify-content-center h-100 py-4 text-muted">
+                        <i class="bi bi-box-seam fs-3 opacity-50 mb-1"></i>
+                        <span class="small fw-semibold">Sin insumos despachados</span>
+                    </div>
+                `;
+            } else {
+                const maxCant = Math.max(...topList.map(p => p.cantidad), 1);
+                let html = '<div class="d-flex flex-column gap-2.5">';
+                topList.forEach((prod, idx) => {
+                    const pct = Math.round((prod.cantidad / maxCant) * 100);
+                    const badgesColors = ['bg-primary', 'bg-info', 'bg-success', 'bg-warning text-dark', 'bg-secondary'];
+                    const colorClass = badgesColors[idx % badgesColors.length];
+
+                    html += `
+                        <div class="p-2 rounded-3 bg-light bg-opacity-50 border border-light-subtle">
+                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                <span class="fw-semibold text-dark text-truncate small" style="max-width: 68%;" title="${prod.descripcion}">
+                                    ${idx + 1}. ${prod.descripcion}
+                                </span>
+                                <span class="badge ${colorClass} rounded-pill" style="font-size: 0.72rem;">
+                                    ${Number(prod.cantidad).toLocaleString()} unid.
+                                </span>
+                            </div>
+                            <div class="progress" style="height: 5px;">
+                                <div class="progress-bar ${colorClass}" role="progressbar" style="width: ${pct}%;" aria-valuenow="${pct}" aria-valuemin="0" aria-valuemax="100"></div>
+                            </div>
+                        </div>
+                    `;
+                });
+                html += '</div>';
+                contenedorTop.innerHTML = html;
+            }
+        }
+
+        // 3. Renderizar Gráfico Diario
+        renderizarGraficoDiario(data);
+    }
+
+    function renderizarGraficoDiario(data) {
+        const canvas = document.getElementById('graficoEntregasDiarias');
+        if (!canvas) return;
+        const ctxDiario = canvas.getContext('2d');
+        const emptyState = document.getElementById('emptyGraficoDiario');
+
+        const labels = data.chart_labels || [];
+        const isEntregas = metricaActualDiario === 'entregas';
+        const values = isEntregas ? (data.chart_entregas || []) : (data.chart_unidades || []);
+        const totalVal = values.reduce((acc, curr) => acc + curr, 0);
+
+        if (values.length === 0 || totalVal === 0) {
+            if (emptyState) {
+                emptyState.classList.remove('d-none');
+                emptyState.classList.add('d-flex');
+            }
+        } else {
+            if (emptyState) {
+                emptyState.classList.add('d-none');
+                emptyState.classList.remove('d-flex');
+            }
+        }
+
+        const savedTheme = localStorage.getItem('sia_theme') || 'light';
+        const textColor = savedTheme === 'dark' ? '#cbd5e1' : '#475569';
+        const gridColor = savedTheme === 'dark' ? 'rgba(51, 65, 85, 0.4)' : 'rgba(226, 232, 240, 0.7)';
+
+        const gradient = ctxDiario.createLinearGradient(0, 0, 0, 220);
+        if (isEntregas) {
+            gradient.addColorStop(0, 'rgba(79, 70, 229, 0.75)');
+            gradient.addColorStop(1, 'rgba(79, 70, 229, 0.04)');
+        } else {
+            gradient.addColorStop(0, 'rgba(16, 185, 129, 0.75)');
+            gradient.addColorStop(1, 'rgba(16, 185, 129, 0.04)');
+        }
+
+        if (chartEntregasDiariasInstance) {
+            chartEntregasDiariasInstance.destroy();
+        }
+
+        const borderColor = isEntregas ? '#4f46e5' : '#10b981';
+        const labelMetrica = isEntregas ? 'Entregas registradas' : 'Unidades despachadas';
+
+        chartEntregasDiariasInstance = new Chart(ctxDiario, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: labelMetrica,
+                    data: values,
+                    borderColor: borderColor,
+                    backgroundColor: gradient,
+                    borderWidth: 2.5,
+                    fill: true,
+                    tension: 0.35,
+                    pointBackgroundColor: borderColor,
+                    pointBorderColor: '#ffffff',
+                    pointBorderWidth: 2,
+                    pointRadius: labels.length > 25 ? 2.5 : 4.5,
+                    pointHoverRadius: 6,
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: {
+                    intersect: false,
+                    mode: 'index',
+                },
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        backgroundColor: savedTheme === 'dark' ? '#1e293b' : '#0f172a',
+                        titleColor: '#ffffff',
+                        bodyColor: '#f8fafc',
+                        titleFont: { family: 'Plus Jakarta Sans', size: 12, weight: 'bold' },
+                        bodyFont: { family: 'Plus Jakarta Sans', size: 12 },
+                        padding: 10,
+                        cornerRadius: 8,
+                        callbacks: {
+                            label: function(context) {
+                                const val = context.raw || 0;
+                                const unidadTxt = isEntregas ? 'operación(es)' : 'unidades';
+                                return ` ${labelMetrica}: ${Number(val).toLocaleString()} ${unidadTxt}`;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        grid: { display: false },
+                        ticks: {
+                            color: textColor,
+                            font: { family: 'Plus Jakarta Sans', size: 11 },
+                            maxRotation: 45,
+                            autoSkip: true,
+                            maxTicksLimit: 14
+                        }
+                    },
+                    y: {
+                        beginAtZero: true,
+                        grace: '10%',
+                        grid: { color: gridColor },
+                        ticks: {
+                            precision: 0,
+                            color: textColor,
+                            font: { family: 'Plus Jakarta Sans', size: 11 }
+                        }
+                    }
+                }
+            }
+        });
+    }
+
     function actualizarGraficoTema(theme) {
         renderizarGrafico();
+        if (datosEstadisticasActuales) {
+            renderizarGraficoDiario(datosEstadisticasActuales);
+        }
     }
 
     document.addEventListener('DOMContentLoaded', function() {
         renderizarGrafico();
+        if (datosEstadisticasActuales) {
+            renderizarDatosEstadisticasEntregas(datosEstadisticasActuales);
+        } else {
+            consultarApiEstadisticas();
+        }
     });
 </script>
 {% endblock %}
