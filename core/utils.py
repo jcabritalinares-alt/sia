@@ -52,18 +52,51 @@ def obtener_url_inicio_usuario(user):
     return 'dashboard'
 
 def parse_date_safe(val):
-    """Convierte de forma segura una cadena en objeto date de Python sin lanzar excepciones."""
-    if not val or not str(val).strip():
+    """Convierte de forma segura una cadena u objeto date en objeto date de Python sin lanzar excepciones."""
+    if not val:
         return None
+    from datetime import datetime, date
+    if isinstance(val, datetime):
+        return val.date()
+    if isinstance(val, date):
+        return val
     val_str = str(val).strip()
-    from datetime import datetime
-    try:
-        return datetime.strptime(val_str, '%Y-%m-%d').date()
-    except (ValueError, TypeError):
+    if not val_str:
+        return None
+    
+    # Limpiar ISO si tiene timestamp
+    if 'T' in val_str:
+        val_str = val_str.split('T')[0].strip()
+    elif ' ' in val_str and not 'de' in val_str.lower():
+        val_str = val_str.split(' ')[0].strip()
+
+    formatos = ['%Y-%m-%d', '%d/%m/%Y', '%Y/%m/%d', '%d-%m-%Y', '%Y%m%d']
+    for fmt in formatos:
         try:
-            return datetime.strptime(val_str, '%d/%m/%Y').date()
+            return datetime.strptime(val_str, fmt).date()
         except (ValueError, TypeError):
-            return None
+            continue
+
+    # Soporte para fechas en español (ej: "22 de Septiembre de 2026", "22 de sept. de 2026")
+    meses_es = {
+        'enero': 1, 'ene': 1, 'febrero': 2, 'feb': 2, 'marzo': 3, 'mar': 3,
+        'abril': 4, 'abr': 4, 'mayo': 5, 'may': 5, 'junio': 6, 'jun': 6,
+        'julio': 7, 'jul': 7, 'agosto': 8, 'ago': 8, 'septiembre': 9, 'sep': 9, 'sept': 9,
+        'octubre': 10, 'oct': 10, 'noviembre': 11, 'nov': 11, 'diciembre': 12, 'dic': 12
+    }
+    partes = val_str.lower().replace('.', '').split()
+    partes = [p for p in partes if p != 'de']
+    if len(partes) >= 3:
+        try:
+            dia = int(partes[0])
+            mes_txt = partes[1]
+            anio = int(partes[2])
+            if mes_txt in meses_es:
+                return date(anio, meses_es[mes_txt], dia)
+        except (ValueError, TypeError):
+            pass
+
+    return None
 
 def enviar_notificacion_solicitud_email(solicitud, nuevo_estado, email_destinatario=None):
     """

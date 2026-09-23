@@ -389,61 +389,51 @@
     </div>
     {% endif %}
 
-    <!-- 7. Listado Reciente de Asignaciones y Solicitudes Concatenadas -->
+    <!-- 7. Registros Gestionados en el Período (Concatenados y Estrictamente Filtrados) -->
     <div class="section-box">
-        <div class="section-title">7. ÚLTIMOS REGISTROS GESTIONADOS EN EL PERÍODO</div>
+        <div class="section-title">7. REGISTROS GESTIONADOS EN EL PERÍODO (RANGO: {{ d.subtitulo_periodo }})</div>
         <table>
             <thead>
                 <tr>
-                    <th>Tipo</th>
-                    <th>Beneficiario / Solicitante</th>
-                    <th>Cédula</th>
-                    <th>Detalle / Insumo</th>
-                    <th style="text-align: center;">Cant.</th>
-                    <th style="text-align: center;">Estatus</th>
-                    <th style="text-align: right;">Fecha</th>
+                    <th style="width: 10%;">Tipo</th>
+                    <th style="width: 25%;">Beneficiario / Solicitante</th>
+                    <th style="width: 13%;">Cédula</th>
+                    <th style="width: 27%;">Detalle / Insumo</th>
+                    <th style="width: 8%; text-align: center;">Cant.</th>
+                    <th style="width: 9%; text-align: center;">Estatus</th>
+                    <th style="width: 8%; text-align: right;">Fecha</th>
                 </tr>
             </thead>
             <tbody>
-                {% for b in d.recientes_beneficios %}
+                {% for r in d.registros_unificados %}
                 <tr>
-                    <td><span style="font-size: 6.5pt; color: #4338ca; font-weight: bold;">ENTREGA</span></td>
-                    <td><strong>{{ b.nombre_beneficiario|default:"No identificado" }}</strong></td>
-                    <td>{{ b.cedula|default:"S/C" }}</td>
-                    <td>{{ b.descripcion_prod }}</td>
-                    <td style="text-align: center;">{{ b.cantidad_dada }} u.</td>
+                    <td>
+                        {% if r.tipo == 'ENTREGA' %}
+                            <span style="font-size: 6.5pt; color: #4338ca; font-weight: bold;">ENTREGA</span>
+                        {% else %}
+                            <span style="font-size: 6.5pt; color: #0284c7; font-weight: bold;">SOLICITUD</span>
+                        {% endif %}
+                    </td>
+                    <td><strong>{{ r.beneficiario }}</strong></td>
+                    <td>{{ r.cedula }}</td>
+                    <td>{{ r.detalle }}</td>
+                    <td style="text-align: center;">{{ r.cantidad }}</td>
                     <td style="text-align: center;">
-                        {% if b.status_clean|lower == 'entregado' %}
+                        {% if r.is_entregado %}
                             <span class="badge-entregado">Entregado</span>
                         {% else %}
-                            <span class="badge-pendiente">Pendiente</span>
+                            <span class="badge-pendiente">{{ r.status }}</span>
                         {% endif %}
                     </td>
-                    <td style="text-align: right; color: #64748b;">{{ b.fecha_efectiva|date:"d/m/Y"|default:"-" }}</td>
+                    <td style="text-align: right; color: #64748b;">{{ r.fecha|date:"d/m/Y"|default:"-" }}</td>
                 </tr>
-                {% endfor %}
-                {% for s in d.recientes_solicitudes %}
+                {% empty %}
                 <tr>
-                    <td><span style="font-size: 6.5pt; color: #0284c7; font-weight: bold;">SOLICITUD</span></td>
-                    <td><strong>{{ s.nombre_apellido }}</strong></td>
-                    <td>{{ s.cedula }}</td>
-                    <td>{{ s.tipo_solicitud }}</td>
-                    <td style="text-align: center;">1 caso</td>
-                    <td style="text-align: center;">
-                        {% if s.status == 'Entregada' %}
-                            <span class="badge-entregado">Entregada</span>
-                        {% else %}
-                            <span class="badge-pendiente">{{ s.status }}</span>
-                        {% endif %}
+                    <td colspan="7" style="text-align: center; color: #94a3b8; padding: 8px;">
+                        No se encontraron registros de entregas o solicitudes gestionados en este rango de fecha ({{ d.subtitulo_periodo }}).
                     </td>
-                    <td style="text-align: right; color: #64748b;">{{ s.fecha_solicitud|date:"d/m/Y"|default:"-" }}</td>
                 </tr>
                 {% endfor %}
-                {% if not d.recientes_beneficios and not d.recientes_solicitudes %}
-                <tr>
-                    <td colspan="7" style="text-align: center; color: #94a3b8; padding: 8px;">No hay registros en el período evaluado.</td>
-                </tr>
-                {% endif %}
             </tbody>
         </table>
     </div>

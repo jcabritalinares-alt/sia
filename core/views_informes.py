@@ -91,10 +91,9 @@ def calcular_datos_informe(periodo='semanal', fecha_str=None, fecha_inicio_str=N
     qs_beneficios = BeneficioEntregado.objects.annotate(
         status_clean=Trim('status'),
         fecha_efectiva=Coalesce(
-            'fecha_entrega',
             'fecha',
+            'fecha_entrega',
             Cast('timestamp', output_field=models.DateField()),
-            Value(hoy),
             output_field=models.DateField()
         )
     )
@@ -121,7 +120,11 @@ def calcular_datos_informe(periodo='semanal', fecha_str=None, fecha_inicio_str=N
 
     # 3. Filtrado y Anotación de Solicitudes (core.SolicitudCiudadano)
     qs_solicitudes = SolicitudCiudadano.objects.annotate(
-        fecha_efectiva=Cast('fecha_solicitud', output_field=models.DateField())
+        fecha_efectiva=Coalesce(
+            Cast('fecha_solicitud', output_field=models.DateField()),
+            'fecha_entrega',
+            output_field=models.DateField()
+        )
     )
     if fecha_desde:
         qs_solicitudes = qs_solicitudes.filter(fecha_efectiva__gte=fecha_desde)
@@ -219,14 +222,40 @@ def calcular_datos_informe(periodo='semanal', fecha_str=None, fecha_inicio_str=N
         fechas_pendientes = [beneficios_pendientes_count]
         fechas_solicitudes = [total_solicitudes_count]
 
-    # 6. Registros Recientes Concatenados para Tablas de Detalle
-    recientes_beneficios = list(qs_beneficios.order_by('-id')[:10].values(
+    # 6. Registros Concatenados y Unificados Gestionados en el Período
+    registros_unificados = []
+    recientes_beneficios = list(qs_beneficios.order_by('-fecha_efectiva', '-id')[:100].values(
         'id', 'nombre_beneficiario', 'cedula', 'descripcion_prod', 'cantidad_dada', 'status_clean', 'fecha_efectiva', 'via'
     ))
+    for b in recientes_beneficios:
+        registros_unificados.append({
+            'tipo': 'ENTREGA',
+            'beneficiario': b['nombre_beneficiario'] or 'No identificado',
+            'cedula': b['cedula'] or 'S/C',
+            'detalle': b['descripcion_prod'] or 'Insumo de Almacén',
+            'cantidad': f"{b['cantidad_dada']} u.",
+            'status': b['status_clean'] or 'Pendiente',
+            'is_entregado': (b['status_clean'] or '').lower() == 'entregado',
+            'fecha': b['fecha_efectiva'],
+        })
 
-    recientes_solicitudes = list(qs_solicitudes.order_by('-fecha_solicitud')[:10].values(
-        'id', 'nombre_apellido', 'cedula', 'tipo_solicitud', 'prioridad', 'status', 'fecha_solicitud'
+    recientes_solicitudes = list(qs_solicitudes.order_by('-fecha_efectiva', '-id')[:100].values(
+        'id', 'nombre_apellido', 'cedula', 'tipo_solicitud', 'prioridad', 'status', 'fecha_efectiva'
     ))
+    for s in recientes_solicitudes:
+        registros_unificados.append({
+            'tipo': 'SOLICITUD',
+            'beneficiario': s['nombre_apellido'],
+            'cedula': s['cedula'] or 'S/C',
+            'detalle': s['tipo_solicitud'],
+            'cantidad': '1 caso',
+            'status': s['status'],
+            'is_entregado': (s['status'] or '').lower() == 'entregada',
+            'fecha': s['fecha_efectiva'],
+        })
+
+    # Ordenar unificados por fecha estrictamente descendente
+    registros_unificados.sort(key=lambda x: (x['fecha'] or date.min), reverse=True)
 
     # 7. Redacción Inteligente del Análisis y Diagnóstico Institucional (Texto Ejecutivo)
     # A) Balance General Operativo
@@ -357,6 +386,9 @@ def calcular_datos_informe(periodo='semanal', fecha_str=None, fecha_inicio_str=N
         # Tablas Detalladas Concatenadas
         'recientes_beneficios': recientes_beneficios,
         'recientes_solicitudes': recientes_solicitudes,
+        'registros_unificados': registros_unificados,
+        'fecha_desde_iso': fecha_desde.strftime('%Y-%m-%d') if fecha_desde else '',
+        'fecha_hasta_iso': fecha_hasta.strftime('%Y-%m-%d') if fecha_hasta else '',
 
         # Textos Redactados de Análisis
         'analisis_balance': analisis_balance,
@@ -445,21 +477,23 @@ def obtener_chart_quickchart(qc_config, width=500, height=260):
         return ''
 
 def draw_pil_donut(entregados, pendientes, w=350, h=220):
-    """Fallback local con PIL para gráfico tipo dona (Entregados vs Pendientes)."""
+    """Fallback local con PIL para gráfico tipo dona (Entregados vs Pendientes con cantidades)."""
     try:
         img = Image.new('RGB', (w, h), color='#ffffff')
         d = ImageDraw.Draw(img)
         total = max(entregados + pendientes, 1)
         angle_ent = int((entregados / total) * 360)
+        pct_ent = int((entregados / total) * 100)
+        pct_pen = int((pendientes / total) * 100)
         
         d.pieslice([30, 20, 210, 200], start=0, end=angle_ent, fill='#10b981')
         d.pieslice([30, 20, 210, 200], start=angle_ent, end=360, fill='#f59e0b')
         d.ellipse([75, 65, 165, 155], fill='#ffffff')
         
-        d.rectangle([230, 60, 245, 75], fill='#10b981')
-        d.text((255, 62), f'Entregados ({entregados})', fill='#1e293b')
-        d.rectangle([230, 95, 245, 110], fill='#f59e0b')
-        d.text((255, 97), f'Pendientes ({pendientes})', fill='#1e293b')
+        d.rectangle([225, 60, 238, 73], fill='#10b981')
+        d.text((245, 60), f'Entregados: {entregados} ({pct_ent}%)', fill='#166534')
+        d.rectangle([225, 95, 238, 108], fill='#f59e0b')
+        d.text((245, 95), f'Pendientes: {pendientes} ({pct_pen}%)', fill='#92400e')
         
         buf = io.BytesIO()
         img.save(buf, format='PNG')
@@ -468,7 +502,7 @@ def draw_pil_donut(entregados, pendientes, w=350, h=220):
         return ''
 
 def draw_pil_line(labels, d1, d2, w=450, h=220):
-    """Fallback local con PIL para gráfico de líneas de evolución temporal."""
+    """Fallback local con PIL para gráfico de líneas de evolución temporal con cantidades."""
     try:
         img = Image.new('RGB', (w, h), color='#ffffff')
         d = ImageDraw.Draw(img)
@@ -486,10 +520,16 @@ def draw_pil_line(labels, d1, d2, w=450, h=220):
         pts1, pts2 = [], []
         for i in range(n):
             x = 50 + i * step
-            y1 = 185 - int(((d1[i] if i < len(d1) else 0) / max_val) * 140)
-            y2 = 185 - int(((d2[i] if i < len(d2) else 0) / max_val) * 140)
+            v1 = d1[i] if i < len(d1) else 0
+            v2 = d2[i] if i < len(d2) else 0
+            y1 = 185 - int((v1 / max_val) * 130)
+            y2 = 185 - int((v2 / max_val) * 130)
             pts1.append((x, y1))
             pts2.append((x, y2))
+            if v1 > 0 and n <= 15:
+                d.text((x - 4, max(y1 - 12, 22)), str(v1), fill='#10b981')
+            if v2 > 0 and n <= 15:
+                d.text((x - 4, max(y2 - 12, 22)), str(v2), fill='#f59e0b')
             if i % max(1, n // 5) == 0 and i < len(labels):
                 d.text((x - 10, 190), str(labels[i])[:5], fill='#64748b')
                 
@@ -505,7 +545,7 @@ def draw_pil_line(labels, d1, d2, w=450, h=220):
         return ''
 
 def draw_pil_bars(labels, d1, d2, label1='Entregadas', label2='Pendientes', color1='#10b981', color2='#f59e0b', w=450, h=220):
-    """Fallback local con PIL para gráficos de barras comparativas."""
+    """Fallback local con PIL para gráficos de barras comparativas con cantidades visibles."""
     try:
         img = Image.new('RGB', (w, h), color='#ffffff')
         d = ImageDraw.Draw(img)
@@ -522,10 +562,16 @@ def draw_pil_bars(labels, d1, d2, label1='Entregadas', label2='Pendientes', colo
         
         for i, lab in enumerate(labels[:6]):
             x = 50 + i * (bar_width * 2 + 12)
-            h1 = int(((d1[i] if i < len(d1) else 0) / max_val) * 140)
-            h2 = int(((d2[i] if i < len(d2) else 0) / max_val) * 140)
+            v1 = d1[i] if i < len(d1) else 0
+            v2 = d2[i] if i < len(d2) else 0
+            h1 = int((v1 / max_val) * 135)
+            h2 = int((v2 / max_val) * 135)
             d.rectangle([x, 185 - h1, x + bar_width, 185], fill=color1)
             d.rectangle([x + bar_width + 2, 185 - h2, x + bar_width * 2 + 2, 185], fill=color2)
+            if v1 > 0:
+                d.text((x + 1, max(185 - h1 - 12, 24)), str(v1), fill=color1)
+            if v2 > 0:
+                d.text((x + bar_width + 3, max(185 - h2 - 12, 24)), str(v2), fill=color2)
             d.text((x, 190), str(lab)[:7], fill='#64748b')
             
         buf = io.BytesIO()
@@ -536,7 +582,7 @@ def draw_pil_bars(labels, d1, d2, label1='Entregadas', label2='Pendientes', colo
 
 def obtener_o_generar_graficos_pdf(request, datos):
     """
-    Obtiene las imágenes de los gráficos para el informe PDF.
+    Obtiene las imágenes de los gráficos para el informe PDF con cantidades numéricas explícitas.
     Prioriza las imágenes Base64 generadas en el navegador por Chart.js enviadas vía POST.
     Si no fueron enviadas, genera gráficos con QuickChart o con el motor PIL local como respaldo.
     """
@@ -547,23 +593,32 @@ def obtener_o_generar_graficos_pdf(request, datos):
     chart_insumos = limpiar_base64_img(params.get('chart_insumos', ''))
     chart_tipos = limpiar_base64_img(params.get('chart_tipos', ''))
     
-    # 1. Gráfico de Dona: Distribución de Estatus
+    # 1. Gráfico de Dona: Distribución de Estatus con Cantidades
     if not chart_status:
         entregados = datos.get('gran_total_entregados', 0)
         pendientes = datos.get('gran_total_pendientes', 0)
+        tot = max(entregados + pendientes, 1)
         qc_status = {
             'type': 'doughnut',
             'data': {
-                'labels': [f'Entregados ({entregados})', f'Pendientes ({pendientes})'],
+                'labels': [f'Entregados: {entregados}', f'Pendientes: {pendientes}'],
                 'datasets': [{'data': [entregados, pendientes], 'backgroundColor': ['#10b981', '#f59e0b']}]
             },
             'options': {
-                'plugins': {'legend': {'position': 'bottom', 'labels': {'fontSize': 11, 'fontStyle': 'bold'}}}
+                'plugins': {
+                    'legend': {'position': 'bottom', 'labels': {'fontSize': 11, 'fontStyle': 'bold'}},
+                    'datalabels': {
+                        'display': True,
+                        'color': '#ffffff',
+                        'font': {'weight': 'bold', 'size': 12},
+                        'formatter': '(val) => val > 0 ? val + " (" + Math.round(val/' + str(tot) + '*100) + "%)" : ""'
+                    }
+                }
             }
         }
         chart_status = obtener_chart_quickchart(qc_status, 400, 240) or draw_pil_donut(entregados, pendientes)
         
-    # 2. Gráfico de Líneas: Evolución Temporal
+    # 2. Gráfico de Líneas: Evolución Temporal con Cantidades
     if not chart_evolucion:
         labels = datos.get('fechas_labels', []) or ['Inicio', 'Cierre']
         d_ent = datos.get('fechas_entregados', []) or [0, 0]
@@ -578,12 +633,15 @@ def obtener_o_generar_graficos_pdf(request, datos):
                 ]
             },
             'options': {
-                'plugins': {'legend': {'position': 'top', 'labels': {'fontSize': 10}}}
+                'plugins': {
+                    'legend': {'position': 'top', 'labels': {'fontSize': 10}},
+                    'datalabels': {'display': True, 'align': 'top', 'anchor': 'end', 'font': {'weight': 'bold', 'size': 9}}
+                }
             }
         }
         chart_evolucion = obtener_chart_quickchart(qc_evol, 500, 240) or draw_pil_line(labels, d_ent, d_pen)
         
-    # 3. Gráfico de Barras: Top Insumos
+    # 3. Gráfico de Barras: Top Insumos con Cantidades
     if not chart_insumos:
         top_list = datos.get('top_insumos', [])[:6]
         labels_ins = [item['descripcion'][:15] + ('...' if len(item['descripcion']) > 15 else '') for item in top_list] or ['Sin insumos']
@@ -600,12 +658,15 @@ def obtener_o_generar_graficos_pdf(request, datos):
             },
             'options': {
                 'scales': {'xAxes': [{'stacked': True}], 'yAxes': [{'stacked': True}]},
-                'plugins': {'legend': {'position': 'top', 'labels': {'fontSize': 9}}}
+                'plugins': {
+                    'legend': {'position': 'top', 'labels': {'fontSize': 9}},
+                    'datalabels': {'display': True, 'color': '#ffffff', 'font': {'weight': 'bold', 'size': 9}}
+                }
             }
         }
         chart_insumos = obtener_chart_quickchart(qc_ins, 480, 240) or draw_pil_bars(labels_ins, d_ins_ent, d_ins_pen, 'Entregadas', 'Pendientes', '#10b981', '#f59e0b')
         
-    # 4. Gráfico de Barras: Tipos de Solicitud
+    # 4. Gráfico de Barras: Tipos de Solicitud con Cantidades
     if not chart_tipos:
         tipos_list = datos.get('tipos_solicitudes', [])[:6]
         labels_tip = [item['tipo_solicitud'][:14] for item in tipos_list] or ['Sin solicitudes']
@@ -621,7 +682,10 @@ def obtener_o_generar_graficos_pdf(request, datos):
                 ]
             },
             'options': {
-                'plugins': {'legend': {'position': 'top', 'labels': {'fontSize': 9}}}
+                'plugins': {
+                    'legend': {'position': 'top', 'labels': {'fontSize': 9}},
+                    'datalabels': {'display': True, 'align': 'top', 'anchor': 'end', 'font': {'weight': 'bold', 'size': 9}}
+                }
             }
         }
         chart_tipos = obtener_chart_quickchart(qc_tip, 450, 240) or draw_pil_bars(labels_tip, d_tip_ent, d_tip_pen, 'Completadas', 'En Proceso', '#4f46e5', '#06b6d4')
