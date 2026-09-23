@@ -87,8 +87,8 @@ def calcular_datos_informe(periodo='semanal', fecha_str=None, fecha_inicio_str=N
         periodo_nombre = "Informe General Consolidado"
         subtitulo_periodo = "Histórico Total Acumulado en el Sistema"
 
-    # 2. Filtrado y Anotación de Beneficios (entregas.BeneficioEntregado)
-    qs_beneficios = BeneficioEntregado.objects.annotate(
+    # 2. Querysets Base de Beneficios (entregas.BeneficioEntregado)
+    base_beneficios = BeneficioEntregado.objects.annotate(
         status_clean=Trim('status'),
         fecha_efectiva=Coalesce(
             'fecha',
@@ -97,18 +97,22 @@ def calcular_datos_informe(periodo='semanal', fecha_str=None, fecha_inicio_str=N
             output_field=models.DateField()
         )
     )
+
+    # Entregados: filtrados estrictamente por el rango de fechas del período seleccionado
+    beneficios_entregados_qs = base_beneficios.filter(status_clean__iexact='Entregado')
     if fecha_desde:
-        qs_beneficios = qs_beneficios.filter(fecha_efectiva__gte=fecha_desde)
+        beneficios_entregados_qs = beneficios_entregados_qs.filter(fecha_efectiva__gte=fecha_desde)
     if fecha_hasta:
-        qs_beneficios = qs_beneficios.filter(fecha_efectiva__lte=fecha_hasta)
+        beneficios_entregados_qs = beneficios_entregados_qs.filter(fecha_efectiva__lte=fecha_hasta)
 
-    # Separación y Concatenación por Estatus de Beneficios
-    beneficios_entregados_qs = qs_beneficios.filter(status_clean__iexact='Entregado')
-    beneficios_pendientes_qs = qs_beneficios.filter(Q(status_clean__iexact='Pendiente') | Q(status_clean__isnull=True) | ~Q(status_clean__iexact='Entregado'))
+    # Pendientes: evaluados de TODO EN GENERAL (cartera activa acumulada, sin restricción de rango)
+    beneficios_pendientes_qs = base_beneficios.filter(
+        Q(status_clean__iexact='Pendiente') | Q(status_clean__isnull=True) | ~Q(status_clean__iexact='Entregado')
+    )
 
-    total_beneficios_count = qs_beneficios.count()
     beneficios_entregados_count = beneficios_entregados_qs.count()
     beneficios_pendientes_count = beneficios_pendientes_qs.count()
+    total_beneficios_count = beneficios_entregados_count + beneficios_pendientes_count
 
     articulos_entregados_sum = beneficios_entregados_qs.aggregate(t=Sum('cantidad_dada'))['t'] or 0
     articulos_pendientes_sum = beneficios_pendientes_qs.aggregate(t=Sum('cantidad_dada'))['t'] or 0
@@ -116,30 +120,42 @@ def calcular_datos_informe(periodo='semanal', fecha_str=None, fecha_inicio_str=N
 
     beneficiarios_entregados_count = beneficios_entregados_qs.exclude(cedula__isnull=True).exclude(cedula__exact='').values('cedula').distinct().count()
     beneficiarios_pendientes_count = beneficios_pendientes_qs.exclude(cedula__isnull=True).exclude(cedula__exact='').values('cedula').distinct().count()
-    total_beneficiarios_unicos = qs_beneficios.exclude(cedula__isnull=True).exclude(cedula__exact='').values('cedula').distinct().count()
+    total_beneficiarios_unicos = beneficiarios_entregados_count + beneficiarios_pendientes_count
 
-    # 3. Filtrado y Anotación de Solicitudes (core.SolicitudCiudadano)
-    qs_solicitudes = SolicitudCiudadano.objects.annotate(
+    # 3. Querysets Base de Solicitudes (core.SolicitudCiudadano)
+    base_solicitudes = SolicitudCiudadano.objects.annotate(
         fecha_efectiva=Coalesce(
             Cast('fecha_solicitud', output_field=models.DateField()),
             'fecha_entrega',
             output_field=models.DateField()
         )
     )
+
+    # Solicitudes Entregadas: filtradas estrictamente por el rango de fechas
+    solicitudes_entregadas_qs = base_solicitudes.filter(status__iexact='Entregada')
     if fecha_desde:
-        qs_solicitudes = qs_solicitudes.filter(fecha_efectiva__gte=fecha_desde)
+        solicitudes_entregadas_qs = solicitudes_entregadas_qs.filter(fecha_efectiva__gte=fecha_desde)
     if fecha_hasta:
-        qs_solicitudes = qs_solicitudes.filter(fecha_efectiva__lte=fecha_hasta)
+        solicitudes_entregadas_qs = solicitudes_entregadas_qs.filter(fecha_efectiva__lte=fecha_hasta)
 
-    total_solicitudes_count = qs_solicitudes.count()
-    solicitudes_entregadas_count = qs_solicitudes.filter(status__iexact='Entregada').count()
-    solicitudes_aprobadas_count = qs_solicitudes.filter(status__iexact='Aprobada').count()
-    solicitudes_en_proceso_count = qs_solicitudes.filter(status__iexact='En Proceso').count()
-    solicitudes_recibidas_count = qs_solicitudes.filter(status__iexact='Recibida').count()
-    solicitudes_rechazadas_count = qs_solicitudes.filter(status__iexact='Rechazada').count()
+    # Solicitudes Pendientes (en trámite/proceso): evaluadas de TODO EN GENERAL
+    solicitudes_pendientes_qs = base_solicitudes.filter(
+        status__in=['Recibida', 'En Proceso', 'Aprobada']
+    )
+    solicitudes_rechazadas_qs = base_solicitudes.filter(status__iexact='Rechazada')
+    if fecha_desde:
+        solicitudes_rechazadas_qs = solicitudes_rechazadas_qs.filter(fecha_efectiva__gte=fecha_desde)
+    if fecha_hasta:
+        solicitudes_rechazadas_qs = solicitudes_rechazadas_qs.filter(fecha_efectiva__lte=fecha_hasta)
 
-    # Concatenación de solicitudes en trámite/pendientes (Recibida, En Proceso, Aprobada)
-    solicitudes_pendientes_count = solicitudes_recibidas_count + solicitudes_en_proceso_count + solicitudes_aprobadas_count
+    solicitudes_entregadas_count = solicitudes_entregadas_qs.count()
+    solicitudes_pendientes_count = solicitudes_pendientes_qs.count()
+    total_solicitudes_count = solicitudes_entregadas_count + solicitudes_pendientes_count
+
+    solicitudes_aprobadas_count = solicitudes_pendientes_qs.filter(status__iexact='Aprobada').count()
+    solicitudes_en_proceso_count = solicitudes_pendientes_qs.filter(status__iexact='En Proceso').count()
+    solicitudes_recibidas_count = solicitudes_pendientes_qs.filter(status__iexact='Recibida').count()
+    solicitudes_rechazadas_count = solicitudes_rechazadas_qs.count()
 
     # 4. Concatenación de Métricas Totales del Sistema
     gran_total_operaciones = total_beneficios_count + total_solicitudes_count
@@ -151,7 +167,7 @@ def calcular_datos_informe(periodo='semanal', fecha_str=None, fecha_inicio_str=N
     tasa_efectividad_global = round((gran_total_entregados / gran_total_operaciones * 100), 1) if gran_total_operaciones > 0 else 0
 
     # 5. Agrupaciones para Gráficos
-    # A) Insumos Más Entregados vs Pendientes
+    # A) Insumos Más Entregados (en período) vs Pendientes (en cartera general)
     prods_entregados_agg = {
         item['descripcion_prod']: item['cant']
         for item in beneficios_entregados_qs.values('descripcion_prod').annotate(cant=Sum('cantidad_dada'))
@@ -177,18 +193,27 @@ def calcular_datos_informe(periodo='semanal', fecha_str=None, fecha_inicio_str=N
     top_insumos_lista.sort(key=lambda x: x['total'], reverse=True)
     top_insumos_recortado = top_insumos_lista[:7]
 
-    # B) Tipos de Solicitud Ciudadana
-    tipos_sol_agg = list(qs_solicitudes.values('tipo_solicitud').annotate(
-        total=Count('id'),
-        entregadas=Count('id', filter=Q(status__iexact='Entregada')),
-        pendientes=Count('id', filter=Q(status__in=['Recibida', 'En Proceso', 'Aprobada']))
-    ).order_by('-total'))
+    # B) Tipos de Solicitud Ciudadana (Entregadas en período vs Pendientes en general)
+    tipos_sol_agg = []
+    tipos_unicos = set(solicitudes_entregadas_qs.values_list('tipo_solicitud', flat=True)) | set(solicitudes_pendientes_qs.values_list('tipo_solicitud', flat=True))
+    for t_nom in tipos_unicos:
+        if not t_nom:
+            continue
+        c_ent = solicitudes_entregadas_qs.filter(tipo_solicitud=t_nom).count()
+        c_pen = solicitudes_pendientes_qs.filter(tipo_solicitud=t_nom).count()
+        tipos_sol_agg.append({
+            'tipo_solicitud': t_nom,
+            'entregadas': c_ent,
+            'pendientes': c_pen,
+            'total': c_ent + c_pen
+        })
+    tipos_sol_agg.sort(key=lambda x: x['total'], reverse=True)
 
     # C) Distribución de Estados Conciliados
     estatus_labels = ['Completados / Entregados', 'En Espera / Pendientes', 'Rechazados']
     estatus_valores = [gran_total_entregados, gran_total_pendientes, solicitudes_rechazadas_count]
 
-    # D) Serie Temporal (Evolución diaria cronológica de Entregados y Pendientes)
+    # D) Serie Temporal (Evolución diaria cronológica)
     fechas_labels = []
     fechas_entregados = []
     fechas_pendientes = []
@@ -205,7 +230,7 @@ def calcular_datos_informe(periodo='semanal', fecha_str=None, fecha_inicio_str=N
         }
         agg_sol = {
             item['fecha_efectiva']: item['cnt']
-            for item in qs_solicitudes.values('fecha_efectiva').annotate(cnt=Count('id'))
+            for item in solicitudes_entregadas_qs.values('fecha_efectiva').annotate(cnt=Count('id'))
         }
 
         curr = fecha_desde
@@ -220,14 +245,44 @@ def calcular_datos_informe(periodo='semanal', fecha_str=None, fecha_inicio_str=N
         fechas_labels = ['Total Acumulado']
         fechas_entregados = [beneficios_entregados_count]
         fechas_pendientes = [beneficios_pendientes_count]
-        fechas_solicitudes = [total_solicitudes_count]
+        fechas_solicitudes = [solicitudes_entregadas_count]
 
-    # 6. Registros Concatenados y Unificados Gestionados en el Período
+    # 6. Registros Concatenados: Entregas del Período + Cartera General Pendiente
     registros_unificados = []
-    recientes_beneficios = list(qs_beneficios.order_by('-fecha_efectiva', '-id')[:100].values(
+    
+    # A) Entregas correspondientes al período seleccionado
+    for b in beneficios_entregados_qs.order_by('-fecha_efectiva', '-id')[:100].values(
         'id', 'nombre_beneficiario', 'cedula', 'descripcion_prod', 'cantidad_dada', 'status_clean', 'fecha_efectiva', 'via'
-    ))
-    for b in recientes_beneficios:
+    ):
+        registros_unificados.append({
+            'tipo': 'ENTREGA',
+            'beneficiario': b['nombre_beneficiario'] or 'No identificado',
+            'cedula': b['cedula'] or 'S/C',
+            'detalle': b['descripcion_prod'] or 'Insumo de Almacén',
+            'cantidad': f"{b['cantidad_dada']} u.",
+            'status': 'Entregado',
+            'is_entregado': True,
+            'fecha': b['fecha_efectiva'],
+        })
+
+    for s in solicitudes_entregadas_qs.order_by('-fecha_efectiva', '-id')[:100].values(
+        'id', 'nombre_apellido', 'cedula', 'tipo_solicitud', 'prioridad', 'status', 'fecha_efectiva'
+    ):
+        registros_unificados.append({
+            'tipo': 'SOLICITUD',
+            'beneficiario': s['nombre_apellido'],
+            'cedula': s['cedula'] or 'S/C',
+            'detalle': s['tipo_solicitud'],
+            'cantidad': '1 caso',
+            'status': 'Entregada',
+            'is_entregado': True,
+            'fecha': s['fecha_efectiva'],
+        })
+
+    # B) Cartera general de compromisos pendientes (todo en general sin restricción)
+    for b in beneficios_pendientes_qs.order_by('-fecha_efectiva', '-id')[:100].values(
+        'id', 'nombre_beneficiario', 'cedula', 'descripcion_prod', 'cantidad_dada', 'status_clean', 'fecha_efectiva', 'via'
+    ):
         registros_unificados.append({
             'tipo': 'ENTREGA',
             'beneficiario': b['nombre_beneficiario'] or 'No identificado',
@@ -235,14 +290,13 @@ def calcular_datos_informe(periodo='semanal', fecha_str=None, fecha_inicio_str=N
             'detalle': b['descripcion_prod'] or 'Insumo de Almacén',
             'cantidad': f"{b['cantidad_dada']} u.",
             'status': b['status_clean'] or 'Pendiente',
-            'is_entregado': (b['status_clean'] or '').lower() == 'entregado',
+            'is_entregado': False,
             'fecha': b['fecha_efectiva'],
         })
 
-    recientes_solicitudes = list(qs_solicitudes.order_by('-fecha_efectiva', '-id')[:100].values(
+    for s in solicitudes_pendientes_qs.order_by('-fecha_efectiva', '-id')[:100].values(
         'id', 'nombre_apellido', 'cedula', 'tipo_solicitud', 'prioridad', 'status', 'fecha_efectiva'
-    ))
-    for s in recientes_solicitudes:
+    ):
         registros_unificados.append({
             'tipo': 'SOLICITUD',
             'beneficiario': s['nombre_apellido'],
@@ -250,12 +304,24 @@ def calcular_datos_informe(periodo='semanal', fecha_str=None, fecha_inicio_str=N
             'detalle': s['tipo_solicitud'],
             'cantidad': '1 caso',
             'status': s['status'],
-            'is_entregado': (s['status'] or '').lower() == 'entregada',
+            'is_entregado': False,
             'fecha': s['fecha_efectiva'],
         })
 
     # Ordenar unificados por fecha estrictamente descendente
     registros_unificados.sort(key=lambda x: (x['fecha'] or date.min), reverse=True)
+
+    recientes_beneficios = list(beneficios_entregados_qs.order_by('-fecha_efectiva', '-id')[:50].values(
+        'id', 'nombre_beneficiario', 'cedula', 'descripcion_prod', 'cantidad_dada', 'status_clean', 'fecha_efectiva', 'via'
+    )) + list(beneficios_pendientes_qs.order_by('-fecha_efectiva', '-id')[:50].values(
+        'id', 'nombre_beneficiario', 'cedula', 'descripcion_prod', 'cantidad_dada', 'status_clean', 'fecha_efectiva', 'via'
+    ))
+
+    recientes_solicitudes = list(solicitudes_entregadas_qs.order_by('-fecha_efectiva', '-id')[:50].values(
+        'id', 'nombre_apellido', 'cedula', 'tipo_solicitud', 'prioridad', 'status', 'fecha_efectiva'
+    )) + list(solicitudes_pendientes_qs.order_by('-fecha_efectiva', '-id')[:50].values(
+        'id', 'nombre_apellido', 'cedula', 'tipo_solicitud', 'prioridad', 'status', 'fecha_efectiva'
+    ))
 
     # 7. Redacción Inteligente del Análisis y Diagnóstico Institucional (Texto Ejecutivo)
     # A) Balance General Operativo
@@ -267,12 +333,12 @@ def calcular_datos_informe(periodo='semanal', fecha_str=None, fecha_inicio_str=N
         )
     else:
         analisis_balance = (
-            f"En el transcurso del {periodo_nombre.lower()} ({subtitulo_periodo}), se gestionó un volumen consolidado de "
-            f"{gran_total_operaciones:,} operaciones institucionales, conformadas por {total_beneficios_count:,} asignaciones directas "
-            f"de inventario y {total_solicitudes_count:,} solicitudes formales ingresadas por los ciudadanos. "
-            f"Del total de acciones, se consolidaron de manera efectiva {gran_total_entregados:,} beneficios entregados "
-            f"(representando una tasa de efectividad y resolución global del {tasa_efectividad_global}%), "
-            f"mientras que {gran_total_pendientes:,} requerimientos se encuentran actualmente en estatus pendiente o en proceso de gestión."
+            f"En el transcurso del {periodo_nombre.lower()} ({subtitulo_periodo}), se completaron de manera efectiva "
+            f"{gran_total_entregados:,} entregas de beneficios ({beneficios_entregados_count:,} asignaciones directas de almacén "
+            f"y {solicitudes_entregadas_count:,} solicitudes resueltas). Paralelamente, la cartera general activa de compromisos "
+            f"pendientes en todo el sistema acumula {gran_total_pendientes:,} casos en cola total por procesar "
+            f"({beneficios_pendientes_count:,} asignaciones de inventario en espera y {solicitudes_pendientes_count:,} solicitudes "
+            f"ciudadanas en trámite), representando un universo operativo de {gran_total_operaciones:,} gestiones evaluadas globalmente."
         )
 
     # B) Diagnóstico de Demanda y Necesidades Sociales
@@ -280,7 +346,7 @@ def calcular_datos_informe(periodo='semanal', fecha_str=None, fecha_inicio_str=N
         top_tipo = tipos_sol_agg[0]['tipo_solicitud'] if tipos_sol_agg else 'Ayuda Social'
         cant_top_tipo = tipos_sol_agg[0]['total'] if tipos_sol_agg else 0
         pct_top_tipo = round((cant_top_tipo / total_solicitudes_count) * 100, 1)
-        alta_prioridad = qs_solicitudes.filter(prioridad='Alta').count()
+        alta_prioridad = solicitudes_pendientes_qs.filter(prioridad='Alta').count()
 
         analisis_demanda = (
             f"El diagnóstico de atención al ciudadano revela que el requerimiento con mayor demanda en este período fue "

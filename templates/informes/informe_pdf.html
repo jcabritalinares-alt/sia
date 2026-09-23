@@ -219,9 +219,9 @@
             <thead>
                 <tr>
                     <th>Concepto Operativo</th>
-                    <th>Completados / Entregados</th>
-                    <th>En Trámite / Pendientes</th>
-                    <th>Total Acumulado</th>
+                    <th>Entregados (en el Período)</th>
+                    <th>Pendientes (Cartera General)</th>
+                    <th>Total Conciliado</th>
                     <th>Tasa de Efectividad</th>
                 </tr>
             </thead>
@@ -389,9 +389,9 @@
     </div>
     {% endif %}
 
-    <!-- 7. Registros Gestionados en el Período (Concatenados y Estrictamente Filtrados) -->
+    <!-- 7. Registros Gestionados en el Período y Cartera General Pendiente -->
     <div class="section-box">
-        <div class="section-title">7. REGISTROS GESTIONADOS EN EL PERÍODO (RANGO: {{ d.subtitulo_periodo }})</div>
+        <div class="section-title">7. REGISTRO DE ENTREGAS DEL PERÍODO Y COMPROMISOS PENDIENTES GENERALES</div>
         <table>
             <thead>
                 <tr>

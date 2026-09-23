@@ -178,7 +178,7 @@
             <div class="card border-0 shadow-sm informe-kpi-card h-100" style="background: linear-gradient(135deg, var(--card-bg) 0%, rgba(16, 185, 129, 0.08) 100%); border-left: 4px solid #10b981 !important;">
                 <div class="d-flex align-items-center justify-content-between">
                     <div>
-                        <span class="text-uppercase fw-bold text-success small tracking-wider" style="font-size: 0.76rem;">Total Entregados</span>
+                        <span class="text-uppercase fw-bold text-success small tracking-wider" style="font-size: 0.76rem;">Entregados en Período</span>
                         <h2 class="fw-extrabold text-success mt-1 mb-0" id="kpiEntregados">{{ d.gran_total_entregados }}</h2>
                         <span class="badge bg-success bg-opacity-10 text-success rounded-pill fw-bold small mt-1">
                             <i class="bi bi-check-circle-fill me-1"></i> {{ d.tasa_efectividad_global }}% Efectividad
@@ -191,14 +191,14 @@
             </div>
         </div>
 
-        <!-- Tarjeta 3: En Espera / Pendientes -->
+        <!-- Tarjeta 3: En Espera / Pendientes (General) -->
         <div class="col-12 col-sm-6 col-xl-3">
             <div class="card border-0 shadow-sm informe-kpi-card h-100" style="background: linear-gradient(135deg, var(--card-bg) 0%, rgba(245, 158, 11, 0.08) 100%); border-left: 4px solid #f59e0b !important;">
                 <div class="d-flex align-items-center justify-content-between">
                     <div>
-                        <span class="text-uppercase fw-bold text-warning small tracking-wider" style="font-size: 0.76rem;">Total Pendientes</span>
+                        <span class="text-uppercase fw-bold text-warning small tracking-wider" style="font-size: 0.76rem;">Cartera Pendiente General</span>
                         <h2 class="fw-extrabold text-warning mt-1 mb-0" id="kpiPendientes">{{ d.gran_total_pendientes }}</h2>
-                        <span class="text-muted small">Por entregar / En trámite</span>
+                        <span class="text-muted small">Acumulado total en sistema</span>
                     </div>
                     <div class="d-flex align-items-center justify-content-center bg-warning bg-opacity-10 text-warning rounded-4" style="width: 52px; height: 52px;">
                         <i class="bi bi-clock-history fs-3"></i>
