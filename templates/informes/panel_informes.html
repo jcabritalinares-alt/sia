@@ -39,28 +39,74 @@
         background: var(--card-bg);
         border: 1px solid var(--border-color);
         border-radius: var(--radius-md);
-        padding: 1.25rem 1.4rem;
-        min-height: 310px;
+        padding: 1.5rem 1.6rem;
+        min-height: 420px;
         display: flex;
         flex-direction: column;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.03);
     }
     .chart-canvas-wrapper {
         position: relative;
         flex-grow: 1;
-        min-height: 230px;
+        min-height: 330px;
+        height: 330px;
     }
     @media print {
+        body, html {
+            background: #ffffff !important;
+            color: #0f172a !important;
+            font-size: 10pt !important;
+        }
         .sia-sidebar, .sia-topbar, .btn-no-print, .sia-bottom-nav, footer {
             display: none !important;
         }
-        .sia-main-wrapper {
+        .sia-main-wrapper, .container-fluid {
             padding: 0 !important;
             margin: 0 !important;
+            max-width: 100% !important;
+            width: 100% !important;
         }
         .main-card {
             border: none !important;
             box-shadow: none !important;
             padding: 0 !important;
+            background: transparent !important;
+        }
+        .informe-kpi-card {
+            border: 1px solid #cbd5e1 !important;
+            background: #ffffff !important;
+            box-shadow: none !important;
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
+        }
+        .analisis-box {
+            background: #ffffff !important;
+            border: 1px solid #94a3b8 !important;
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
+        }
+        .chart-container-box {
+            background: #ffffff !important;
+            border: 1px solid #cbd5e1 !important;
+            box-shadow: none !important;
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
+            min-height: 360px !important;
+            margin-bottom: 24px !important;
+        }
+        .chart-canvas-wrapper {
+            min-height: 310px !important;
+            height: 310px !important;
+        }
+        .table-responsive {
+            overflow: visible !important;
+        }
+        table {
+            page-break-inside: auto !important;
+        }
+        tr {
+            page-break-inside: avoid !important;
+            page-break-after: auto !important;
         }
     }
 </style>
@@ -502,7 +548,7 @@
         const textColor = savedTheme === 'dark' ? '#cbd5e1' : '#475569';
         const gridColor = savedTheme === 'dark' ? 'rgba(51, 65, 85, 0.4)' : 'rgba(226, 232, 240, 0.7)';
 
-        // 1. Gráfico de Evolución Temporal (con cantidades por punto)
+        // 1. Gráfico de Evolución Temporal (con cantidades por punto en badges legibles)
         const ctxEvol = document.getElementById('graficoEvolucionTemporal')?.getContext('2d');
         if (ctxEvol) {
             if (chartEvolucionInstance) chartEvolucionInstance.destroy();
@@ -515,67 +561,93 @@
                             label: 'Entregados',
                             data: d.fechas_entregados || [],
                             borderColor: '#10b981',
-                            backgroundColor: 'rgba(16, 185, 129, 0.12)',
+                            backgroundColor: 'rgba(16, 185, 129, 0.14)',
                             fill: true,
                             tension: 0.3,
-                            borderWidth: 2,
-                            pointRadius: 4,
-                            pointHoverRadius: 6
+                            borderWidth: 3,
+                            pointRadius: 6,
+                            pointHoverRadius: 8,
+                            pointBackgroundColor: '#ffffff',
+                            pointBorderColor: '#10b981',
+                            pointBorderWidth: 2
                         },
                         {
                             label: 'Pendientes',
                             data: d.fechas_pendientes || [],
                             borderColor: '#f59e0b',
-                            backgroundColor: 'rgba(245, 158, 11, 0.12)',
+                            backgroundColor: 'rgba(245, 158, 11, 0.14)',
                             fill: true,
                             tension: 0.3,
-                            borderWidth: 2,
-                            pointRadius: 4,
-                            pointHoverRadius: 6
+                            borderWidth: 3,
+                            pointRadius: 6,
+                            pointHoverRadius: 8,
+                            pointBackgroundColor: '#ffffff',
+                            pointBorderColor: '#f59e0b',
+                            pointBorderWidth: 2
                         },
                         {
                             label: 'Solicitudes',
                             data: d.fechas_solicitudes || [],
-                            borderColor: '#4f46e5',
-                            backgroundColor: 'rgba(79, 70, 229, 0.08)',
+                            borderColor: '#6366f1',
+                            backgroundColor: 'rgba(99, 102, 241, 0.08)',
                             fill: false,
                             tension: 0.3,
-                            borderWidth: 2,
+                            borderWidth: 2.5,
                             borderDash: [5, 5],
-                            pointRadius: 3
+                            pointRadius: 5,
+                            pointBackgroundColor: '#ffffff',
+                            pointBorderColor: '#6366f1',
+                            pointBorderWidth: 2
                         }
                     ]
                 },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
+                    layout: {
+                        padding: { top: 20, right: 15, bottom: 5, left: 10 }
+                    },
                     plugins: {
-                        legend: { position: 'top', labels: { color: textColor, font: { family: 'Plus Jakarta Sans', size: 11, weight: 'bold' } } },
+                        legend: { 
+                            position: 'top', 
+                            labels: { color: textColor, font: { family: 'Plus Jakarta Sans', size: 12, weight: 'bold' }, padding: 15 } 
+                        },
                         datalabels: {
                             display: function(ctx) {
                                 const val = ctx.dataset.data[ctx.dataIndex];
-                                return val > 0 && (d.fechas_labels || []).length <= 20;
+                                return val !== null && val !== undefined && val > 0 && (d.fechas_labels || []).length <= 25;
                             },
                             align: 'top',
                             anchor: 'end',
-                            color: function(ctx) {
+                            offset: 6,
+                            backgroundColor: function(ctx) {
                                 return ctx.dataset.borderColor;
                             },
-                            font: { size: 10, weight: 'bold' },
+                            color: '#ffffff',
+                            borderRadius: 4,
+                            padding: { top: 2, bottom: 2, left: 6, right: 6 },
+                            font: { family: 'Plus Jakarta Sans', size: 11, weight: 'bold' },
                             formatter: function(val) {
                                 return val;
                             }
                         }
                     },
                     scales: {
-                        x: { grid: { display: false }, ticks: { color: textColor, font: { size: 10 } } },
-                        y: { beginAtZero: true, grid: { color: gridColor }, ticks: { color: textColor, font: { size: 10 }, precision: 0 } }
+                        x: { 
+                            grid: { display: false }, 
+                            ticks: { color: textColor, font: { family: 'Plus Jakarta Sans', size: 11, weight: '600' } } 
+                        },
+                        y: { 
+                            beginAtZero: true, 
+                            grid: { color: gridColor }, 
+                            ticks: { color: textColor, font: { family: 'Plus Jakarta Sans', size: 11, weight: '600' }, precision: 0 } 
+                        }
                     }
                 }
             });
         }
 
-        // 2. Gráfico Estados Consolidados (Doughnut con cantidades numéricas y porcentajes)
+        // 2. Gráfico Estados Consolidados (Doughnut amplio con cantidades y porcentajes destacados)
         const ctxEst = document.getElementById('graficoEstadosConsolidados')?.getContext('2d');
         if (ctxEst) {
             if (chartEstadosInstance) chartEstadosInstance.destroy();
@@ -593,21 +665,30 @@
                     datasets: [{
                         data: [entCount, penCount, rechCount],
                         backgroundColor: ['#10b981', '#f59e0b', '#ef4444'],
-                        borderWidth: 2,
+                        borderWidth: 3,
                         borderColor: savedTheme === 'dark' ? '#1e293b' : '#ffffff'
                     }]
                 },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
-                    cutout: '65%',
+                    cutout: '48%',
                     plugins: {
-                        legend: { position: 'bottom', labels: { color: textColor, font: { size: 11, weight: '600' } } },
+                        legend: { 
+                            position: 'bottom', 
+                            labels: { color: textColor, font: { family: 'Plus Jakarta Sans', size: 12, weight: 'bold' }, padding: 16 } 
+                        },
                         datalabels: {
+                            display: function(ctx) {
+                                const val = ctx.dataset.data[ctx.dataIndex];
+                                return val > 0;
+                            },
                             color: '#ffffff',
-                            font: { size: 11, weight: 'bold' },
+                            backgroundColor: 'rgba(15, 23, 42, 0.85)',
+                            borderRadius: 6,
+                            padding: { top: 4, bottom: 4, left: 8, right: 8 },
+                            font: { family: 'Plus Jakarta Sans', size: 13, weight: 'bold' },
                             formatter: function(value, ctx) {
-                                if (!value || value === 0) return '';
                                 const total = ctx.dataset.data.reduce((a, b) => a + b, 0);
                                 const pct = total > 0 ? Math.round((value / total) * 100) : 0;
                                 return `${value}\n(${pct}%)`;
@@ -619,12 +700,12 @@
             });
         }
 
-        // 3. Gráfico Top Insumos (Barras Horizontales con cantidades visibles)
+        // 3. Gráfico Top Insumos (Barras Horizontales con cantidades destacadas)
         const ctxInsumos = document.getElementById('graficoTopInsumos')?.getContext('2d');
         if (ctxInsumos) {
             if (chartTopInsumosInstance) chartTopInsumosInstance.destroy();
             const topList = d.top_insumos || [];
-            const labels = topList.map(item => item.descripcion.length > 20 ? item.descripcion.substring(0, 18) + '...' : item.descripcion);
+            const labels = topList.map(item => item.descripcion.length > 22 ? item.descripcion.substring(0, 20) + '...' : item.descripcion);
             const dataEnt = topList.map(item => item.entregadas);
             const dataPen = topList.map(item => item.pendientes);
 
@@ -633,8 +714,8 @@
                 data: {
                     labels: labels,
                     datasets: [
-                        { label: 'Entregadas (u.)', data: dataEnt, backgroundColor: '#10b981', borderRadius: 4 },
-                        { label: 'Pendientes (u.)', data: dataPen, backgroundColor: '#f59e0b', borderRadius: 4 }
+                        { label: 'Entregadas (u.)', data: dataEnt, backgroundColor: '#10b981', borderRadius: 4, barPercentage: 0.75 },
+                        { label: 'Pendientes (u.)', data: dataPen, backgroundColor: '#f59e0b', borderRadius: 4, barPercentage: 0.75 }
                     ]
                 },
                 options: {
@@ -642,24 +723,43 @@
                     responsive: true,
                     maintainAspectRatio: false,
                     plugins: {
-                        legend: { position: 'top', labels: { color: textColor, font: { size: 10, weight: 'bold' } } },
+                        legend: { 
+                            position: 'top', 
+                            labels: { color: textColor, font: { family: 'Plus Jakarta Sans', size: 12, weight: 'bold' }, padding: 12 } 
+                        },
                         datalabels: {
+                            display: function(ctx) {
+                                const val = ctx.dataset.data[ctx.dataIndex];
+                                return val > 0;
+                            },
                             color: '#ffffff',
-                            font: { size: 10, weight: 'bold' },
+                            backgroundColor: 'rgba(15, 23, 42, 0.75)',
+                            borderRadius: 4,
+                            padding: { top: 2, bottom: 2, left: 6, right: 6 },
+                            font: { family: 'Plus Jakarta Sans', size: 11, weight: 'bold' },
                             formatter: function(value) {
-                                return value > 0 ? `${value} u.` : '';
+                                return `${value} u.`;
                             }
                         }
                     },
                     scales: {
-                        x: { stacked: true, beginAtZero: true, grid: { color: gridColor }, ticks: { color: textColor, font: { size: 10 }, precision: 0 } },
-                        y: { stacked: true, grid: { display: false }, ticks: { color: textColor, font: { size: 10, weight: '600' } } }
+                        x: { 
+                            stacked: true, 
+                            beginAtZero: true, 
+                            grid: { color: gridColor }, 
+                            ticks: { color: textColor, font: { family: 'Plus Jakarta Sans', size: 11, weight: '600' }, precision: 0 } 
+                        },
+                        y: { 
+                            stacked: true, 
+                            grid: { display: false }, 
+                            ticks: { color: textColor, font: { family: 'Plus Jakarta Sans', size: 11.5, weight: 'bold' } } 
+                        }
                     }
                 }
             });
         }
 
-        // 4. Gráfico Tipos de Solicitud (Barras Verticales con cantidades visibles)
+        // 4. Gráfico Tipos de Solicitud (Barras Verticales con etiquetas nítidas)
         const ctxTipos = document.getElementById('graficoTiposSolicitudes')?.getContext('2d');
         if (ctxTipos) {
             if (chartTiposSolInstance) chartTiposSolInstance.destroy();
@@ -673,28 +773,51 @@
                 data: {
                     labels: labels,
                     datasets: [
-                        { label: 'Completadas', data: dataEnt, backgroundColor: '#4f46e5', borderRadius: 4 },
-                        { label: 'En Proceso / Pendientes', data: dataPen, backgroundColor: '#06b6d4', borderRadius: 4 }
+                        { label: 'Completadas', data: dataEnt, backgroundColor: '#4f46e5', borderRadius: 6, barPercentage: 0.75, categoryPercentage: 0.75 },
+                        { label: 'En Proceso / Pendientes', data: dataPen, backgroundColor: '#06b6d4', borderRadius: 6, barPercentage: 0.75, categoryPercentage: 0.75 }
                     ]
                 },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
+                    layout: {
+                        padding: { top: 18, right: 10, bottom: 5, left: 5 }
+                    },
                     plugins: {
-                        legend: { position: 'top', labels: { color: textColor, font: { size: 10, weight: 'bold' } } },
+                        legend: { 
+                            position: 'top', 
+                            labels: { color: textColor, font: { family: 'Plus Jakarta Sans', size: 12, weight: 'bold' }, padding: 12 } 
+                        },
                         datalabels: {
+                            display: function(ctx) {
+                                const val = ctx.dataset.data[ctx.dataIndex];
+                                return val > 0;
+                            },
                             anchor: 'end',
                             align: 'top',
-                            color: textColor,
-                            font: { size: 10, weight: 'bold' },
+                            offset: 4,
+                            backgroundColor: function(ctx) {
+                                return ctx.dataset.backgroundColor;
+                            },
+                            color: '#ffffff',
+                            borderRadius: 4,
+                            padding: { top: 2, bottom: 2, left: 6, right: 6 },
+                            font: { family: 'Plus Jakarta Sans', size: 11, weight: 'bold' },
                             formatter: function(value) {
-                                return value > 0 ? value : '';
+                                return value;
                             }
                         }
                     },
                     scales: {
-                        x: { grid: { display: false }, ticks: { color: textColor, font: { size: 9 }, maxRotation: 30 } },
-                        y: { beginAtZero: true, grid: { color: gridColor }, ticks: { color: textColor, font: { size: 10 }, precision: 0 } }
+                        x: { 
+                            grid: { display: false }, 
+                            ticks: { color: textColor, font: { family: 'Plus Jakarta Sans', size: 11, weight: '600' }, maxRotation: 20 } 
+                        },
+                        y: { 
+                            beginAtZero: true, 
+                            grid: { color: gridColor }, 
+                            ticks: { color: textColor, font: { family: 'Plus Jakarta Sans', size: 11, weight: '600' }, precision: 0 } 
+                        }
                     }
                 }
             });

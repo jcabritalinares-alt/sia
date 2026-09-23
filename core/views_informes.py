@@ -520,8 +520,8 @@ def limpiar_base64_img(val):
         val = val.split(',', 1)[1]
     return val.strip().replace(' ', '+')
 
-def obtener_chart_quickchart(qc_config, width=500, height=260):
-    """Consulta la API de QuickChart para generar un gráfico en PNG de alta resolución."""
+def obtener_chart_quickchart(qc_config, width=650, height=360):
+    """Consulta la API de QuickChart para generar un gráfico en PNG de alta resolución y nitidez."""
     try:
         ctx = ssl.create_default_context()
         ctx.check_hostname = False
@@ -532,7 +532,7 @@ def obtener_chart_quickchart(qc_config, width=500, height=260):
             'w': width,
             'h': height,
             'bkg': 'white',
-            'devicePixelRatio': 1.5
+            'devicePixelRatio': 2.0
         })
         url = f"https://quickchart.io/chart?{params}"
         req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0 (SIA-PDF)'})
@@ -542,8 +542,8 @@ def obtener_chart_quickchart(qc_config, width=500, height=260):
     except Exception:
         return ''
 
-def draw_pil_donut(entregados, pendientes, w=350, h=220):
-    """Fallback local con PIL para gráfico tipo dona (Entregados vs Pendientes con cantidades)."""
+def draw_pil_donut(entregados, pendientes, w=550, h=340):
+    """Fallback local con PIL para gráfico tipo dona amplio (Entregados vs Pendientes con cantidades visibles)."""
     try:
         img = Image.new('RGB', (w, h), color='#ffffff')
         d = ImageDraw.Draw(img)
@@ -552,14 +552,19 @@ def draw_pil_donut(entregados, pendientes, w=350, h=220):
         pct_ent = int((entregados / total) * 100)
         pct_pen = int((pendientes / total) * 100)
         
-        d.pieslice([30, 20, 210, 200], start=0, end=angle_ent, fill='#10b981')
-        d.pieslice([30, 20, 210, 200], start=angle_ent, end=360, fill='#f59e0b')
-        d.ellipse([75, 65, 165, 155], fill='#ffffff')
+        # Donut amplio y grueso
+        d.pieslice([40, 30, 310, 300], start=0, end=angle_ent, fill='#10b981')
+        d.pieslice([40, 30, 310, 300], start=angle_ent, end=360, fill='#f59e0b')
+        d.ellipse([115, 105, 235, 225], fill='#ffffff')
         
-        d.rectangle([225, 60, 238, 73], fill='#10b981')
-        d.text((245, 60), f'Entregados: {entregados} ({pct_ent}%)', fill='#166534')
-        d.rectangle([225, 95, 238, 108], fill='#f59e0b')
-        d.text((245, 95), f'Pendientes: {pendientes} ({pct_pen}%)', fill='#92400e')
+        # Leyenda lateral con cajas de color y números destacados
+        d.rectangle([340, 95, 360, 115], fill='#10b981')
+        d.text((370, 97), f'Entregados: {entregados} ({pct_ent}%)', fill='#166534')
+        
+        d.rectangle([340, 150, 360, 170], fill='#f59e0b')
+        d.text((370, 152), f'Pendientes: {pendientes} ({pct_pen}%)', fill='#92400e')
+        
+        d.text((340, 210), f'Total Evaluado: {entregados + pendientes}', fill='#1e293b')
         
         buf = io.BytesIO()
         img.save(buf, format='PNG')
@@ -567,42 +572,47 @@ def draw_pil_donut(entregados, pendientes, w=350, h=220):
     except Exception:
         return ''
 
-def draw_pil_line(labels, d1, d2, w=450, h=220):
-    """Fallback local con PIL para gráfico de líneas de evolución temporal con cantidades."""
+def draw_pil_line(labels, d1, d2, w=650, h=340):
+    """Fallback local con PIL para gráfico de líneas de evolución temporal con cantidades legibles."""
     try:
         img = Image.new('RGB', (w, h), color='#ffffff')
         d = ImageDraw.Draw(img)
-        d.line([(20, 15), (45, 15)], fill='#10b981', width=3)
-        d.text((52, 10), 'Entregados', fill='#1e293b')
-        d.line([(140, 15), (165, 15)], fill='#f59e0b', width=3)
-        d.text((172, 10), 'Pendientes', fill='#1e293b')
+        d.line([(30, 20), (60, 20)], fill='#10b981', width=4)
+        d.text((70, 14), 'Entregados', fill='#1e293b')
+        d.line([(180, 20), (210, 20)], fill='#f59e0b', width=4)
+        d.text((220, 14), 'Pendientes', fill='#1e293b')
         
-        d.line([(40, 185), (w-20, 185)], fill='#cbd5e1', width=1)
+        # Eje base horizontal
+        d.line([(45, 275), (w-25, 275)], fill='#cbd5e1', width=2)
         
         max_val = max(max(d1 or [1]), max(d2 or [1]), 1)
         n = max(len(labels), 1)
-        step = (w - 80) // max(n - 1, 1)
+        step = (w - 100) // max(n - 1, 1)
         
         pts1, pts2 = [], []
         for i in range(n):
-            x = 50 + i * step
+            x = 55 + i * step
             v1 = d1[i] if i < len(d1) else 0
             v2 = d2[i] if i < len(d2) else 0
-            y1 = 185 - int((v1 / max_val) * 130)
-            y2 = 185 - int((v2 / max_val) * 130)
+            y1 = 275 - int((v1 / max_val) * 200)
+            y2 = 275 - int((v2 / max_val) * 200)
             pts1.append((x, y1))
             pts2.append((x, y2))
-            if v1 > 0 and n <= 15:
-                d.text((x - 4, max(y1 - 12, 22)), str(v1), fill='#10b981')
-            if v2 > 0 and n <= 15:
-                d.text((x - 4, max(y2 - 12, 22)), str(v2), fill='#f59e0b')
-            if i % max(1, n // 5) == 0 and i < len(labels):
-                d.text((x - 10, 190), str(labels[i])[:5], fill='#64748b')
+            
+            # Puntos y valores
+            if v1 > 0 and n <= 20:
+                d.ellipse([x - 4, y1 - 4, x + 4, y1 + 4], fill='#10b981')
+                d.text((x - 6, max(y1 - 18, 35)), str(v1), fill='#10b981')
+            if v2 > 0 and n <= 20:
+                d.ellipse([x - 4, y2 - 4, x + 4, y2 + 4], fill='#f59e0b')
+                d.text((x - 6, max(y2 - 18, 35)), str(v2), fill='#f59e0b')
+            if i % max(1, n // 6) == 0 and i < len(labels):
+                d.text((x - 12, 285), str(labels[i])[:5], fill='#64748b')
                 
         if len(pts1) > 1:
-            d.line(pts1, fill='#10b981', width=3)
+            d.line(pts1, fill='#10b981', width=4)
         if len(pts2) > 1:
-            d.line(pts2, fill='#f59e0b', width=3)
+            d.line(pts2, fill='#f59e0b', width=4)
             
         buf = io.BytesIO()
         img.save(buf, format='PNG')
@@ -610,35 +620,36 @@ def draw_pil_line(labels, d1, d2, w=450, h=220):
     except Exception:
         return ''
 
-def draw_pil_bars(labels, d1, d2, label1='Entregadas', label2='Pendientes', color1='#10b981', color2='#f59e0b', w=450, h=220):
+def draw_pil_bars(labels, d1, d2, label1='Entregadas', label2='Pendientes', color1='#10b981', color2='#f59e0b', w=650, h=340):
     """Fallback local con PIL para gráficos de barras comparativas con cantidades visibles."""
     try:
         img = Image.new('RGB', (w, h), color='#ffffff')
         d = ImageDraw.Draw(img)
-        d.rectangle([20, 10, 35, 20], fill=color1)
-        d.text((42, 10), label1, fill='#1e293b')
-        d.rectangle([140, 10, 155, 20], fill=color2)
-        d.text((162, 10), label2, fill='#1e293b')
+        d.rectangle([30, 15, 50, 30], fill=color1)
+        d.text((58, 17), label1, fill='#1e293b')
+        d.rectangle([(w // 2), 15, (w // 2) + 20, 30], fill=color2)
+        d.text(((w // 2) + 28, 17), label2, fill='#1e293b')
         
-        d.line([(40, 185), (w-20, 185)], fill='#cbd5e1', width=1)
+        # Eje horizontal
+        d.line([(45, 275), (w-25, 275)], fill='#cbd5e1', width=2)
         
         n = max(len(labels), 1)
-        bar_width = max((w - 100) // (n * 2 + 1), 6)
+        bar_width = max((w - 120) // (n * 2 + 1), 12)
         max_val = max(max(d1 or [1]), max(d2 or [1]), 1)
         
         for i, lab in enumerate(labels[:6]):
-            x = 50 + i * (bar_width * 2 + 12)
+            x = 60 + i * (bar_width * 2 + 18)
             v1 = d1[i] if i < len(d1) else 0
             v2 = d2[i] if i < len(d2) else 0
-            h1 = int((v1 / max_val) * 135)
-            h2 = int((v2 / max_val) * 135)
-            d.rectangle([x, 185 - h1, x + bar_width, 185], fill=color1)
-            d.rectangle([x + bar_width + 2, 185 - h2, x + bar_width * 2 + 2, 185], fill=color2)
+            h1 = int((v1 / max_val) * 200)
+            h2 = int((v2 / max_val) * 200)
+            d.rectangle([x, 275 - h1, x + bar_width, 275], fill=color1)
+            d.rectangle([x + bar_width + 4, 275 - h2, x + bar_width * 2 + 4, 275], fill=color2)
             if v1 > 0:
-                d.text((x + 1, max(185 - h1 - 12, 24)), str(v1), fill=color1)
+                d.text((x + 2, max(275 - h1 - 18, 38)), str(v1), fill=color1)
             if v2 > 0:
-                d.text((x + bar_width + 3, max(185 - h2 - 12, 24)), str(v2), fill=color2)
-            d.text((x, 190), str(lab)[:7], fill='#64748b')
+                d.text((x + bar_width + 6, max(275 - h2 - 18, 38)), str(v2), fill=color2)
+            d.text((x, 283), str(lab)[:9], fill='#64748b')
             
         buf = io.BytesIO()
         img.save(buf, format='PNG')
@@ -671,18 +682,19 @@ def obtener_o_generar_graficos_pdf(request, datos):
                 'datasets': [{'data': [entregados, pendientes], 'backgroundColor': ['#10b981', '#f59e0b']}]
             },
             'options': {
+                'cutoutPercentage': 50,
                 'plugins': {
-                    'legend': {'position': 'bottom', 'labels': {'fontSize': 11, 'fontStyle': 'bold'}},
+                    'legend': {'position': 'bottom', 'labels': {'fontSize': 13, 'fontStyle': 'bold'}},
                     'datalabels': {
                         'display': True,
                         'color': '#ffffff',
-                        'font': {'weight': 'bold', 'size': 12},
+                        'font': {'weight': 'bold', 'size': 14},
                         'formatter': '(val) => val > 0 ? val + " (" + Math.round(val/' + str(tot) + '*100) + "%)" : ""'
                     }
                 }
             }
         }
-        chart_status = obtener_chart_quickchart(qc_status, 400, 240) or draw_pil_donut(entregados, pendientes)
+        chart_status = obtener_chart_quickchart(qc_status, 550, 350) or draw_pil_donut(entregados, pendientes)
         
     # 2. Gráfico de Líneas: Evolución Temporal con Cantidades
     if not chart_evolucion:
@@ -694,18 +706,18 @@ def obtener_o_generar_graficos_pdf(request, datos):
             'data': {
                 'labels': labels,
                 'datasets': [
-                    {'label': 'Entregados', 'data': d_ent, 'borderColor': '#10b981', 'backgroundColor': 'rgba(16,185,129,0.15)', 'fill': True},
-                    {'label': 'Pendientes', 'data': d_pen, 'borderColor': '#f59e0b', 'backgroundColor': 'rgba(245,158,11,0.15)', 'fill': True}
+                    {'label': 'Entregados', 'data': d_ent, 'borderColor': '#10b981', 'backgroundColor': 'rgba(16,185,129,0.15)', 'fill': True, 'borderWidth': 3},
+                    {'label': 'Pendientes', 'data': d_pen, 'borderColor': '#f59e0b', 'backgroundColor': 'rgba(245,158,11,0.15)', 'fill': True, 'borderWidth': 3}
                 ]
             },
             'options': {
                 'plugins': {
-                    'legend': {'position': 'top', 'labels': {'fontSize': 10}},
-                    'datalabels': {'display': True, 'align': 'top', 'anchor': 'end', 'font': {'weight': 'bold', 'size': 9}}
+                    'legend': {'position': 'top', 'labels': {'fontSize': 12, 'fontStyle': 'bold'}},
+                    'datalabels': {'display': True, 'align': 'top', 'anchor': 'end', 'font': {'weight': 'bold', 'size': 12}}
                 }
             }
         }
-        chart_evolucion = obtener_chart_quickchart(qc_evol, 500, 240) or draw_pil_line(labels, d_ent, d_pen)
+        chart_evolucion = obtener_chart_quickchart(qc_evol, 650, 350) or draw_pil_line(labels, d_ent, d_pen)
         
     # 3. Gráfico de Barras: Top Insumos con Cantidades
     if not chart_insumos:
@@ -725,12 +737,12 @@ def obtener_o_generar_graficos_pdf(request, datos):
             'options': {
                 'scales': {'xAxes': [{'stacked': True}], 'yAxes': [{'stacked': True}]},
                 'plugins': {
-                    'legend': {'position': 'top', 'labels': {'fontSize': 9}},
-                    'datalabels': {'display': True, 'color': '#ffffff', 'font': {'weight': 'bold', 'size': 9}}
+                    'legend': {'position': 'top', 'labels': {'fontSize': 12, 'fontStyle': 'bold'}},
+                    'datalabels': {'display': True, 'color': '#ffffff', 'font': {'weight': 'bold', 'size': 12}}
                 }
             }
         }
-        chart_insumos = obtener_chart_quickchart(qc_ins, 480, 240) or draw_pil_bars(labels_ins, d_ins_ent, d_ins_pen, 'Entregadas', 'Pendientes', '#10b981', '#f59e0b')
+        chart_insumos = obtener_chart_quickchart(qc_ins, 650, 350) or draw_pil_bars(labels_ins, d_ins_ent, d_ins_pen, 'Entregadas', 'Pendientes', '#10b981', '#f59e0b')
         
     # 4. Gráfico de Barras: Tipos de Solicitud con Cantidades
     if not chart_tipos:
@@ -749,12 +761,12 @@ def obtener_o_generar_graficos_pdf(request, datos):
             },
             'options': {
                 'plugins': {
-                    'legend': {'position': 'top', 'labels': {'fontSize': 9}},
-                    'datalabels': {'display': True, 'align': 'top', 'anchor': 'end', 'font': {'weight': 'bold', 'size': 9}}
+                    'legend': {'position': 'top', 'labels': {'fontSize': 12, 'fontStyle': 'bold'}},
+                    'datalabels': {'display': True, 'align': 'top', 'anchor': 'end', 'font': {'weight': 'bold', 'size': 12}}
                 }
             }
         }
-        chart_tipos = obtener_chart_quickchart(qc_tip, 450, 240) or draw_pil_bars(labels_tip, d_tip_ent, d_tip_pen, 'Completadas', 'En Proceso', '#4f46e5', '#06b6d4')
+        chart_tipos = obtener_chart_quickchart(qc_tip, 650, 350) or draw_pil_bars(labels_tip, d_tip_ent, d_tip_pen, 'Completadas', 'En Proceso', '#4f46e5', '#06b6d4')
         
     return {
         'chart_evolucion': chart_evolucion,

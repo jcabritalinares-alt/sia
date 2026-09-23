@@ -280,21 +280,29 @@
         <div class="section-title">3. INDICADORES GRÁFICOS: EVOLUCIÓN TEMPORAL Y PROPORCIÓN DE ESTATUS</div>
         <table style="width: 100%; border: none; margin: 0; padding: 0;">
             <tr>
-                <td style="width: 58%; border: 1px solid #cbd5e1; background: #ffffff; padding: 4px; text-align: center; vertical-align: top;">
-                    <div style="font-size: 7pt; font-weight: bold; color: #1e293b; margin-bottom: 3px;">EVOLUCIÓN TEMPORAL (ENTREGADOS VS PENDIENTES)</div>
+                <td style="width: 55%; border: 1px solid #cbd5e1; background: #ffffff; padding: 5px; text-align: center; vertical-align: top;">
+                    <div style="font-size: 7.5pt; font-weight: bold; color: #1e1b4b; background: #f8fafc; padding: 2px 4px; margin-bottom: 4px; border-bottom: 1px solid #e2e8f0;">
+                        TENDENCIA TEMPORAL (ENTREGADOS VS PENDIENTES)
+                    </div>
                     {% if chart_evolucion_b64 %}
-                        <img src="data:image/png;base64,{{ chart_evolucion_b64 }}" width="310" height="165" />
+                        <img src="data:image/png;base64,{{ chart_evolucion_b64 }}" width="285" height="200" />
                     {% else %}
                         <div style="padding: 40px 10px; color: #94a3b8; font-size: 8pt;">Gráfico no disponible</div>
                     {% endif %}
                 </td>
-                <td style="width: 42%; border: 1px solid #cbd5e1; background: #ffffff; padding: 4px; text-align: center; vertical-align: top;">
-                    <div style="font-size: 7pt; font-weight: bold; color: #1e293b; margin-bottom: 3px;">DISTRIBUCIÓN DE ESTATUS CONSOLIDADOS</div>
+                <td style="width: 45%; border: 1px solid #cbd5e1; background: #ffffff; padding: 5px; text-align: center; vertical-align: top;">
+                    <div style="font-size: 7.5pt; font-weight: bold; color: #1e1b4b; background: #f8fafc; padding: 2px 4px; margin-bottom: 4px; border-bottom: 1px solid #e2e8f0;">
+                        DISTRIBUCIÓN DE ESTATUS CONSOLIDADOS
+                    </div>
                     {% if chart_status_b64 %}
-                        <img src="data:image/png;base64,{{ chart_status_b64 }}" width="220" height="165" />
+                        <img src="data:image/png;base64,{{ chart_status_b64 }}" width="235" height="185" />
                     {% else %}
                         <div style="padding: 40px 10px; color: #94a3b8; font-size: 8pt;">Gráfico no disponible</div>
                     {% endif %}
+                    <div style="font-size: 7.5pt; margin-top: 3px; font-weight: bold;">
+                        <span style="color: #166534;">Entregados: {{ d.gran_total_entregados }}</span> | 
+                        <span style="color: #92400e;">Pendientes: {{ d.gran_total_pendientes }}</span>
+                    </div>
                 </td>
             </tr>
         </table>
@@ -305,21 +313,32 @@
         <div class="section-title">4. INDICADORES GRÁFICOS: INSUMOS MOVILIZADOS Y CATEGORÍAS CIUDADANAS</div>
         <table style="width: 100%; border: none; margin: 0; padding: 0;">
             <tr>
-                <td style="width: 52%; border: 1px solid #cbd5e1; background: #ffffff; padding: 4px; text-align: center; vertical-align: top;">
-                    <div style="font-size: 7pt; font-weight: bold; color: #1e293b; margin-bottom: 3px;">TOP INSUMOS: ENTREGADOS VS PENDIENTES</div>
+                <td style="width: 50%; border: 1px solid #cbd5e1; background: #ffffff; padding: 5px; text-align: center; vertical-align: top;">
+                    <div style="font-size: 7.5pt; font-weight: bold; color: #1e1b4b; background: #f8fafc; padding: 2px 4px; margin-bottom: 4px; border-bottom: 1px solid #e2e8f0;">
+                        TOP INSUMOS: ENTREGADOS VS PENDIENTES
+                    </div>
                     {% if chart_insumos_b64 %}
-                        <img src="data:image/png;base64,{{ chart_insumos_b64 }}" width="275" height="165" />
+                        <img src="data:image/png;base64,{{ chart_insumos_b64 }}" width="260" height="195" />
                     {% else %}
                         <div style="padding: 40px 10px; color: #94a3b8; font-size: 8pt;">Gráfico no disponible</div>
                     {% endif %}
+                    <div style="font-size: 7.5pt; margin-top: 3px; font-weight: bold;">
+                        <span style="color: #166534;">Despachadas: {{ d.articulos_entregados_sum }} u.</span> | 
+                        <span style="color: #92400e;">En Espera: {{ d.articulos_pendientes_sum }} u.</span>
+                    </div>
                 </td>
-                <td style="width: 48%; border: 1px solid #cbd5e1; background: #ffffff; padding: 4px; text-align: center; vertical-align: top;">
-                    <div style="font-size: 7pt; font-weight: bold; color: #1e293b; margin-bottom: 3px;">SOLICITUDES POR CATEGORÍA DE ATENCIÓN</div>
+                <td style="width: 50%; border: 1px solid #cbd5e1; background: #ffffff; padding: 5px; text-align: center; vertical-align: top;">
+                    <div style="font-size: 7.5pt; font-weight: bold; color: #1e1b4b; background: #f8fafc; padding: 2px 4px; margin-bottom: 4px; border-bottom: 1px solid #e2e8f0;">
+                        SOLICITUDES POR CATEGORÍA DE ATENCIÓN
+                    </div>
                     {% if chart_tipos_b64 %}
-                        <img src="data:image/png;base64,{{ chart_tipos_b64 }}" width="255" height="165" />
+                        <img src="data:image/png;base64,{{ chart_tipos_b64 }}" width="260" height="195" />
                     {% else %}
                         <div style="padding: 40px 10px; color: #94a3b8; font-size: 8pt;">Gráfico no disponible</div>
                     {% endif %}
+                    <div style="font-size: 7.5pt; margin-top: 3px; font-weight: bold; color: #4338ca;">
+                        Total Casos Evaluados: {{ d.total_solicitudes_count }}
+                    </div>
                 </td>
             </tr>
         </table>
