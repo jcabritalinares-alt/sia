@@ -1,0 +1,650 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block style %}
+<style>
+    .informe-kpi-card {
+        border-radius: var(--radius-md);
+        padding: 1.25rem 1.4rem;
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+        position: relative;
+        overflow: hidden;
+    }
+    .informe-kpi-card:hover {
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-md);
+    }
+    .analisis-box {
+        background: linear-gradient(135deg, rgba(79, 70, 229, 0.04) 0%, rgba(6, 182, 212, 0.04) 100%);
+        border: 1px solid rgba(79, 70, 229, 0.18);
+        border-radius: var(--radius-md);
+        padding: 1.5rem 1.75rem;
+    }
+    [data-bs-theme="dark"] .analisis-box {
+        background: linear-gradient(135deg, rgba(99, 102, 241, 0.08) 0%, rgba(34, 211, 238, 0.05) 100%);
+        border-color: rgba(99, 102, 241, 0.28);
+    }
+    .analisis-tag {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        padding: 0.25rem 0.65rem;
+        border-radius: 9999px;
+        font-size: 0.76rem;
+        font-weight: 700;
+        letter-spacing: 0.03em;
+        text-transform: uppercase;
+    }
+    .chart-container-box {
+        background: var(--card-bg);
+        border: 1px solid var(--border-color);
+        border-radius: var(--radius-md);
+        padding: 1.25rem 1.4rem;
+        min-height: 310px;
+        display: flex;
+        flex-direction: column;
+    }
+    .chart-canvas-wrapper {
+        position: relative;
+        flex-grow: 1;
+        min-height: 230px;
+    }
+    @media print {
+        .sia-sidebar, .sia-topbar, .btn-no-print, .sia-bottom-nav, footer {
+            display: none !important;
+        }
+        .sia-main-wrapper {
+            padding: 0 !important;
+            margin: 0 !important;
+        }
+        .main-card {
+            border: none !important;
+            box-shadow: none !important;
+            padding: 0 !important;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block contenido %}
+<div class="container-fluid px-0">
+
+    <!-- Encabezado Principal del Módulo de Informes -->
+    <div class="d-flex flex-column flex-xl-row justify-content-between align-items-xl-center pb-3 mb-4 border-bottom gap-3">
+        <div>
+            <div class="d-flex align-items-center gap-2.5 mb-1">
+                <div class="d-flex align-items-center justify-content-center bg-primary bg-opacity-10 text-primary rounded-3" style="width: 46px; height: 46px;">
+                    <i class="bi bi-file-earmark-bar-graph-fill fs-4"></i>
+                </div>
+                <div>
+                    <h2 class="fw-extrabold text-dark mb-0">Módulo de Informes de Gestión</h2>
+                    <p class="text-muted small mb-0">Análisis Ejecutivo y Estadístico Consolidado • Entregas y Solicitudes (Pendientes y Entregados)</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Botones de Acción (PDF Oficial e Impresión) -->
+        <div class="d-flex flex-wrap align-items-center gap-2 btn-no-print">
+            <a href="{% url 'generar_informe_pdf' %}?periodo={{ d.periodo }}&fecha={{ d.fecha_desde }}&fecha_inicio={{ d.fecha_desde }}&fecha_fin={{ d.fecha_hasta }}" 
+               id="btnDescargarPdf"
+               target="_blank" 
+               class="btn btn-primary-custom d-flex align-items-center gap-2">
+                <i class="bi bi-file-earmark-pdf-fill"></i> Descargar Informe PDF
+            </a>
+            <button type="button" onclick="window.print()" class="btn btn-outline-secondary d-flex align-items-center gap-2 rounded-3 fw-semibold">
+                <i class="bi bi-printer-fill"></i> Imprimir
+            </button>
+        </div>
+    </div>
+
+    <!-- Barra de Filtros de Período -->
+    <div class="card border border-light shadow-sm rounded-4 p-3 mb-4 btn-no-print">
+        <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-3">
+            <!-- Grupo de Períodos Rápidos -->
+            <div class="d-flex flex-wrap align-items-center gap-2">
+                <span class="fw-bold small text-muted text-uppercase me-1"><i class="bi bi-calendar3 me-1 text-primary"></i> Período:</span>
+                
+                <div class="btn-group btn-group-sm" role="group" id="grupoBotonesPeriodo">
+                    <button type="button" class="btn btn-outline-primary fw-semibold px-3 {% if d.periodo == 'diario' %}active{% endif %}" onclick="cambiarPeriodo('diario')">
+                        <i class="bi bi-calendar-day me-1"></i> Diario
+                    </button>
+                    <button type="button" class="btn btn-outline-primary fw-semibold px-3 {% if d.periodo == 'semanal' %}active{% endif %}" onclick="cambiarPeriodo('semanal')">
+                        <i class="bi bi-calendar2-week me-1"></i> Semanal
+                    </button>
+                    <button type="button" class="btn btn-outline-primary fw-semibold px-3 {% if d.periodo == 'mensual' %}active{% endif %}" onclick="cambiarPeriodo('mensual')">
+                        <i class="bi bi-calendar-month me-1"></i> Mensual
+                    </button>
+                    <button type="button" class="btn btn-outline-primary fw-semibold px-3 {% if d.periodo == 'total' %}active{% endif %}" onclick="cambiarPeriodo('total')">
+                        <i class="bi bi-clock-history me-1"></i> Total Histórico
+                    </button>
+                </div>
+
+                <!-- Dropdown de Rango Personalizado -->
+                <div class="dropdown">
+                    <button class="btn btn-sm btn-outline-secondary dropdown-toggle fw-semibold rounded-3 {% if d.periodo == 'personalizado' %}active{% endif %}" type="button" id="dropdownRangoPersonalizado" data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false">
+                        <i class="bi bi-calendar-range me-1"></i> Rango / Fecha Específica
+                    </button>
+                    <div class="dropdown-menu dropdown-menu-end p-3 shadow-lg rounded-4 border-0" style="min-width: 300px;">
+                        <h6 class="fw-bold mb-2 text-dark small"><i class="bi bi-funnel text-primary me-1"></i> Personalizar Rango</h6>
+                        <div class="mb-2">
+                            <label class="form-label small text-muted mb-1">Fecha Desde / Única:</label>
+                            <input type="date" class="form-control form-control-sm rounded-3" id="inputFiltroDesde" value="{{ d.fecha_desde }}">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label small text-muted mb-1">Fecha Hasta:</label>
+                            <input type="date" class="form-control form-control-sm rounded-3" id="inputFiltroHasta" value="{{ d.fecha_hasta }}">
+                        </div>
+                        <div class="d-flex gap-2">
+                            <button type="button" class="btn btn-primary-custom btn-sm flex-grow-1" onclick="aplicarRangoCustom()">
+                                <i class="bi bi-check2 me-1"></i> Aplicar
+                            </button>
+                            <button type="button" class="btn btn-outline-secondary btn-sm" onclick="cambiarPeriodo('semanal')">
+                                Restablecer
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Etiqueta Indicadora del Período Activo -->
+            <div class="d-flex align-items-center gap-2">
+                <span class="badge bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25 py-2 px-3 rounded-pill fw-bold" id="badgePeriodoActivo">
+                    <i class="bi bi-info-circle-fill me-1"></i> {{ d.subtitulo_periodo }}
+                </span>
+            </div>
+        </div>
+    </div>
+
+    <!-- TARJETAS KPIS CONCATENADAS: TOTALES, ENTREGADOS Y PENDIENTES -->
+    <div class="row g-3 mb-4">
+        <!-- Tarjeta 1: Total Operaciones Concatenadas -->
+        <div class="col-12 col-sm-6 col-xl-3">
+            <div class="card border-0 shadow-sm informe-kpi-card h-100" style="background: linear-gradient(135deg, var(--card-bg) 0%, rgba(79, 70, 229, 0.08) 100%); border-left: 4px solid #4f46e5 !important;">
+                <div class="d-flex align-items-center justify-content-between">
+                    <div>
+                        <span class="text-uppercase fw-bold text-primary small tracking-wider" style="font-size: 0.76rem;">Total Operaciones</span>
+                        <h2 class="fw-extrabold text-dark mt-1 mb-0" id="kpiGranTotal">{{ d.gran_total_operaciones }}</h2>
+                        <span class="text-muted small">Beneficios + Solicitudes</span>
+                    </div>
+                    <div class="d-flex align-items-center justify-content-center bg-primary bg-opacity-10 text-primary rounded-4" style="width: 52px; height: 52px;">
+                        <i class="bi bi-layers-fill fs-3"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tarjeta 2: Efectivamente Entregados -->
+        <div class="col-12 col-sm-6 col-xl-3">
+            <div class="card border-0 shadow-sm informe-kpi-card h-100" style="background: linear-gradient(135deg, var(--card-bg) 0%, rgba(16, 185, 129, 0.08) 100%); border-left: 4px solid #10b981 !important;">
+                <div class="d-flex align-items-center justify-content-between">
+                    <div>
+                        <span class="text-uppercase fw-bold text-success small tracking-wider" style="font-size: 0.76rem;">Total Entregados</span>
+                        <h2 class="fw-extrabold text-success mt-1 mb-0" id="kpiEntregados">{{ d.gran_total_entregados }}</h2>
+                        <span class="badge bg-success bg-opacity-10 text-success rounded-pill fw-bold small mt-1">
+                            <i class="bi bi-check-circle-fill me-1"></i> {{ d.tasa_efectividad_global }}% Efectividad
+                        </span>
+                    </div>
+                    <div class="d-flex align-items-center justify-content-center bg-success bg-opacity-10 text-success rounded-4" style="width: 52px; height: 52px;">
+                        <i class="bi bi-check-all fs-2"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tarjeta 3: En Espera / Pendientes -->
+        <div class="col-12 col-sm-6 col-xl-3">
+            <div class="card border-0 shadow-sm informe-kpi-card h-100" style="background: linear-gradient(135deg, var(--card-bg) 0%, rgba(245, 158, 11, 0.08) 100%); border-left: 4px solid #f59e0b !important;">
+                <div class="d-flex align-items-center justify-content-between">
+                    <div>
+                        <span class="text-uppercase fw-bold text-warning small tracking-wider" style="font-size: 0.76rem;">Total Pendientes</span>
+                        <h2 class="fw-extrabold text-warning mt-1 mb-0" id="kpiPendientes">{{ d.gran_total_pendientes }}</h2>
+                        <span class="text-muted small">Por entregar / En trámite</span>
+                    </div>
+                    <div class="d-flex align-items-center justify-content-center bg-warning bg-opacity-10 text-warning rounded-4" style="width: 52px; height: 52px;">
+                        <i class="bi bi-clock-history fs-3"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tarjeta 4: Artículos Físicos Movilizados -->
+        <div class="col-12 col-sm-6 col-xl-3">
+            <div class="card border-0 shadow-sm informe-kpi-card h-100" style="background: linear-gradient(135deg, var(--card-bg) 0%, rgba(6, 182, 212, 0.08) 100%); border-left: 4px solid #06b6d4 !important;">
+                <div class="d-flex align-items-center justify-content-between">
+                    <div>
+                        <span class="text-uppercase fw-bold text-info small tracking-wider" style="font-size: 0.76rem;">Artículos / Insumos</span>
+                        <h2 class="fw-extrabold text-info mt-1 mb-0" id="kpiArticulos">{{ d.total_articulos_sum }}</h2>
+                        <span class="text-muted small">{{ d.articulos_entregados_sum }} despachados • {{ d.articulos_pendientes_sum }} pend.</span>
+                    </div>
+                    <div class="d-flex align-items-center justify-content-center bg-info bg-opacity-10 text-info rounded-4" style="width: 52px; height: 52px;">
+                        <i class="bi bi-box-seam-fill fs-3"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- SECCIÓN: ANÁLISIS EJECUTIVO Y DIAGNÓSTICO INSTITUCIONAL (EN TEXTO REDACTADO) -->
+    <div class="card border-0 shadow-sm rounded-4 p-4 mb-4 analisis-box">
+        <div class="d-flex align-items-center justify-content-between mb-3 border-bottom pb-2 flex-wrap gap-2">
+            <div class="d-flex align-items-center gap-2">
+                <i class="bi bi-file-earmark-text-fill text-primary fs-4"></i>
+                <h5 class="fw-extrabold text-dark mb-0">Análisis Ejecutivo y Diagnóstico Institucional</h5>
+            </div>
+            <span class="analisis-tag bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25">
+                <i class="bi bi-shield-check"></i> Informe Técnico Oficial
+            </span>
+        </div>
+
+        <div class="row g-4">
+            <!-- Bloque 1: Balance General y Tasa de Resolución -->
+            <div class="col-12 col-lg-6">
+                <div class="p-3 bg-white bg-opacity-75 rounded-3 border border-light-subtle h-100">
+                    <h6 class="fw-bold text-primary mb-2 d-flex align-items-center gap-2">
+                        <i class="bi bi-graph-up-arrow"></i> 1. Balance Operativo de Entregas y Solicitudes
+                    </h6>
+                    <p class="text-secondary small mb-0 lh-base text-justify" id="txtAnalisisBalance">
+                        {{ d.analisis_balance }}
+                    </p>
+                </div>
+            </div>
+
+            <!-- Bloque 2: Demanda y Necesidades Ciudadanas -->
+            <div class="col-12 col-lg-6">
+                <div class="p-3 bg-white bg-opacity-75 rounded-3 border border-light-subtle h-100">
+                    <h6 class="fw-bold text-info mb-2 d-flex align-items-center gap-2">
+                        <i class="bi bi-people-fill"></i> 2. Demanda Social y Requerimientos Ciudadanos
+                    </h6>
+                    <p class="text-secondary small mb-0 lh-base text-justify" id="txtAnalisisDemanda">
+                        {{ d.analisis_demanda }}
+                    </p>
+                </div>
+            </div>
+
+            <!-- Bloque 3: Suministros y Recursos de Almacén -->
+            <div class="col-12 col-lg-6">
+                <div class="p-3 bg-white bg-opacity-75 rounded-3 border border-light-subtle h-100">
+                    <h6 class="fw-bold text-success mb-2 d-flex align-items-center gap-2">
+                        <i class="bi bi-boxes"></i> 3. Logística de Insumos (Entregados vs. Pendientes)
+                    </h6>
+                    <p class="text-secondary small mb-0 lh-base text-justify" id="txtAnalisisInsumos">
+                        {{ d.analisis_insumos }}
+                    </p>
+                </div>
+            </div>
+
+            <!-- Bloque 4: Conclusiones y Recomendaciones -->
+            <div class="col-12 col-lg-6">
+                <div class="p-3 bg-white bg-opacity-75 rounded-3 border border-light-subtle h-100">
+                    <h6 class="fw-bold text-warning mb-2 d-flex align-items-center gap-2">
+                        <i class="bi bi-lightbulb-fill"></i> 4. Conclusiones y Recomendaciones de Gestión
+                    </h6>
+                    <p class="text-secondary small mb-0 lh-base text-justify" id="txtAnalisisRecomendaciones">
+                        {{ d.analisis_recomendaciones }}
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- SECCIÓN: VISUALIZACIONES GRÁFICAS INTERACTIVAS -->
+    <div class="row g-4 mb-4">
+        <!-- Gráfico 1: Evolución Temporal (Entregados vs Pendientes vs Solicitudes) -->
+        <div class="col-12 col-lg-7">
+            <div class="chart-container-box h-100 shadow-sm">
+                <div class="d-flex justify-content-between align-items-center mb-3 border-bottom pb-2">
+                    <h6 class="fw-bold text-dark mb-0 d-flex align-items-center gap-2">
+                        <i class="bi bi-graph-up text-primary"></i> Tendencia Temporal de Actividad
+                    </h6>
+                    <span class="badge bg-secondary bg-opacity-10 text-secondary rounded-pill small">Cronológico</span>
+                </div>
+                <div class="chart-canvas-wrapper">
+                    <canvas id="graficoEvolucionTemporal"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Gráfico 2: Balance de Estados (Entregados vs Pendientes) -->
+        <div class="col-12 col-lg-5">
+            <div class="chart-container-box h-100 shadow-sm">
+                <div class="d-flex justify-content-between align-items-center mb-3 border-bottom pb-2">
+                    <h6 class="fw-bold text-dark mb-0 d-flex align-items-center gap-2">
+                        <i class="bi bi-pie-chart-fill text-success"></i> Estado Consolidado de Gestión
+                    </h6>
+                    <span class="badge bg-success bg-opacity-10 text-success rounded-pill small">Porcentual</span>
+                </div>
+                <div class="chart-canvas-wrapper d-flex align-items-center justify-content-center">
+                    <canvas id="graficoEstadosConsolidados"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Gráfico 3: Top Insumos (Despachados vs Pendientes por Despachar) -->
+        <div class="col-12 col-lg-6">
+            <div class="chart-container-box h-100 shadow-sm">
+                <div class="d-flex justify-content-between align-items-center mb-3 border-bottom pb-2">
+                    <h6 class="fw-bold text-dark mb-0 d-flex align-items-center gap-2">
+                        <i class="bi bi-bar-chart-steps text-info"></i> Insumos de Mayor Demanda (Unidades)
+                    </h6>
+                    <span class="badge bg-info bg-opacity-10 text-info rounded-pill small">Entregados vs Pendientes</span>
+                </div>
+                <div class="chart-canvas-wrapper">
+                    <canvas id="graficoTopInsumos"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Gráfico 4: Tipos de Solicitud Social -->
+        <div class="col-12 col-lg-6">
+            <div class="chart-container-box h-100 shadow-sm">
+                <div class="d-flex justify-content-between align-items-center mb-3 border-bottom pb-2">
+                    <h6 class="fw-bold text-dark mb-0 d-flex align-items-center gap-2">
+                        <i class="bi bi-person-heart text-danger"></i> Solicitudes por Categoría de Ayuda
+                    </h6>
+                    <span class="badge bg-danger bg-opacity-10 text-danger rounded-pill small">Atención Social</span>
+                </div>
+                <div class="chart-canvas-wrapper">
+                    <canvas id="graficoTiposSolicitudes"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- SECCIÓN: TABLAS CONSOLIDADAS DETALLADAS DEL PERÍODO -->
+    <div class="row g-4">
+        <!-- Tabla: Asignaciones y Entregas Registradas -->
+        <div class="col-12 col-lg-6">
+            <div class="card border border-light shadow-sm rounded-4 p-3 h-100">
+                <div class="d-flex align-items-center justify-content-between mb-3 border-bottom pb-2">
+                    <h6 class="fw-bold text-dark mb-0 d-flex align-items-center gap-2">
+                        <i class="bi bi-box-arrow-up-right text-primary"></i> Asignaciones y Entregas de Almacén
+                    </h6>
+                    <span class="badge bg-light text-dark border small">{{ d.recientes_beneficios|length }} registros</span>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0 small">
+                        <thead class="bg-light text-secondary text-uppercase" style="font-size: 0.74rem;">
+                            <tr>
+                                <th>Beneficiario</th>
+                                <th>Insumo</th>
+                                <th class="text-center">Cant.</th>
+                                <th class="text-center">Estatus</th>
+                                <th class="text-end">Fecha</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tbodyBeneficios">
+                            {% for b in d.recientes_beneficios %}
+                            <tr>
+                                <td>
+                                    <div class="fw-bold text-dark">{{ b.nombre_beneficiario|default:"No identificado" }}</div>
+                                    <small class="text-muted">{{ b.cedula|default:"S/C" }}</small>
+                                </td>
+                                <td><span class="badge bg-light text-dark border text-wrap">{{ b.descripcion_prod }}</span></td>
+                                <td class="text-center fw-bold">{{ b.cantidad_dada }} u.</td>
+                                <td class="text-center">
+                                    {% if b.status_clean|lower == 'entregado' %}
+                                        <span class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25 rounded-pill">Entregado</span>
+                                    {% else %}
+                                        <span class="badge bg-warning bg-opacity-10 text-warning border border-warning border-opacity-25 rounded-pill">Pendiente</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-end text-muted">{{ b.fecha_efectiva|date:"d/m/Y"|default:"-" }}</td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="5" class="text-center text-muted py-4 fst-italic">Sin entregas en el período seleccionado.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tabla: Solicitudes de Atención al Ciudadano -->
+        <div class="col-12 col-lg-6">
+            <div class="card border border-light shadow-sm rounded-4 p-3 h-100">
+                <div class="d-flex align-items-center justify-content-between mb-3 border-bottom pb-2">
+                    <h6 class="fw-bold text-dark mb-0 d-flex align-items-center gap-2">
+                        <i class="bi bi-envelope-paper-heart text-danger"></i> Solicitudes de Atención al Ciudadano
+                    </h6>
+                    <span class="badge bg-light text-dark border small">{{ d.recientes_solicitudes|length }} registros</span>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0 small">
+                        <thead class="bg-light text-secondary text-uppercase" style="font-size: 0.74rem;">
+                            <tr>
+                                <th>Solicitante</th>
+                                <th>Requerimiento</th>
+                                <th class="text-center">Prioridad</th>
+                                <th class="text-center">Estatus</th>
+                                <th class="text-end">Fecha</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tbodySolicitudes">
+                            {% for s in d.recientes_solicitudes %}
+                            <tr>
+                                <td>
+                                    <div class="fw-bold text-dark">{{ s.nombre_apellido }}</div>
+                                    <small class="text-muted">{{ s.cedula }}</small>
+                                </td>
+                                <td><span class="badge bg-light text-dark border text-wrap">{{ s.tipo_solicitud }}</span></td>
+                                <td class="text-center">
+                                    {% if s.prioridad == 'Alta' %}
+                                        <span class="badge bg-danger rounded-pill">Alta</span>
+                                    {% elif s.prioridad == 'Media' %}
+                                        <span class="badge bg-warning text-dark rounded-pill">Media</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary rounded-pill">Baja</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-center">
+                                    {% if s.status == 'Entregada' %}
+                                        <span class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25 rounded-pill">Entregada</span>
+                                    {% elif s.status == 'Aprobada' %}
+                                        <span class="badge bg-info bg-opacity-10 text-info border border-info border-opacity-25 rounded-pill">Aprobada</span>
+                                    {% elif s.status == 'En Proceso' %}
+                                        <span class="badge bg-warning bg-opacity-10 text-warning border border-warning border-opacity-25 rounded-pill">En Proceso</span>
+                                    {% elif s.status == 'Rechazada' %}
+                                        <span class="badge bg-danger bg-opacity-10 text-danger border border-danger border-opacity-25 rounded-pill">Rechazada</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary bg-opacity-10 text-secondary border border-secondary border-opacity-25 rounded-pill">Recibida</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-end text-muted">{{ s.fecha_solicitud|date:"d/m/Y"|default:"-" }}</td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="5" class="text-center text-muted py-4 fst-italic">Sin solicitudes en el período seleccionado.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    let rawData = {{ datos_json|safe }};
+    let chartEvolucionInstance = null;
+    let chartEstadosInstance = null;
+    let chartTopInsumosInstance = null;
+    let chartTiposSolInstance = null;
+
+    function cambiarPeriodo(periodo) {
+        window.location.href = `{% url 'modulo_informes' %}?periodo=${periodo}`;
+    }
+
+    function aplicarRangoCustom() {
+        const dIni = document.getElementById('inputFiltroDesde')?.value || '';
+        const dFin = document.getElementById('inputFiltroHasta')?.value || '';
+        if (!dIni && !dFin) {
+            alert('Por favor selecciona al menos una fecha.');
+            return;
+        }
+        window.location.href = `{% url 'modulo_informes' %}?periodo=personalizado&fecha_inicio=${dIni}&fecha_fin=${dFin}`;
+    }
+
+    function inicializarGraficos(d) {
+        const savedTheme = localStorage.getItem('sia_theme') || 'light';
+        const textColor = savedTheme === 'dark' ? '#cbd5e1' : '#475569';
+        const gridColor = savedTheme === 'dark' ? 'rgba(51, 65, 85, 0.4)' : 'rgba(226, 232, 240, 0.7)';
+
+        // 1. Gráfico de Evolución Temporal
+        const ctxEvol = document.getElementById('graficoEvolucionTemporal')?.getContext('2d');
+        if (ctxEvol) {
+            if (chartEvolucionInstance) chartEvolucionInstance.destroy();
+            chartEvolucionInstance = new Chart(ctxEvol, {
+                type: 'line',
+                data: {
+                    labels: d.fechas_labels || [],
+                    datasets: [
+                        {
+                            label: 'Entregados',
+                            data: d.fechas_entregados || [],
+                            borderColor: '#10b981',
+                            backgroundColor: 'rgba(16, 185, 129, 0.12)',
+                            fill: true,
+                            tension: 0.3,
+                            borderWidth: 2
+                        },
+                        {
+                            label: 'Pendientes',
+                            data: d.fechas_pendientes || [],
+                            borderColor: '#f59e0b',
+                            backgroundColor: 'rgba(245, 158, 11, 0.12)',
+                            fill: true,
+                            tension: 0.3,
+                            borderWidth: 2
+                        },
+                        {
+                            label: 'Solicitudes',
+                            data: d.fechas_solicitudes || [],
+                            borderColor: '#4f46e5',
+                            backgroundColor: 'rgba(79, 70, 229, 0.08)',
+                            fill: false,
+                            tension: 0.3,
+                            borderWidth: 2,
+                            borderDash: [5, 5]
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'top', labels: { color: textColor, font: { family: 'Plus Jakarta Sans', size: 11, weight: 'bold' } } }
+                    },
+                    scales: {
+                        x: { grid: { display: false }, ticks: { color: textColor, font: { size: 10 } } },
+                        y: { beginAtZero: true, grid: { color: gridColor }, ticks: { color: textColor, font: { size: 10 }, precision: 0 } }
+                    }
+                }
+            });
+        }
+
+        // 2. Gráfico Estados Consolidados (Doughnut)
+        const ctxEst = document.getElementById('graficoEstadosConsolidados')?.getContext('2d');
+        if (ctxEst) {
+            if (chartEstadosInstance) chartEstadosInstance.destroy();
+            chartEstadosInstance = new Chart(ctxEst, {
+                type: 'doughnut',
+                data: {
+                    labels: d.estatus_labels || ['Entregados', 'Pendientes', 'Rechazados'],
+                    datasets: [{
+                        data: d.estatus_valores || [0, 0, 0],
+                        backgroundColor: ['#10b981', '#f59e0b', '#ef4444'],
+                        borderWidth: 2,
+                        borderColor: savedTheme === 'dark' ? '#1e293b' : '#ffffff'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    cutout: '68%',
+                    plugins: {
+                        legend: { position: 'bottom', labels: { color: textColor, font: { size: 11 } } }
+                    }
+                }
+            });
+        }
+
+        // 3. Gráfico Top Insumos (Barras Horizontales con Desglose)
+        const ctxInsumos = document.getElementById('graficoTopInsumos')?.getContext('2d');
+        if (ctxInsumos) {
+            if (chartTopInsumosInstance) chartTopInsumosInstance.destroy();
+            const topList = d.top_insumos || [];
+            const labels = topList.map(item => item.descripcion.length > 20 ? item.descripcion.substring(0, 18) + '...' : item.descripcion);
+            const dataEnt = topList.map(item => item.entregadas);
+            const dataPen = topList.map(item => item.pendientes);
+
+            chartTopInsumosInstance = new Chart(ctxInsumos, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        { label: 'Entregadas (u.)', data: dataEnt, backgroundColor: '#10b981', borderRadius: 4 },
+                        { label: 'Pendientes (u.)', data: dataPen, backgroundColor: '#f59e0b', borderRadius: 4 }
+                    ]
+                },
+                options: {
+                    indexAxis: 'y',
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'top', labels: { color: textColor, font: { size: 10, weight: 'bold' } } }
+                    },
+                    scales: {
+                        x: { stacked: true, beginAtZero: true, grid: { color: gridColor }, ticks: { color: textColor, font: { size: 10 }, precision: 0 } },
+                        y: { stacked: true, grid: { display: false }, ticks: { color: textColor, font: { size: 10, weight: '600' } } }
+                    }
+                }
+            });
+        }
+
+        // 4. Gráfico Tipos de Solicitud (Barras Verticales)
+        const ctxTipos = document.getElementById('graficoTiposSolicitudes')?.getContext('2d');
+        if (ctxTipos) {
+            if (chartTiposSolInstance) chartTiposSolInstance.destroy();
+            const tiposList = d.tipos_solicitudes || [];
+            const labels = tiposList.map(item => item.tipo_solicitud);
+            const dataEnt = tiposList.map(item => item.entregadas);
+            const dataPen = tiposList.map(item => item.pendientes);
+
+            chartTiposSolInstance = new Chart(ctxTipos, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        { label: 'Completadas', data: dataEnt, backgroundColor: '#4f46e5', borderRadius: 4 },
+                        { label: 'En Proceso / Pendientes', data: dataPen, backgroundColor: '#06b6d4', borderRadius: 4 }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'top', labels: { color: textColor, font: { size: 10, weight: 'bold' } } }
+                    },
+                    scales: {
+                        x: { grid: { display: false }, ticks: { color: textColor, font: { size: 9 }, maxRotation: 30 } },
+                        y: { beginAtZero: true, grid: { color: gridColor }, ticks: { color: textColor, font: { size: 10 }, precision: 0 } }
+                    }
+                }
+            });
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        if (rawData) {
+            inicializarGraficos(rawData);
+        }
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>{{ d.periodo_nombre }} - {{ d.subtitulo_periodo }}</title>
+    <style>
+        @page {
+            size: letter portrait;
+            margin: 1cm;
+        }
+        
+        body {
+            font-family: Helvetica, Arial, sans-serif;
+            font-size: 8.5pt;
+            color: #0f172a;
+            line-height: 1.35;
+        }
+
+        /* Encabezado */
+        .header-table {
+            width: 100%;
+            border-bottom: 2px solid #4f46e5;
+            padding-bottom: 6px;
+            margin-bottom: 8px;
+        }
+        .inst-title {
+            font-size: 11pt;
+            font-weight: bold;
+            color: #1e1b4b;
+            text-transform: uppercase;
+            margin-bottom: 1px;
+        }
+        .inst-sub {
+            font-size: 8.5pt;
+            color: #4338ca;
+            font-weight: bold;
+        }
+        .inst-meta {
+            font-size: 7.5pt;
+            color: #64748b;
+            margin-top: 1px;
+        }
+        
+        /* Título del Documento */
+        .doc-banner {
+            background: #f1f5f9;
+            border: 1px solid #cbd5e1;
+            padding: 6px 10px;
+            text-align: center;
+            border-radius: 4px;
+            margin-bottom: 10px;
+        }
+        .doc-title {
+            font-size: 11pt;
+            font-weight: bold;
+            color: #0f172a;
+            text-transform: uppercase;
+        }
+        .doc-sub {
+            font-size: 8.5pt;
+            color: #4f46e5;
+            font-weight: bold;
+            margin-top: 2px;
+        }
+
+        /* Cajas y Secciones */
+        .section-box {
+            border: 1px solid #cbd5e1;
+            border-radius: 5px;
+            margin-bottom: 9px;
+            background: #ffffff;
+            padding: 6px 8px;
+        }
+        .section-title {
+            font-size: 8.5pt;
+            font-weight: bold;
+            color: #4338ca;
+            text-transform: uppercase;
+            border-bottom: 1px solid #e2e8f0;
+            padding-bottom: 3px;
+            margin-bottom: 5px;
+        }
+
+        /* Tablas */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th {
+            background-color: #f8fafc;
+            color: #334155;
+            font-size: 7.5pt;
+            font-weight: bold;
+            text-transform: uppercase;
+            border: 1px solid #cbd5e1;
+            padding: 4px 5px;
+            text-align: left;
+        }
+        td {
+            font-size: 8pt;
+            border: 1px solid #e2e8f0;
+            padding: 3px 5px;
+            vertical-align: middle;
+        }
+        
+        .kpi-table th {
+            text-align: center;
+            background-color: #f1f5f9;
+        }
+        .kpi-table td {
+            text-align: center;
+            font-size: 8.5pt;
+        }
+
+        /* Insignias */
+        .badge-entregado {
+            background-color: #dcfce7;
+            color: #166534;
+            font-size: 7pt;
+            font-weight: bold;
+            padding: 1px 5px;
+            border-radius: 3px;
+        }
+        .badge-pendiente {
+            background-color: #fef3c7;
+            color: #92400e;
+            font-size: 7pt;
+            font-weight: bold;
+            padding: 1px 5px;
+            border-radius: 3px;
+        }
+        .badge-alta {
+            background-color: #fee2e2;
+            color: #991b1b;
+            font-size: 7pt;
+            font-weight: bold;
+            padding: 1px 4px;
+            border-radius: 3px;
+        }
+
+        /* Texto de Análisis Redactado */
+        .analisis-p {
+            font-size: 8pt;
+            text-align: justify;
+            margin-bottom: 5px;
+            line-height: 1.35;
+            color: #1e293b;
+        }
+
+        /* Barra de Progreso Visual */
+        .bar-container {
+            width: 100%;
+            background-color: #e2e8f0;
+            height: 8px;
+            border-radius: 4px;
+        }
+        .bar-fill-entregado {
+            background-color: #10b981;
+            height: 8px;
+            border-radius: 4px;
+        }
+        .bar-fill-pendiente {
+            background-color: #f59e0b;
+            height: 8px;
+            border-radius: 4px;
+        }
+
+        /* Firma y Hash */
+        .signature-box {
+            margin-top: 10px;
+            border: 1px dashed #94a3b8;
+            padding: 5px 8px;
+            border-radius: 4px;
+            background: #faf5ff;
+        }
+        .hash-code {
+            font-family: monospace;
+            font-size: 7pt;
+            color: #4338ca;
+            word-break: break-all;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Membrete Oficial Institucional con Logos Base64 -->
+    <table class="header-table">
+        <tr>
+            {% if logo_alcaldia_b64 %}
+            <td style="width: 80px; text-align: left; vertical-align: middle; border: none;">
+                <img src="data:image/jpeg;base64,{{ logo_alcaldia_b64 }}" width="72" height="72" alt="Alcaldía">
+            </td>
+            {% endif %}
+            <td style="text-align: center; vertical-align: middle; border: none; padding: 0 10px;">
+                <div class="inst-title">{{ config.nombre_institucion|default:"ALCALDÍA SOCIAL / DIRECCIÓN DE ATENCIÓN CIUDADANA" }}</div>
+                <div class="inst-sub">{{ config.subtitulo_institucion|default:"SIA Web - Sistema Institucional de Atención e Inventario" }}</div>
+                <div class="inst-meta">
+                    RIF: {{ config.rif|default:"G-20000000-0" }} | Dirección: {{ config.direccion|default:"Valera, Edo. Trujillo" }}
+                </div>
+            </td>
+            {% if logo_valera_b64 %}
+            <td style="width: 80px; text-align: right; vertical-align: middle; border: none;">
+                <img src="data:image/jpeg;base64,{{ logo_valera_b64 }}" width="72" height="72" alt="Gestión">
+            </td>
+            {% endif %}
+        </tr>
+    </table>
+
+    <!-- Banner del Título del Informe -->
+    <div class="doc-banner">
+        <div class="doc-title">{{ d.periodo_nombre }} DE GESTIÓN Y ATENCIÓN SOCIAL</div>
+        <div class="doc-sub">{{ d.subtitulo_periodo }} (EMISIÓN: {{ d.fecha_generacion }})</div>
+    </div>
+
+    <!-- 1. Cuadro de Mando Ejecutivo (Concatenación Entregados y Pendientes) -->
+    <div class="section-box">
+        <div class="section-title">1. CONSOLIDACIÓN GENERAL DE OPERACIONES (ENTREGADOS Y PENDIENTES)</div>
+        <table class="kpi-table">
+            <thead>
+                <tr>
+                    <th>Concepto Operativo</th>
+                    <th>Completados / Entregados</th>
+                    <th>En Trámite / Pendientes</th>
+                    <th>Total Acumulado</th>
+                    <th>Tasa de Efectividad</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td style="text-align: left; font-weight: bold;">Beneficios de Almacén</td>
+                    <td style="color: #166534; font-weight: bold;">{{ d.beneficios_entregados_count }} ops.</td>
+                    <td style="color: #92400e; font-weight: bold;">{{ d.beneficios_pendientes_count }} ops.</td>
+                    <td style="font-weight: bold;">{{ d.total_beneficios_count }} ops.</td>
+                    <td>{{ d.tasa_efectividad_entregas }}%</td>
+                </tr>
+                <tr>
+                    <td style="text-align: left; font-weight: bold;">Solicitudes Ciudadanas</td>
+                    <td style="color: #166534; font-weight: bold;">{{ d.solicitudes_entregadas_count }} sol.</td>
+                    <td style="color: #92400e; font-weight: bold;">{{ d.solicitudes_pendientes_count }} sol.</td>
+                    <td style="font-weight: bold;">{{ d.total_solicitudes_count }} sol.</td>
+                    <td>{{ d.tasa_resolucion_solicitudes }}%</td>
+                </tr>
+                <tr style="background-color: #f8fafc;">
+                    <td style="text-align: left; font-weight: bold; color: #1e1b4b;">GRAN TOTAL OPERACIONES</td>
+                    <td style="color: #166534; font-weight: bold; font-size: 9.5pt;">{{ d.gran_total_entregados }}</td>
+                    <td style="color: #92400e; font-weight: bold; font-size: 9.5pt;">{{ d.gran_total_pendientes }}</td>
+                    <td style="font-weight: bold; font-size: 9.5pt;">{{ d.gran_total_operaciones }}</td>
+                    <td style="font-weight: bold; color: #4338ca; font-size: 9.5pt;">{{ d.tasa_efectividad_global }}% Global</td>
+                </tr>
+                <tr>
+                    <td style="text-align: left; font-weight: bold;">Artículos Físicos (Unidades)</td>
+                    <td style="color: #166534;">{{ d.articulos_entregados_sum }} u. despachadas</td>
+                    <td style="color: #92400e;">{{ d.articulos_pendientes_sum }} u. en cola</td>
+                    <td colspan="2" style="font-weight: bold;">{{ d.total_articulos_sum }} unidades totales</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- 2. Análisis Ejecutivo y Diagnóstico Institucional (Texto Redactado) -->
+    <div class="section-box">
+        <div class="section-title">2. ANÁLISIS EJECUTIVO Y DIAGNÓSTICO INSTITUCIONAL</div>
+        
+        <p class="analisis-p">
+            <strong>• Balance General y Tasa de Resolución:</strong> {{ d.analisis_balance }}
+        </p>
+        <p class="analisis-p">
+            <strong>• Demanda Social y Requerimientos Ciudadanos:</strong> {{ d.analisis_demanda }}
+        </p>
+        <p class="analisis-p">
+            <strong>• Logística de Insumos y Almacén:</strong> {{ d.analisis_insumos }}
+        </p>
+        <p class="analisis-p">
+            <strong>• Conclusiones y Recomendaciones de Gestión:</strong> {{ d.analisis_recomendaciones }}
+        </p>
+    </div>
+
+    <!-- 3. Insumos con Mayor Demanda (Entregados vs Pendientes) -->
+    <div class="section-box">
+        <div class="section-title">3. TOP INSUMOS MOVILIZADOS EN EL PERÍODO (UNIDADES FÍSICAS)</div>
+        <table>
+            <thead>
+                <tr>
+                    <th style="width: 45%;">Descripción del Insumo</th>
+                    <th style="width: 15%; text-align: center;">Entregadas</th>
+                    <th style="width: 15%; text-align: center;">Pendientes</th>
+                    <th style="width: 15%; text-align: center;">Total Demandado</th>
+                    <th style="width: 10%; text-align: center;">Cumplimiento</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in d.top_insumos %}
+                <tr>
+                    <td><strong>{{ item.descripcion }}</strong></td>
+                    <td style="text-align: center; color: #166534; font-weight: bold;">{{ item.entregadas }} u.</td>
+                    <td style="text-align: center; color: #92400e; font-weight: bold;">{{ item.pendientes }} u.</td>
+                    <td style="text-align: center; font-weight: bold;">{{ item.total }} u.</td>
+                    <td style="text-align: center;">
+                        {% if item.total > 0 %}
+                            {% widthratio item.entregadas item.total 100 %}%
+                        {% else %}
+                            0%
+                        {% endif %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="5" style="text-align: center; color: #94a3b8; padding: 6px;">Sin insumos registrados en este período.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- 4. Resumen Concatenado de Solicitudes por Categoría -->
+    {% if d.tipos_solicitudes %}
+    <div class="section-box">
+        <div class="section-title">4. DISTRIBUCIÓN DE SOLICITUDES CIUDADANAS POR CATEGORÍA</div>
+        <table>
+            <thead>
+                <tr>
+                    <th>Categoría de Requerimiento</th>
+                    <th style="text-align: center;">Completadas / Entregadas</th>
+                    <th style="text-align: center;">En Proceso / Pendientes</th>
+                    <th style="text-align: center;">Total Recibidas</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for t in d.tipos_solicitudes %}
+                <tr>
+                    <td>{{ t.tipo_solicitud }}</td>
+                    <td style="text-align: center; color: #166534;">{{ t.entregadas }}</td>
+                    <td style="text-align: center; color: #92400e;">{{ t.pendientes }}</td>
+                    <td style="text-align: center; font-weight: bold;">{{ t.total }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+
+    <!-- 5. Listado Reciente de Asignaciones y Solicitudes Concatenadas -->
+    <div class="section-box">
+        <div class="section-title">5. ÚLTIMOS REGISTROS GESTIONADOS EN EL PERÍODO</div>
+        <table>
+            <thead>
+                <tr>
+                    <th>Tipo</th>
+                    <th>Beneficiario / Solicitante</th>
+                    <th>Cédula</th>
+                    <th>Detalle / Insumo</th>
+                    <th style="text-align: center;">Cant.</th>
+                    <th style="text-align: center;">Estatus</th>
+                    <th style="text-align: right;">Fecha</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for b in d.recientes_beneficios %}
+                <tr>
+                    <td><span style="font-size: 6.5pt; color: #4338ca; font-weight: bold;">ENTREGA</span></td>
+                    <td><strong>{{ b.nombre_beneficiario|default:"No identificado" }}</strong></td>
+                    <td>{{ b.cedula|default:"S/C" }}</td>
+                    <td>{{ b.descripcion_prod }}</td>
+                    <td style="text-align: center;">{{ b.cantidad_dada }} u.</td>
+                    <td style="text-align: center;">
+                        {% if b.status_clean|lower == 'entregado' %}
+                            <span class="badge-entregado">Entregado</span>
+                        {% else %}
+                            <span class="badge-pendiente">Pendiente</span>
+                        {% endif %}
+                    </td>
+                    <td style="text-align: right; color: #64748b;">{{ b.fecha_efectiva|date:"d/m/Y"|default:"-" }}</td>
+                </tr>
+                {% endfor %}
+                {% for s in d.recientes_solicitudes %}
+                <tr>
+                    <td><span style="font-size: 6.5pt; color: #0284c7; font-weight: bold;">SOLICITUD</span></td>
+                    <td><strong>{{ s.nombre_apellido }}</strong></td>
+                    <td>{{ s.cedula }}</td>
+                    <td>{{ s.tipo_solicitud }}</td>
+                    <td style="text-align: center;">1 caso</td>
+                    <td style="text-align: center;">
+                        {% if s.status == 'Entregada' %}
+                            <span class="badge-entregado">Entregada</span>
+                        {% else %}
+                            <span class="badge-pendiente">{{ s.status }}</span>
+                        {% endif %}
+                    </td>
+                    <td style="text-align: right; color: #64748b;">{{ s.fecha_solicitud|date:"d/m/Y"|default:"-" }}</td>
+                </tr>
+                {% endfor %}
+                {% if not d.recientes_beneficios and not d.recientes_solicitudes %}
+                <tr>
+                    <td colspan="7" style="text-align: center; color: #94a3b8; padding: 8px;">No hay registros en el período evaluado.</td>
+                </tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Validación y Firma Electrónica Oficial -->
+    <div class="signature-box">
+        <table style="width: 100%; border: none;">
+            <tr>
+                <td style="width: 70%; border: none; vertical-align: middle;">
+                    <div style="font-size: 8pt; font-weight: bold; color: #1e1b4b;">CERTIFICACIÓN DIGITAL DE AUDITORÍA INSTITUCIONAL</div>
+                    <div style="font-size: 7pt; color: #64748b;">
+                        Emitido por: <strong>{{ usuario_emisor }}</strong> | Fecha: {{ fecha_emision|date:"d/m/Y H:i:s" }}
+                    </div>
+                    <div class="hash-code">
+                        HASH DE SEGURIDAD: {{ firma_digital }}
+                    </div>
+                </td>
+                <td style="width: 30%; border: none; text-align: center; vertical-align: middle;">
+                    <div style="border-top: 1px solid #1e1b4b; margin-top: 25px; padding-top: 2px; font-size: 7.5pt; font-weight: bold;">
+                        Dirección de Atención Social
+                    </div>
+                </td>
+            </tr>
+        </table>
+    </div>
+
+</body>
+</html>

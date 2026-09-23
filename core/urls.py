@@ -6,6 +6,7 @@ from core import views as core_views
 from SIA import views as inv_views
 from entregas import views as entregas_views
 from beneficiarios import views as beneficiarios_views
+from core import views_informes
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -71,6 +72,11 @@ urlpatterns = [
 
     # Estadísticas Avanzadas e Inteligencia Social
     path('estadisticas/', core_views.panel_estadisticas_avanzadas, name='panel_estadisticas_avanzadas'),
+
+    # Módulo de Informes de Gestión (Entregas y Solicitudes)
+    path('informes/', views_informes.modulo_informes_view, name='modulo_informes'),
+    path('informes/pdf/', views_informes.generar_informe_pdf_view, name='generar_informe_pdf'),
+    path('api/informes/datos/', views_informes.api_datos_informes, name='api_datos_informes'),
 
     # Nuevas APIs para UX/UI
     path('api/busqueda-global/', core_views.api_busqueda_global, name='api_busqueda_global'),

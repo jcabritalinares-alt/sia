@@ -1190,6 +1190,15 @@
                     <span class="sidebar-badge badge rounded-pill bg-light text-muted border">Mapas</span>
                 </a>
                 {% endif %}
+                {% if user.is_superuser or user.perfil.permiso_dashboard or user.perfil.permiso_estadisticas %}
+                <a href="{% url 'modulo_informes' %}" class="sidebar-item-link" data-bs-toggle="tooltip" data-bs-placement="right" title="Informes Ejecutivos de Entregas y Solicitudes" data-modulo="analitica">
+                    <div class="sidebar-icon-box" style="background: var(--mod-analitica-bg); color: var(--mod-analitica);">
+                        <i class="bi bi-file-earmark-bar-graph-fill"></i>
+                    </div>
+                    <span class="sidebar-text flex-grow-1">Informes</span>
+                    <span class="sidebar-badge badge rounded-pill" style="background: var(--mod-analitica-bg); color: var(--mod-analitica);">PDF</span>
+                </a>
+                {% endif %}
             </div>
             {% endif %}
 
@@ -1576,6 +1585,15 @@
                             <div>
                                 <div class="fw-bold small text-dark">Estadísticas Avanzadas</div>
                                 <div class="text-muted" style="font-size: 0.72rem;">Mapas parroquiales e informes</div>
+                            </div>
+                        </a>
+                        {% endif %}
+                        {% if user.is_superuser or user.perfil.permiso_dashboard or user.perfil.permiso_estadisticas %}
+                        <a href="{% url 'modulo_informes' %}" class="mobile-card-sublink" data-modulo="analitica">
+                            <i class="bi bi-file-earmark-bar-graph-fill fs-5" style="color: var(--mod-analitica);"></i>
+                            <div>
+                                <div class="fw-bold small text-dark">Informes de Gestión</div>
+                                <div class="text-muted" style="font-size: 0.72rem;">Análisis y exportación PDF</div>
                             </div>
                         </a>
                         {% endif %}
