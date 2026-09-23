@@ -280,7 +280,7 @@
                             <tr>
                                 <td class="fw-semibold text-dark">{{ r.nombre_beneficiario }}</td>
                                 <td><span class="badge bg-light text-dark border">{{ r.descripcion_prod }}</span></td>
-                                <td class="text-end text-muted small">{{ r.fecha_display|default:r.fecha|default:"-" }}</td>
+                                <td class="text-end text-muted small">{{ r.fecha_display|default:"-" }}</td>
                             </tr>
                             {% empty %}
                             <tr>

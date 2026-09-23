@@ -251,7 +251,7 @@ def dashboard(request):
     recientes = list(entregados_qs.annotate(
         fecha_display=Coalesce('fecha_entrega', 'fecha', Cast('timestamp', output_field=models.DateField()))
     ).order_by('-id')[:5].values(
-        'nombre_beneficiario', 'descripcion_prod', 'fecha_display'
+        'nombre_beneficiario', 'descripcion_prod', 'fecha_display', 'fecha'
     ))
     
     resumen_productos = entregados_qs.values('descripcion_prod').annotate(total_cant=Sum('cantidad_dada')).order_by('-total_cant')
