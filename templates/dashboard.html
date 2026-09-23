@@ -201,10 +201,10 @@
                         <div class="d-flex align-items-center gap-2 flex-wrap">
                             <!-- Selector de Modo de Gráfico: Por Insumos ("Cada Cosa") vs Por Fechas (Evolución) -->
                             <div class="btn-group btn-group-sm" role="group" aria-label="Modo de visualización">
-                                <button type="button" class="btn btn-outline-primary py-0.5 px-2 active fw-semibold" id="btnVistaInsumos" onclick="cambiarModoVistaGrafico('insumos')" title="Ver la cantidad entregada de cada insumo/cosa" style="font-size: 0.74rem;">
+                                <button type="button" class="btn btn-outline-primary py-0.5 px-2 fw-semibold" id="btnVistaInsumos" onclick="cambiarModoVistaGrafico('insumos')" title="Ver la cantidad entregada de cada insumo/cosa" style="font-size: 0.74rem;">
                                     <i class="bi bi-boxes"></i> Por Insumos
                                 </button>
-                                <button type="button" class="btn btn-outline-primary py-0.5 px-2 fw-semibold" id="btnVistaFechas" onclick="cambiarModoVistaGrafico('fechas')" title="Ver evolución cronológica por fechas" style="font-size: 0.74rem;">
+                                <button type="button" class="btn btn-outline-primary py-0.5 px-2 active fw-semibold" id="btnVistaFechas" onclick="cambiarModoVistaGrafico('fechas')" title="Ver evolución cronológica por fechas" style="font-size: 0.74rem;">
                                     <i class="bi bi-calendar3"></i> Por Fechas
                                 </button>
                             </div>
@@ -280,7 +280,7 @@
                             <tr>
                                 <td class="fw-semibold text-dark">{{ r.nombre_beneficiario }}</td>
                                 <td><span class="badge bg-light text-dark border">{{ r.descripcion_prod }}</span></td>
-                                <td class="text-end text-muted small">{{ r.fecha }}</td>
+                                <td class="text-end text-muted small">{{ r.fecha_display|default:r.fecha|default:"-" }}</td>
                             </tr>
                             {% empty %}
                             <tr>
@@ -559,7 +559,7 @@
     // ========================================================
     let chartEntregasDiariasInstance = null;
     let metricaActualDiario = 'unidades'; // 'unidades' (por cantidad de cosas, por defecto) o 'entregas' (operaciones)
-    let modoVistaActual = 'insumos'; // 'insumos' (la cantidad de cada cosa) o 'fechas' (cronológico)
+    let modoVistaActual = 'fechas'; // 'fechas' (cronológico/tendencia por defecto) o 'insumos' (la cantidad de cada cosa)
     let filtroActual = '7d';
     let fechaInicioActual = '';
     let fechaFinActual = '';
@@ -596,6 +596,8 @@
 
         if (filtro === 'hoy') {
             modoVistaActual = 'insumos';
+        } else {
+            modoVistaActual = 'fechas';
         }
 
         const grupo = document.getElementById('grupoFiltrosEntregas');
@@ -755,11 +757,11 @@
         const contenedorTop = document.getElementById('listaTopProductos');
         if (contenedorTop) {
             const topList = data.top_productos || [];
-            if (topList.length === 0) {
+            if (topList.length === 0 || topList.every(p => !p.cantidad || p.cantidad <= 0)) {
                 contenedorTop.innerHTML = `
                     <div class="d-flex flex-column align-items-center justify-content-center h-100 py-4 text-muted">
                         <i class="bi bi-box-seam fs-3 opacity-50 mb-1"></i>
-                        <span class="small fw-semibold">Sin insumos despachados hoy</span>
+                        <span class="small fw-semibold">Sin insumos despachados en este período</span>
                     </div>
                 `;
             } else {
@@ -873,16 +875,16 @@
         let chartType = 'bar';
 
         if (isModoInsumos) {
-            labels = (data.prods_labels && data.prods_labels.length > 0) ? data.prods_labels : (data.chart_labels || []);
+            labels = (data.prods_labels && data.prods_labels.length > 0) ? data.prods_labels : [];
             values = isEntregas ? 
-                ((data.prods_entregas && data.prods_entregas.length > 0) ? data.prods_entregas : (data.chart_entregas || [])) :
-                ((data.prods_unidades && data.prods_unidades.length > 0) ? data.prods_unidades : (data.chart_unidades || []));
+                ((data.prods_entregas && data.prods_entregas.length > 0) ? data.prods_entregas : []) :
+                ((data.prods_unidades && data.prods_unidades.length > 0) ? data.prods_unidades : []);
             chartType = 'bar';
         } else {
-            labels = (data.fechas_labels && data.fechas_labels.length > 0) ? data.fechas_labels : (data.chart_labels || []);
+            labels = (data.fechas_labels && data.fechas_labels.length > 0) ? data.fechas_labels : [];
             values = isEntregas ? 
-                ((data.fechas_entregas && data.fechas_entregas.length > 0) ? data.fechas_entregas : (data.chart_entregas || [])) :
-                ((data.fechas_unidades && data.fechas_unidades.length > 0) ? data.fechas_unidades : (data.chart_unidades || []));
+                ((data.fechas_entregas && data.fechas_entregas.length > 0) ? data.fechas_entregas : []) :
+                ((data.fechas_unidades && data.fechas_unidades.length > 0) ? data.fechas_unidades : []);
             chartType = labels.length <= 2 ? 'bar' : 'line';
         }
 

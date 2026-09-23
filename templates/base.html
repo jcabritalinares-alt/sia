@@ -2125,7 +2125,7 @@
             // Determinar contexto por atributos o URL/campos
             let titulo = form.dataset.loadingTitle || '';
             let mensaje = form.dataset.loadingMessage || '';
-            let icono = 'bi-hourglass-split';
+            let icono = form.dataset.loadingIcon || 'bi-hourglass-split';
 
             const action = (form.getAttribute('action') || '').toLowerCase();
             const formId = (form.id || '').toLowerCase();
@@ -2137,6 +2137,10 @@
                     titulo = 'Subiendo y procesando archivos...';
                     mensaje = 'Por favor espere mientras los archivos se cargan y optimizan en el servidor.';
                     icono = 'bi-cloud-arrow-up-fill';
+                } else if (action.includes('login') || formId.includes('login') || submitText.includes('iniciar sesión') || submitText.includes('ingresar')) {
+                    titulo = 'Iniciando sesión...';
+                    mensaje = 'Verificando sus datos de inicio de sesión';
+                    icono = 'bi-box-arrow-in-right';
                 } else if (action.includes('reporte') || action.includes('pdf') || action.includes('excel') || submitText.includes('reporte')) {
                     titulo = 'Generando reporte...';
                     mensaje = 'Compilando información y preparando el documento para su descarga.';
@@ -2184,6 +2188,11 @@
 
             // Omitir si tiene clase o atributo de excepción
             if (target.classList.contains('no-loader') || target.classList.contains('no-loading') || target.hasAttribute('data-no-loader')) {
+                return;
+            }
+
+            // Omitir si es un botón de apertura o cierre de modal o elemento Bootstrap
+            if (target.hasAttribute('data-bs-toggle') || target.hasAttribute('data-bs-dismiss') || target.closest('[data-bs-toggle]') || target.closest('[data-bs-dismiss]')) {
                 return;
             }
 

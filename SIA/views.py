@@ -19,10 +19,12 @@ except AttributeError:
     pass
 
 import json
+import calendar
 from datetime import date, timedelta, datetime
 from django.utils import timezone
-from django.db.models import Sum, Count, Q
-from django.db.models.functions import Coalesce
+from django.db import models
+from django.db.models import Sum, Count, Q, Max, Value
+from django.db.models.functions import Coalesce, Trim, Cast
 
 from SIA.models import SIA_producto, EntradaInventario, DetalleEntradaInventario
 from entregas.models import BeneficioEntregado
@@ -31,17 +33,25 @@ from core.utils import registrar_auditoria, obtener_url_inicio_usuario, parse_da
 
 def obtener_datos_estadisticas_entregas(filtro='7d', fecha_inicio_str=None, fecha_fin_str=None, status_filtro='Entregado'):
     """
-    Calcula estadísticas agregadas y series temporales diarias de entregas
-    para el Dashboard según el filtro seleccionado (hoy, 7d, 30d, mes, personalizado, todos).
-    Filtra y contabiliza de manera exclusiva los registros con estatus 'Entregado'.
+    Calcula estadísticas agregadas y series temporales de entregas para el Dashboard
+    según el filtro seleccionado (hoy, 7d, 30d, mes, personalizado, todos).
+    Filtra y contabiliza de manera exclusiva y estricta los registros con estatus 'Entregado'.
+    Garantiza exactitud matemática absoluta entre tarjetas KPI y gráficos de tendencias.
     """
     hoy = timezone.localdate() if hasattr(timezone, 'localdate') else date.today()
     
-    # Filtro estricto: solo beneficios con estatus 'Entregado'
-    # Usamos Coalesce para tomar fecha_entrega si existe, de lo contrario fecha de registro
-    qs = BeneficioEntregado.objects.filter(status__iexact='Entregado').annotate(
-        fecha_efectiva=Coalesce('fecha_entrega', 'fecha')
-    )
+    # Filtro estricto: solo beneficios con estatus 'Entregado' (normalizando mayúsculas/minúsculas y espacios)
+    # Fecha efectiva: Coalesce priorizando fecha_entrega, luego fecha de registro, luego timestamp, fallback hoy
+    qs = BeneficioEntregado.objects.annotate(
+        status_clean=Trim('status'),
+        fecha_efectiva=Coalesce(
+            'fecha_entrega',
+            'fecha',
+            Cast('timestamp', output_field=models.DateField()),
+            Value(hoy),
+            output_field=models.DateField()
+        )
+    ).filter(status_clean__iexact=status_filtro)
 
     fecha_desde = None
     fecha_hasta = hoy
@@ -51,47 +61,47 @@ def obtener_datos_estadisticas_entregas(filtro='7d', fecha_inicio_str=None, fech
     if filtro == 'hoy':
         fecha_desde = hoy
         fecha_hasta = hoy
-        qs = qs.filter(Q(fecha_efectiva=hoy) | Q(fecha=hoy) | Q(fecha_entrega=hoy))
+        qs = qs.filter(fecha_efectiva=hoy)
+        chart_subtitulo = f"Entregas del día de hoy ({hoy.strftime('%d/%m/%Y')})"
     elif filtro == '7d':
         fecha_desde = hoy - timedelta(days=6)
         fecha_hasta = hoy
-        qs = qs.filter(
-            Q(fecha_efectiva__gte=fecha_desde, fecha_efectiva__lte=fecha_hasta) |
-            Q(fecha__gte=fecha_desde, fecha__lte=fecha_hasta)
-        )
+        qs = qs.filter(fecha_efectiva__gte=fecha_desde, fecha_efectiva__lte=fecha_hasta)
+        chart_subtitulo = f"Últimos 7 días ({fecha_desde.strftime('%d/%m')} al {fecha_hasta.strftime('%d/%m')})"
     elif filtro == '30d':
         fecha_desde = hoy - timedelta(days=29)
         fecha_hasta = hoy
-        qs = qs.filter(
-            Q(fecha_efectiva__gte=fecha_desde, fecha_efectiva__lte=fecha_hasta) |
-            Q(fecha__gte=fecha_desde, fecha__lte=fecha_hasta)
-        )
+        qs = qs.filter(fecha_efectiva__gte=fecha_desde, fecha_efectiva__lte=fecha_hasta)
+        chart_subtitulo = f"Últimos 30 días ({fecha_desde.strftime('%d/%m')} al {fecha_hasta.strftime('%d/%m')})"
     elif filtro == 'mes':
         fecha_desde = date(hoy.year, hoy.month, 1)
-        fecha_hasta = hoy
-        qs = qs.filter(
-            Q(fecha_efectiva__year=hoy.year, fecha_efectiva__month=hoy.month) |
-            Q(fecha__year=hoy.year, fecha__month=hoy.month)
-        )
+        # Obtenemos las entregas pertenecientes estrictamente al año y mes actual
+        qs = qs.filter(fecha_efectiva__year=hoy.year, fecha_efectiva__month=hoy.month)
+        max_fecha_qs = qs.aggregate(m=Max('fecha_efectiva'))['m']
+        fecha_hasta = max(hoy, max_fecha_qs) if max_fecha_qs else hoy
+        # Aseguramos el rango acotado
+        qs = qs.filter(fecha_efectiva__gte=fecha_desde, fecha_efectiva__lte=fecha_hasta)
+        chart_subtitulo = f"Mes actual ({fecha_desde.strftime('%d/%m')} al {fecha_hasta.strftime('%d/%m')})"
     elif filtro == 'personalizado':
-        q_filt = Q()
         if fecha_inicio_str:
             d_ini = parse_date_safe(fecha_inicio_str)
             if d_ini:
                 fecha_desde = d_ini
-                q_filt &= (Q(fecha_efectiva__gte=d_ini) | Q(fecha__gte=d_ini))
+                qs = qs.filter(fecha_efectiva__gte=d_ini)
         if fecha_fin_str:
             d_fin = parse_date_safe(fecha_fin_str)
             if d_fin:
                 fecha_hasta = d_fin
-                q_filt &= (Q(fecha_efectiva__lte=d_fin) | Q(fecha__lte=d_fin))
-        if q_filt:
-            qs = qs.filter(q_filt)
+                qs = qs.filter(fecha_efectiva__lte=d_fin)
+        if fecha_desde and fecha_hasta and fecha_desde > fecha_hasta:
+            fecha_desde, fecha_hasta = fecha_hasta, fecha_desde
+        chart_subtitulo = f"Rango: {fecha_desde.strftime('%d/%m/%Y') if fecha_desde else 'Inicio'} al {fecha_hasta.strftime('%d/%m/%Y') if fecha_hasta else 'Hoy'}"
     elif filtro == 'todos':
         fecha_desde = None
         fecha_hasta = None
+        chart_subtitulo = "Histórico total acumulado"
 
-    # Métricas KPIs del período seleccionado
+    # Métricas KPIs del período seleccionado (100% exactas con estatus 'Entregado')
     total_entregas = qs.count()
     total_articulos = qs.aggregate(total=Sum('cantidad_dada'))['total'] or 0
     total_beneficiarios = qs.exclude(cedula__isnull=True).exclude(cedula__exact='').values('cedula').distinct().count()
@@ -102,7 +112,7 @@ def obtener_datos_estadisticas_entregas(filtro='7d', fecha_inicio_str=None, fech
     elif fecha_desde and fecha_hasta:
         dias_conteo = max(1, (fecha_hasta - fecha_desde).days + 1)
     else:
-        dias_activos = qs.filter(fecha_efectiva__isnull=False).values('fecha_efectiva').distinct().count()
+        dias_activos = qs.values('fecha_efectiva').distinct().count()
         dias_conteo = max(1, dias_activos)
 
     promedio_diario = round(total_entregas / dias_conteo, 1) if dias_conteo > 0 else 0
@@ -122,21 +132,6 @@ def obtener_datos_estadisticas_entregas(filtro='7d', fecha_inicio_str=None, fech
         prods_unidades.append(int(p['total_cant'] or 0))
         prods_entregas.append(p['total_entregas'])
 
-    # Si no hay entregas en el período seleccionado, incluir insumos de referencia con cantidad 0
-    # para que el gráfico siempre muestre las cosas y sus cantidades (0 unid.)
-    if not prods_labels:
-        ultimos_prods = BeneficioEntregado.objects.filter(
-            status__iexact='Entregado'
-        ).values('descripcion_prod').annotate(
-            t=Count('id')
-        ).order_by('-t')[:6]
-
-        for p in ultimos_prods:
-            desc = p['descripcion_prod'] or 'Sin descripción'
-            prods_labels.append(desc)
-            prods_unidades.append(0)
-            prods_entregas.append(0)
-
     top_productos = [{
         'descripcion': prods_labels[i],
         'cantidad': prods_unidades[i],
@@ -153,7 +148,23 @@ def obtener_datos_estadisticas_entregas(filtro='7d', fecha_inicio_str=None, fech
         fechas_entregas = [total_entregas]
         fechas_unidades = [total_articulos]
     elif filtro in ['7d', '30d', 'mes'] and fecha_desde and fecha_hasta:
-        agrupado = qs.filter(fecha_efectiva__isnull=False).values('fecha_efectiva').annotate(
+        agrupado = qs.values('fecha_efectiva').annotate(
+            entregas_cnt=Count('id'),
+            unidades_cnt=Sum('cantidad_dada')
+        )
+        dict_fechas = {item['fecha_efectiva']: item for item in agrupado}
+        curr = fecha_desde
+        while curr <= fecha_hasta:
+            fechas_labels.append(curr.strftime('%d/%m'))
+            if curr in dict_fechas:
+                fechas_entregas.append(dict_fechas[curr]['entregas_cnt'])
+                fechas_unidades.append(int(dict_fechas[curr]['unidades_cnt'] or 0))
+            else:
+                fechas_entregas.append(0)
+                fechas_unidades.append(0)
+            curr += timedelta(days=1)
+    elif filtro == 'personalizado' and fecha_desde and fecha_hasta and (fecha_hasta - fecha_desde).days <= 45:
+        agrupado = qs.values('fecha_efectiva').annotate(
             entregas_cnt=Count('id'),
             unidades_cnt=Sum('cantidad_dada')
         )
@@ -169,7 +180,8 @@ def obtener_datos_estadisticas_entregas(filtro='7d', fecha_inicio_str=None, fech
                 fechas_unidades.append(0)
             curr += timedelta(days=1)
     else:
-        agrupado = qs.filter(fecha_efectiva__isnull=False).values('fecha_efectiva').annotate(
+        # Modo 'todos' o rango personalizado amplio
+        agrupado = qs.values('fecha_efectiva').annotate(
             entregas_cnt=Count('id'),
             unidades_cnt=Sum('cantidad_dada')
         ).order_by('fecha_efectiva')
@@ -186,13 +198,13 @@ def obtener_datos_estadisticas_entregas(filtro='7d', fecha_inicio_str=None, fech
         chart_labels = prods_labels
         chart_entregas = prods_entregas
         chart_unidades = prods_unidades
-        chart_subtitulo = f"Cantidad de cada insumo entregado hoy ({hoy.strftime('%d/%m')})" if total_entregas > 0 else "Hoy: 0 entregas registradas"
+        if total_entregas == 0:
+            chart_subtitulo = "Hoy: 0 entregas registradas"
     else:
         chart_tipo = 'bar' if len(fechas_labels) <= 2 else 'line'
         chart_labels = fechas_labels
         chart_entregas = fechas_entregas
         chart_unidades = fechas_unidades
-        chart_subtitulo = ''
 
     return {
         'filtro': filtro,
@@ -230,14 +242,16 @@ def dashboard(request):
         messages.success(request, f'¡Hola, {request.user.username}! Bienvenido de nuevo.', extra_tags='bienvenida')
         request.session['bienvenida_mostrada'] = True
     
-    entregas = BeneficioEntregado.objects.all()
-    pendientes = entregas.filter(status__iexact='Pendiente').count()
-    entregados_qs = entregas.filter(status__iexact='Entregado')
+    entregas = BeneficioEntregado.objects.annotate(status_clean=Trim('status'))
+    pendientes = entregas.filter(status_clean__iexact='Pendiente').count()
+    entregados_qs = entregas.filter(status_clean__iexact='Entregado')
     entregados = entregados_qs.count()
     total_articulos = SIA_producto.objects.count()
     
-    recientes = list(entregados_qs.order_by('-id')[:5].values(
-        'nombre_beneficiario', 'descripcion_prod', 'fecha'
+    recientes = list(entregados_qs.annotate(
+        fecha_display=Coalesce('fecha_entrega', 'fecha', Cast('timestamp', output_field=models.DateField()))
+    ).order_by('-id')[:5].values(
+        'nombre_beneficiario', 'descripcion_prod', 'fecha_display'
     ))
     
     resumen_productos = entregados_qs.values('descripcion_prod').annotate(total_cant=Sum('cantidad_dada')).order_by('-total_cant')
@@ -254,7 +268,7 @@ def dashboard(request):
         'recientes': recientes,
         'nombres_productos': nombres_productos,
         'cantidades_productos': cantidades_productos,
-        'stats_entregas_init_json': json.dumps(stats_entregas_init),
+        'stats_entregas_init_json': json.dumps(stats_entregas_init, default=str),
     }
 
     return render(request, 'dashboard.html', context)

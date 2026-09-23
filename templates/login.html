@@ -30,7 +30,7 @@
                     <p class="text-muted small">Ingresa tus credenciales para acceder</p>
                 </div>
                 
-                <form method="POST" id="loginForm">
+                <form method="POST" id="loginForm" data-loading-title="Iniciando sesión..." data-loading-message="Verificando sus datos de inicio de sesión" data-loading-icon="bi-box-arrow-in-right">
                     {% csrf_token %}
                     
                     <div class="mb-3">
@@ -72,8 +72,8 @@
     if (loginForm) {
         loginForm.addEventListener('submit', function() {
             mostrarPantallaCarga({
-                titulo: 'Ingresando al sistema...',
-                mensaje: 'Verificando credenciales y preparando panel de control...',
+                titulo: 'Iniciando sesión...',
+                mensaje: 'Verificando sus datos de inicio de sesión',
                 icono: 'bi-box-arrow-in-right'
             });
         });
