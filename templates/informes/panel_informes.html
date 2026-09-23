@@ -83,14 +83,14 @@
             </div>
         </div>
 
-        <!-- Botones de Acción (PDF Oficial e Impresión) -->
+        <!-- Botones de Acción (PDF Oficial con Gráficos e Impresión) -->
         <div class="d-flex flex-wrap align-items-center gap-2 btn-no-print">
-            <a href="{% url 'generar_informe_pdf' %}?periodo={{ d.periodo }}&fecha={{ d.fecha_desde }}&fecha_inicio={{ d.fecha_desde }}&fecha_fin={{ d.fecha_hasta }}" 
-               id="btnDescargarPdf"
-               target="_blank" 
-               class="btn btn-primary-custom d-flex align-items-center gap-2">
+            <button type="button" 
+                    id="btnDescargarPdf"
+                    onclick="descargarInformePdfConGraficos()" 
+                    class="btn btn-primary-custom d-flex align-items-center gap-2">
                 <i class="bi bi-file-earmark-pdf-fill"></i> Descargar Informe PDF
-            </a>
+            </button>
             <button type="button" onclick="window.print()" class="btn btn-outline-secondary d-flex align-items-center gap-2 rounded-3 fw-semibold">
                 <i class="bi bi-printer-fill"></i> Imprimir
             </button>
@@ -638,6 +638,65 @@
                     }
                 }
             });
+        }
+    }
+
+    function descargarInformePdfConGraficos() {
+        const btn = document.getElementById('btnDescargarPdf');
+        const originalHtml = btn ? btn.innerHTML : '';
+        if (btn) {
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span> Preparando PDF con gráficos...';
+        }
+
+        try {
+            // Extraer imágenes de los 4 gráficos interactivos de Chart.js en alta fidelidad Base64
+            const imgEvol = chartEvolucionInstance ? chartEvolucionInstance.toBase64Image('image/png', 1.0) : '';
+            const imgStatus = chartEstadosInstance ? chartEstadosInstance.toBase64Image('image/png', 1.0) : '';
+            const imgInsumos = chartTopInsumosInstance ? chartTopInsumosInstance.toBase64Image('image/png', 1.0) : '';
+            const imgTipos = chartTiposSolInstance ? chartTiposSolInstance.toBase64Image('image/png', 1.0) : '';
+
+            // Crear formulario dinámico POST con token CSRF para transferir las imágenes al motor PDF
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = "{% url 'generar_informe_pdf' %}";
+            form.target = '_blank';
+
+            const fields = {
+                'csrfmiddlewaretoken': '{{ csrf_token }}',
+                'periodo': '{{ d.periodo }}',
+                'fecha': '{{ d.fecha_desde }}',
+                'fecha_inicio': '{{ d.fecha_desde }}',
+                'fecha_fin': '{{ d.fecha_hasta }}',
+                'chart_evolucion': imgEvol,
+                'chart_status': imgStatus,
+                'chart_insumos': imgInsumos,
+                'chart_tipos': imgTipos
+            };
+
+            for (const key in fields) {
+                const input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = key;
+                input.value = fields[key] || '';
+                form.appendChild(input);
+            }
+
+            document.body.appendChild(form);
+            form.submit();
+            document.body.removeChild(form);
+        } catch (err) {
+            console.error('Error al exportar gráficos a PDF:', err);
+            // Fallback de navegación en caso de error
+            const urlFallback = "{% url 'generar_informe_pdf' %}?periodo={{ d.periodo }}&fecha={{ d.fecha_desde }}&fecha_inicio={{ d.fecha_desde }}&fecha_fin={{ d.fecha_hasta }}";
+            window.open(urlFallback, '_blank');
+        } finally {
+            setTimeout(function() {
+                if (btn) {
+                    btn.disabled = false;
+                    btn.innerHTML = originalHtml;
+                }
+            }, 3000);
         }
     }
 

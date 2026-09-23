@@ -1,7 +1,10 @@
 import os
+import io
 import ssl
 import json
 import base64
+import urllib.request
+import urllib.parse
 from datetime import date, timedelta, datetime
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
@@ -11,6 +14,7 @@ from django.utils import timezone
 from django.db import models
 from django.db.models import Sum, Count, Q, Max, Value
 from django.db.models.functions import Coalesce, Trim, Cast
+from PIL import Image, ImageDraw
 from xhtml2pdf import pisa
 
 from entregas.models import BeneficioEntregado
@@ -410,17 +414,239 @@ def api_datos_informes(request):
 
     return JsonResponse(datos)
 
+def limpiar_base64_img(val):
+    """Limpia cadenas data URI base64 a formato puro sin prefijo."""
+    if not val:
+        return ''
+    if ',' in val:
+        val = val.split(',', 1)[1]
+    return val.strip().replace(' ', '+')
+
+def obtener_chart_quickchart(qc_config, width=500, height=260):
+    """Consulta la API de QuickChart para generar un gráfico en PNG de alta resolución."""
+    try:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+        
+        params = urllib.parse.urlencode({
+            'c': json.dumps(qc_config),
+            'w': width,
+            'h': height,
+            'bkg': 'white',
+            'devicePixelRatio': 1.5
+        })
+        url = f"https://quickchart.io/chart?{params}"
+        req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0 (SIA-PDF)'})
+        with urllib.request.urlopen(req, timeout=3, context=ctx) as r:
+            img_bytes = r.read()
+            return base64.b64encode(img_bytes).decode('ascii')
+    except Exception:
+        return ''
+
+def draw_pil_donut(entregados, pendientes, w=350, h=220):
+    """Fallback local con PIL para gráfico tipo dona (Entregados vs Pendientes)."""
+    try:
+        img = Image.new('RGB', (w, h), color='#ffffff')
+        d = ImageDraw.Draw(img)
+        total = max(entregados + pendientes, 1)
+        angle_ent = int((entregados / total) * 360)
+        
+        d.pieslice([30, 20, 210, 200], start=0, end=angle_ent, fill='#10b981')
+        d.pieslice([30, 20, 210, 200], start=angle_ent, end=360, fill='#f59e0b')
+        d.ellipse([75, 65, 165, 155], fill='#ffffff')
+        
+        d.rectangle([230, 60, 245, 75], fill='#10b981')
+        d.text((255, 62), f'Entregados ({entregados})', fill='#1e293b')
+        d.rectangle([230, 95, 245, 110], fill='#f59e0b')
+        d.text((255, 97), f'Pendientes ({pendientes})', fill='#1e293b')
+        
+        buf = io.BytesIO()
+        img.save(buf, format='PNG')
+        return base64.b64encode(buf.getvalue()).decode('ascii')
+    except Exception:
+        return ''
+
+def draw_pil_line(labels, d1, d2, w=450, h=220):
+    """Fallback local con PIL para gráfico de líneas de evolución temporal."""
+    try:
+        img = Image.new('RGB', (w, h), color='#ffffff')
+        d = ImageDraw.Draw(img)
+        d.line([(20, 15), (45, 15)], fill='#10b981', width=3)
+        d.text((52, 10), 'Entregados', fill='#1e293b')
+        d.line([(140, 15), (165, 15)], fill='#f59e0b', width=3)
+        d.text((172, 10), 'Pendientes', fill='#1e293b')
+        
+        d.line([(40, 185), (w-20, 185)], fill='#cbd5e1', width=1)
+        
+        max_val = max(max(d1 or [1]), max(d2 or [1]), 1)
+        n = max(len(labels), 1)
+        step = (w - 80) // max(n - 1, 1)
+        
+        pts1, pts2 = [], []
+        for i in range(n):
+            x = 50 + i * step
+            y1 = 185 - int(((d1[i] if i < len(d1) else 0) / max_val) * 140)
+            y2 = 185 - int(((d2[i] if i < len(d2) else 0) / max_val) * 140)
+            pts1.append((x, y1))
+            pts2.append((x, y2))
+            if i % max(1, n // 5) == 0 and i < len(labels):
+                d.text((x - 10, 190), str(labels[i])[:5], fill='#64748b')
+                
+        if len(pts1) > 1:
+            d.line(pts1, fill='#10b981', width=3)
+        if len(pts2) > 1:
+            d.line(pts2, fill='#f59e0b', width=3)
+            
+        buf = io.BytesIO()
+        img.save(buf, format='PNG')
+        return base64.b64encode(buf.getvalue()).decode('ascii')
+    except Exception:
+        return ''
+
+def draw_pil_bars(labels, d1, d2, label1='Entregadas', label2='Pendientes', color1='#10b981', color2='#f59e0b', w=450, h=220):
+    """Fallback local con PIL para gráficos de barras comparativas."""
+    try:
+        img = Image.new('RGB', (w, h), color='#ffffff')
+        d = ImageDraw.Draw(img)
+        d.rectangle([20, 10, 35, 20], fill=color1)
+        d.text((42, 10), label1, fill='#1e293b')
+        d.rectangle([140, 10, 155, 20], fill=color2)
+        d.text((162, 10), label2, fill='#1e293b')
+        
+        d.line([(40, 185), (w-20, 185)], fill='#cbd5e1', width=1)
+        
+        n = max(len(labels), 1)
+        bar_width = max((w - 100) // (n * 2 + 1), 6)
+        max_val = max(max(d1 or [1]), max(d2 or [1]), 1)
+        
+        for i, lab in enumerate(labels[:6]):
+            x = 50 + i * (bar_width * 2 + 12)
+            h1 = int(((d1[i] if i < len(d1) else 0) / max_val) * 140)
+            h2 = int(((d2[i] if i < len(d2) else 0) / max_val) * 140)
+            d.rectangle([x, 185 - h1, x + bar_width, 185], fill=color1)
+            d.rectangle([x + bar_width + 2, 185 - h2, x + bar_width * 2 + 2, 185], fill=color2)
+            d.text((x, 190), str(lab)[:7], fill='#64748b')
+            
+        buf = io.BytesIO()
+        img.save(buf, format='PNG')
+        return base64.b64encode(buf.getvalue()).decode('ascii')
+    except Exception:
+        return ''
+
+def obtener_o_generar_graficos_pdf(request, datos):
+    """
+    Obtiene las imágenes de los gráficos para el informe PDF.
+    Prioriza las imágenes Base64 generadas en el navegador por Chart.js enviadas vía POST.
+    Si no fueron enviadas, genera gráficos con QuickChart o con el motor PIL local como respaldo.
+    """
+    params = request.POST if request.method == 'POST' else request.GET
+    
+    chart_evolucion = limpiar_base64_img(params.get('chart_evolucion', ''))
+    chart_status = limpiar_base64_img(params.get('chart_status', ''))
+    chart_insumos = limpiar_base64_img(params.get('chart_insumos', ''))
+    chart_tipos = limpiar_base64_img(params.get('chart_tipos', ''))
+    
+    # 1. Gráfico de Dona: Distribución de Estatus
+    if not chart_status:
+        entregados = datos.get('gran_total_entregados', 0)
+        pendientes = datos.get('gran_total_pendientes', 0)
+        qc_status = {
+            'type': 'doughnut',
+            'data': {
+                'labels': [f'Entregados ({entregados})', f'Pendientes ({pendientes})'],
+                'datasets': [{'data': [entregados, pendientes], 'backgroundColor': ['#10b981', '#f59e0b']}]
+            },
+            'options': {
+                'plugins': {'legend': {'position': 'bottom', 'labels': {'fontSize': 11, 'fontStyle': 'bold'}}}
+            }
+        }
+        chart_status = obtener_chart_quickchart(qc_status, 400, 240) or draw_pil_donut(entregados, pendientes)
+        
+    # 2. Gráfico de Líneas: Evolución Temporal
+    if not chart_evolucion:
+        labels = datos.get('fechas_labels', []) or ['Inicio', 'Cierre']
+        d_ent = datos.get('fechas_entregados', []) or [0, 0]
+        d_pen = datos.get('fechas_pendientes', []) or [0, 0]
+        qc_evol = {
+            'type': 'line',
+            'data': {
+                'labels': labels,
+                'datasets': [
+                    {'label': 'Entregados', 'data': d_ent, 'borderColor': '#10b981', 'backgroundColor': 'rgba(16,185,129,0.15)', 'fill': True},
+                    {'label': 'Pendientes', 'data': d_pen, 'borderColor': '#f59e0b', 'backgroundColor': 'rgba(245,158,11,0.15)', 'fill': True}
+                ]
+            },
+            'options': {
+                'plugins': {'legend': {'position': 'top', 'labels': {'fontSize': 10}}}
+            }
+        }
+        chart_evolucion = obtener_chart_quickchart(qc_evol, 500, 240) or draw_pil_line(labels, d_ent, d_pen)
+        
+    # 3. Gráfico de Barras: Top Insumos
+    if not chart_insumos:
+        top_list = datos.get('top_insumos', [])[:6]
+        labels_ins = [item['descripcion'][:15] + ('...' if len(item['descripcion']) > 15 else '') for item in top_list] or ['Sin insumos']
+        d_ins_ent = [item['entregadas'] for item in top_list] or [0]
+        d_ins_pen = [item['pendientes'] for item in top_list] or [0]
+        qc_ins = {
+            'type': 'horizontalBar',
+            'data': {
+                'labels': labels_ins,
+                'datasets': [
+                    {'label': 'Entregadas (u.)', 'data': d_ins_ent, 'backgroundColor': '#10b981'},
+                    {'label': 'Pendientes (u.)', 'data': d_ins_pen, 'backgroundColor': '#f59e0b'}
+                ]
+            },
+            'options': {
+                'scales': {'xAxes': [{'stacked': True}], 'yAxes': [{'stacked': True}]},
+                'plugins': {'legend': {'position': 'top', 'labels': {'fontSize': 9}}}
+            }
+        }
+        chart_insumos = obtener_chart_quickchart(qc_ins, 480, 240) or draw_pil_bars(labels_ins, d_ins_ent, d_ins_pen, 'Entregadas', 'Pendientes', '#10b981', '#f59e0b')
+        
+    # 4. Gráfico de Barras: Tipos de Solicitud
+    if not chart_tipos:
+        tipos_list = datos.get('tipos_solicitudes', [])[:6]
+        labels_tip = [item['tipo_solicitud'][:14] for item in tipos_list] or ['Sin solicitudes']
+        d_tip_ent = [item['entregadas'] for item in tipos_list] or [0]
+        d_tip_pen = [item['pendientes'] for item in tipos_list] or [0]
+        qc_tip = {
+            'type': 'bar',
+            'data': {
+                'labels': labels_tip,
+                'datasets': [
+                    {'label': 'Completadas', 'data': d_tip_ent, 'backgroundColor': '#4f46e5'},
+                    {'label': 'En Proceso', 'data': d_tip_pen, 'backgroundColor': '#06b6d4'}
+                ]
+            },
+            'options': {
+                'plugins': {'legend': {'position': 'top', 'labels': {'fontSize': 9}}}
+            }
+        }
+        chart_tipos = obtener_chart_quickchart(qc_tip, 450, 240) or draw_pil_bars(labels_tip, d_tip_ent, d_tip_pen, 'Completadas', 'En Proceso', '#4f46e5', '#06b6d4')
+        
+    return {
+        'chart_evolucion': chart_evolucion,
+        'chart_status': chart_status,
+        'chart_insumos': chart_insumos,
+        'chart_tipos': chart_tipos,
+    }
+
 @login_required
 def generar_informe_pdf_view(request):
     """
     Genera y descarga el archivo PDF oficial del informe de gestión,
-    incorporando membrete institucional, análisis redactado, métricas concatenadas
-    y representación gráfica de distribución.
+    incorporando membrete institucional, análisis redactado, métricas concatenadas,
+    representación gráfica visual (Chart.js / QuickChart / PIL) y tabla de auditoría.
+    Soporta tanto peticiones GET como POST (para recibir gráficos Base64 del navegador).
     """
-    periodo = request.GET.get('periodo', 'semanal').strip().lower()
-    fecha_esp = request.GET.get('fecha', '').strip()
-    fecha_inicio = request.GET.get('fecha_inicio', '').strip()
-    fecha_fin = request.GET.get('fecha_fin', '').strip()
+    params = request.POST if request.method == 'POST' else request.GET
+
+    periodo = params.get('periodo', 'semanal').strip().lower()
+    fecha_esp = params.get('fecha', '').strip()
+    fecha_inicio = params.get('fecha_inicio', '').strip()
+    fecha_fin = params.get('fecha_fin', '').strip()
 
     datos = calcular_datos_informe(
         periodo=periodo,
@@ -431,6 +657,7 @@ def generar_informe_pdf_view(request):
 
     logos = obtener_logos_base64()
     firma_digital = generar_hash_firma_digital(f"INFORME_{periodo}_{datos['fecha_desde']}_{datos['fecha_hasta']}_{request.user.username}")
+    graficos_b64 = obtener_o_generar_graficos_pdf(request, datos)
 
     html_string = render_to_string('informes/informe_pdf.html', {
         'd': datos,
@@ -440,6 +667,11 @@ def generar_informe_pdf_view(request):
         'usuario_emisor': request.user.username,
         'firma_digital': firma_digital,
         'fecha_emision': datetime.now(),
+        # Gráficos integrados en Base64
+        'chart_evolucion_b64': graficos_b64['chart_evolucion'],
+        'chart_status_b64': graficos_b64['chart_status'],
+        'chart_insumos_b64': graficos_b64['chart_insumos'],
+        'chart_tipos_b64': graficos_b64['chart_tipos'],
     })
 
     response = HttpResponse(content_type='application/pdf')

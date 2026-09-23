@@ -275,9 +275,59 @@
         </p>
     </div>
 
-    <!-- 3. Insumos con Mayor Demanda (Entregados vs Pendientes) -->
+    <!-- 3. Indicadores Gráficos: Evolución y Proporción de Estatus -->
+    <div class="section-box" style="page-break-inside: avoid;">
+        <div class="section-title">3. INDICADORES GRÁFICOS: EVOLUCIÓN TEMPORAL Y PROPORCIÓN DE ESTATUS</div>
+        <table style="width: 100%; border: none; margin: 0; padding: 0;">
+            <tr>
+                <td style="width: 58%; border: 1px solid #cbd5e1; background: #ffffff; padding: 4px; text-align: center; vertical-align: top;">
+                    <div style="font-size: 7pt; font-weight: bold; color: #1e293b; margin-bottom: 3px;">EVOLUCIÓN TEMPORAL (ENTREGADOS VS PENDIENTES)</div>
+                    {% if chart_evolucion_b64 %}
+                        <img src="data:image/png;base64,{{ chart_evolucion_b64 }}" width="310" height="165" />
+                    {% else %}
+                        <div style="padding: 40px 10px; color: #94a3b8; font-size: 8pt;">Gráfico no disponible</div>
+                    {% endif %}
+                </td>
+                <td style="width: 42%; border: 1px solid #cbd5e1; background: #ffffff; padding: 4px; text-align: center; vertical-align: top;">
+                    <div style="font-size: 7pt; font-weight: bold; color: #1e293b; margin-bottom: 3px;">DISTRIBUCIÓN DE ESTATUS CONSOLIDADOS</div>
+                    {% if chart_status_b64 %}
+                        <img src="data:image/png;base64,{{ chart_status_b64 }}" width="220" height="165" />
+                    {% else %}
+                        <div style="padding: 40px 10px; color: #94a3b8; font-size: 8pt;">Gráfico no disponible</div>
+                    {% endif %}
+                </td>
+            </tr>
+        </table>
+    </div>
+
+    <!-- 4. Indicadores Gráficos: Demanda de Insumos y Categorías -->
+    <div class="section-box" style="page-break-inside: avoid;">
+        <div class="section-title">4. INDICADORES GRÁFICOS: INSUMOS MOVILIZADOS Y CATEGORÍAS CIUDADANAS</div>
+        <table style="width: 100%; border: none; margin: 0; padding: 0;">
+            <tr>
+                <td style="width: 52%; border: 1px solid #cbd5e1; background: #ffffff; padding: 4px; text-align: center; vertical-align: top;">
+                    <div style="font-size: 7pt; font-weight: bold; color: #1e293b; margin-bottom: 3px;">TOP INSUMOS: ENTREGADOS VS PENDIENTES</div>
+                    {% if chart_insumos_b64 %}
+                        <img src="data:image/png;base64,{{ chart_insumos_b64 }}" width="275" height="165" />
+                    {% else %}
+                        <div style="padding: 40px 10px; color: #94a3b8; font-size: 8pt;">Gráfico no disponible</div>
+                    {% endif %}
+                </td>
+                <td style="width: 48%; border: 1px solid #cbd5e1; background: #ffffff; padding: 4px; text-align: center; vertical-align: top;">
+                    <div style="font-size: 7pt; font-weight: bold; color: #1e293b; margin-bottom: 3px;">SOLICITUDES POR CATEGORÍA DE ATENCIÓN</div>
+                    {% if chart_tipos_b64 %}
+                        <img src="data:image/png;base64,{{ chart_tipos_b64 }}" width="255" height="165" />
+                    {% else %}
+                        <div style="padding: 40px 10px; color: #94a3b8; font-size: 8pt;">Gráfico no disponible</div>
+                    {% endif %}
+                </td>
+            </tr>
+        </table>
+    </div>
+
+    <!-- 5. Insumos con Mayor Demanda (Entregados vs Pendientes) -->
     <div class="section-box">
-        <div class="section-title">3. TOP INSUMOS MOVILIZADOS EN EL PERÍODO (UNIDADES FÍSICAS)</div>
+        <div class="section-title">5. TOP INSUMOS MOVILIZADOS EN EL PERÍODO (UNIDADES FÍSICAS)</div>
         <table>
             <thead>
                 <tr>
@@ -312,10 +362,10 @@
         </table>
     </div>
 
-    <!-- 4. Resumen Concatenado de Solicitudes por Categoría -->
+    <!-- 6. Resumen Concatenado de Solicitudes por Categoría -->
     {% if d.tipos_solicitudes %}
     <div class="section-box">
-        <div class="section-title">4. DISTRIBUCIÓN DE SOLICITUDES CIUDADANAS POR CATEGORÍA</div>
+        <div class="section-title">6. DISTRIBUCIÓN DE SOLICITUDES CIUDADANAS POR CATEGORÍA</div>
         <table>
             <thead>
                 <tr>
@@ -339,9 +389,9 @@
     </div>
     {% endif %}
 
-    <!-- 5. Listado Reciente de Asignaciones y Solicitudes Concatenadas -->
+    <!-- 7. Listado Reciente de Asignaciones y Solicitudes Concatenadas -->
     <div class="section-box">
-        <div class="section-title">5. ÚLTIMOS REGISTROS GESTIONADOS EN EL PERÍODO</div>
+        <div class="section-title">7. ÚLTIMOS REGISTROS GESTIONADOS EN EL PERÍODO</div>
         <table>
             <thead>
                 <tr>
