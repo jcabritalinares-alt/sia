@@ -71,13 +71,10 @@
     const loginForm = document.getElementById('loginForm');
     if (loginForm) {
         loginForm.addEventListener('submit', function() {
-            Swal.fire({
-                title: 'Ingresando al sistema...',
-                text: 'Por favor, espere un momento.',
-                allowOutsideClick: false,
-                didOpen: () => {
-                    Swal.showLoading();
-                }
+            mostrarPantallaCarga({
+                titulo: 'Ingresando al sistema...',
+                mensaje: 'Verificando credenciales y preparando panel de control...',
+                icono: 'bi-box-arrow-in-right'
             });
         });
     }

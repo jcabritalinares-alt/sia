@@ -15,7 +15,7 @@
             <button type="button" class="btn btn-outline-primary fw-bold d-inline-flex align-items-center gap-2" data-bs-toggle="modal" data-bs-target="#modalSubirRespaldo">
                 <i class="bi bi-upload"></i> Subir y Restaurar Archivo
             </button>
-            <a href="{% url 'generar_respaldo_manual' %}" class="btn btn-primary-custom fw-bold shadow-sm d-inline-flex align-items-center gap-2 px-3 py-2">
+            <a href="{% url 'generar_respaldo_manual' %}" class="btn btn-primary-custom fw-bold shadow-sm d-inline-flex align-items-center gap-2 px-3 py-2" data-loading-title="Generando Copia de Seguridad..." data-loading-message="Extrayendo registros de PostgreSQL y empaquetando archivo de respaldo...">
                 <i class="bi bi-database-fill-add fs-5"></i> Generar Respaldo Ahora
             </a>
         </div>
@@ -135,7 +135,7 @@
                                         </div>
                                         <div class="modal-footer bg-light border-top py-2">
                                             <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
-                                            <form method="POST" action="{% url 'restaurar_respaldo' %}">
+                                            <form method="POST" action="{% url 'restaurar_respaldo' %}" data-loading-title="Restaurando Base de Datos..." data-loading-message="Aplicando copia de seguridad en la base de datos. Por favor espere y no cierre el navegador...">
                                                 {% csrf_token %}
                                                 <input type="hidden" name="nombre_archivo" value="{{ item.nombre }}">
                                                 <button type="submit" class="btn btn-warning fw-bold text-dark">
@@ -205,7 +205,7 @@
                 </h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <form method="POST" action="{% url 'restaurar_respaldo' %}" enctype="multipart/form-data">
+            <form method="POST" action="{% url 'restaurar_respaldo' %}" enctype="multipart/form-data" data-loading-title="Subiendo y Restaurando Respaldo..." data-loading-message="Validando estructura del archivo e importando datos al sistema. Por favor no recargue...">
                 {% csrf_token %}
                 <div class="modal-body p-4">
                     <div class="mb-3">

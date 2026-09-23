@@ -424,18 +424,7 @@
     </div>
 </div>
 
-<!-- Modal Procesando -->
-<div class="modal fade" id="modalProcesando" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content text-center py-4 border-0 shadow-lg rounded-4">
-            <div class="modal-body">
-                <div class="spinner-border text-primary mb-3" style="width: 3.5rem; height: 3.5rem;" role="status"></div>
-                <h5 class="fw-bold text-dark">Procesando entrega...</h5>
-                <p class="text-muted small mb-0">Guardando información, firma y descontando inventario en PostgreSQL.</p>
-            </div>
-        </div>
-    </div>
-</div>
+<!-- Pantalla de Procesamiento centralizada provista globalmente en base.html -->
 
 <!-- Modal Interactivo de Procesamiento y Encuadre Dactilar -->
 <div class="modal fade" id="modalProcesarHuella" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false">
@@ -1171,13 +1160,22 @@
             return;
         }
 
-        bootstrap.Modal.getInstance(document.getElementById('modalConfirmacionPrevia')).hide();
+        const btnFinal = $(this);
+        if (btnFinal.prop('disabled')) return;
+        btnFinal.prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-1"></span> Procesando...');
+
+        const modalPrev = bootstrap.Modal.getInstance(document.getElementById('modalConfirmacionPrevia'));
+        if (modalPrev) modalPrev.hide();
         
         if (!isCanvasBlank(canvas)) {
             document.getElementById('firmaData').value = canvas.toDataURL('image/png');
         }
 
-        new bootstrap.Modal(document.getElementById('modalProcesando')).show();
+        mostrarPantallaCarga({
+            titulo: 'Procesando entrega...',
+            mensaje: 'Comprimiendo evidencias fotográficas, registrando datos y actualizando existencias en PostgreSQL...',
+            icono: 'bi-box2-heart-fill'
+        });
 
         // Asegurar que las imágenes estén comprimidas antes de enviar para no saturar la red ni el túnel
         const statusValSubmit = $('#statusSelect').val();

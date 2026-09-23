@@ -911,6 +911,189 @@
         .bg-gradient-primary {
             background: linear-gradient(90deg, #4f46e5 0%, #06b6d4 50%, #10b981 100%);
         }
+
+        /* ==========================================================================
+           PANTALLA GLOBAL DE PROCESANDO (LOADING SCREEN & PREVENCIÓN DE DOBLE ENVÍO)
+           ========================================================================== */
+        .sia-loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(15, 23, 42, 0.72);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            z-index: 100000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            visibility: hidden;
+            pointer-events: none;
+            transition: opacity 0.25s cubic-bezier(0.4, 0, 0.2, 1), visibility 0.25s;
+        }
+
+        .sia-loading-overlay.activo {
+            opacity: 1;
+            visibility: visible;
+            pointer-events: all;
+        }
+
+        .sia-loading-card {
+            background: #ffffff;
+            border: 1px solid rgba(226, 232, 240, 0.9);
+            border-radius: 28px;
+            box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(255, 255, 255, 0.1);
+            padding: 2.25rem 2.25rem 1.85rem 2.25rem;
+            max-width: 440px;
+            width: 90%;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+            transform: scale(0.92) translateY(14px);
+            transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        [data-bs-theme="dark"] .sia-loading-card {
+            background: #1e293b;
+            border-color: rgba(255, 255, 255, 0.12);
+            box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.65), 0 0 0 1px rgba(255, 255, 255, 0.05);
+        }
+
+        .sia-loading-overlay.activo .sia-loading-card {
+            transform: scale(1) translateY(0);
+        }
+
+        .sia-loading-glow {
+            position: absolute;
+            top: -60px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 180px;
+            height: 180px;
+            background: radial-gradient(circle, rgba(79, 70, 229, 0.25) 0%, rgba(6, 182, 212, 0.15) 50%, transparent 70%);
+            border-radius: 50%;
+            pointer-events: none;
+            filter: blur(20px);
+        }
+
+        .sia-loading-spinner-wrap {
+            position: relative;
+            width: 82px;
+            height: 82px;
+            margin: 0 auto 1.5rem auto;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .sia-loading-ring {
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            border: 4px solid rgba(79, 70, 229, 0.15);
+            border-top: 4px solid var(--primary);
+            border-right: 4px solid var(--accent);
+            animation: siaSpinRing 1s cubic-bezier(0.55, 0.15, 0.45, 0.85) infinite;
+        }
+
+        [data-bs-theme="dark"] .sia-loading-ring {
+            border-color: rgba(99, 102, 241, 0.2);
+            border-top-color: #818cf8;
+            border-right-color: #22d3ee;
+        }
+
+        .sia-loading-icon-center {
+            position: absolute;
+            font-size: 2rem;
+            color: var(--primary);
+            animation: siaIconPulse 1.8s ease-in-out infinite;
+        }
+
+        [data-bs-theme="dark"] .sia-loading-icon-center {
+            color: #818cf8;
+        }
+
+        .sia-loading-title {
+            font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;
+            font-weight: 800;
+            font-size: 1.35rem;
+            color: var(--text-main);
+            margin-bottom: 0.5rem;
+            letter-spacing: -0.01em;
+        }
+
+        .sia-loading-message {
+            font-size: 0.92rem;
+            color: var(--text-muted);
+            line-height: 1.55;
+            margin-bottom: 1.25rem;
+            min-height: 2.8rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .sia-loading-bar-track {
+            width: 100%;
+            height: 6px;
+            background: rgba(79, 70, 229, 0.1);
+            border-radius: 999px;
+            overflow: hidden;
+            position: relative;
+            margin-bottom: 1.25rem;
+        }
+
+        [data-bs-theme="dark"] .sia-loading-bar-track {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .sia-loading-bar-thumb {
+            position: absolute;
+            top: 0;
+            left: 0;
+            height: 100%;
+            width: 45%;
+            background: linear-gradient(90deg, #4f46e5, #06b6d4, #10b981);
+            border-radius: 999px;
+            animation: siaBarShimmer 1.8s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+        }
+
+        .sia-loading-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: rgba(79, 70, 229, 0.08);
+            color: var(--primary);
+            padding: 0.35rem 0.85rem;
+            border-radius: 999px;
+            font-size: 0.78rem;
+            font-weight: 600;
+            border: 1px solid rgba(79, 70, 229, 0.18);
+        }
+
+        [data-bs-theme="dark"] .sia-loading-badge {
+            background: rgba(99, 102, 241, 0.16);
+            color: #a5b4fc;
+            border-color: rgba(99, 102, 241, 0.3);
+        }
+
+        @keyframes siaSpinRing {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        @keyframes siaIconPulse {
+            0%, 100% { transform: scale(1); opacity: 0.9; }
+            50% { transform: scale(1.18); opacity: 1; filter: drop-shadow(0 0 8px rgba(79, 70, 229, 0.5)); }
+        }
+
+        @keyframes siaBarShimmer {
+            0% { left: -50%; width: 40%; }
+            50% { width: 60%; }
+            100% { left: 100%; width: 40%; }
+        }
     </style>
     {% block style %}{% endblock %}
 </head>
@@ -1649,7 +1832,7 @@
                     El sistema ha bloqueado la pantalla por transcurrir 15 minutos sin actividad para proteger los datos institucionales.
                 </p>
 
-                <form id="formDesbloquearSesion" onsubmit="desbloquearPantalla(event)">
+                <form id="formDesbloquearSesion" class="no-loader" onsubmit="desbloquearPantalla(event)">
                     <div class="mb-3 text-start">
                         <label class="form-label small fw-semibold text-secondary">Haga clic en Desbloquear o vuelva a ingresar:</label>
                         <input type="password" id="inputClaveDesbloqueo" class="form-control form-control-lg text-center fw-bold border-primary" placeholder="••••••••" required>
@@ -1787,9 +1970,287 @@
     </div>
 </div>
 
+<!-- ==========================================================================
+     PANTALLA GLOBAL DE PROCESANDO (LOADING SCREEN & PREVENCIÓN DE DOBLE ENVÍO)
+     ========================================================================== -->
+<div id="pantallaProcesandoGlobal" class="sia-loading-overlay" role="status" aria-live="polite" aria-hidden="true">
+    <div class="sia-loading-card">
+        <div class="sia-loading-glow"></div>
+        <div class="sia-loading-spinner-wrap">
+            <div class="sia-loading-ring"></div>
+            <div class="sia-loading-icon-center">
+                <i id="procesandoIcono" class="bi bi-hourglass-split"></i>
+            </div>
+        </div>
+        <h4 id="procesandoTitulo" class="sia-loading-title">Procesando solicitud...</h4>
+        <p id="procesandoMensaje" class="sia-loading-message">Por favor espere un momento mientras se completa la operación.</p>
+        <div class="sia-loading-bar-track">
+            <div class="sia-loading-bar-thumb"></div>
+        </div>
+        <div>
+            <span class="sia-loading-badge">
+                <i class="bi bi-shield-lock-fill"></i> Transacción segura • No recargue la página
+            </span>
+        </div>
+        <button type="button" id="btnDesbloquearEmergencia" class="btn btn-link btn-sm text-muted mt-2 text-decoration-none" style="display: none; font-size: 0.76rem;" onclick="ocultarPantallaCarga()">
+            <i class="bi bi-exclamation-circle me-1"></i>¿Tarda demasiado? Haga clic aquí para desbloquear la pantalla
+        </button>
+    </div>
+</div>
+
 <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+<script>
+    // ==========================================================================
+    // SISTEMA GLOBAL DE PANTALLA DE PROCESANDO Y PREVENCIÓN DE DOBLE ENVÍO
+    // ==========================================================================
+    (function() {
+        let timerEmergencia = null;
+        let timerAutoDismiss = null;
+        const overlay = document.getElementById('pantallaProcesandoGlobal');
+        const tituloEl = document.getElementById('procesandoTitulo');
+        const mensajeEl = document.getElementById('procesandoMensaje');
+        const iconoEl = document.getElementById('procesandoIcono');
+        const btnEmergencia = document.getElementById('btnDesbloquearEmergencia');
+
+        // Muestra la pantalla de procesamiento con opciones personalizadas
+        window.mostrarPantallaCarga = function(opciones) {
+            const opts = typeof opciones === 'string' ? { titulo: opciones } : (opciones || {});
+            const titulo = opts.titulo || 'Procesando solicitud...';
+            const mensaje = opts.mensaje || 'Por favor espere un momento mientras se completa la operación.';
+            const icono = opts.icono || 'bi-hourglass-split';
+            const autoCerrarMs = opts.tiempoMaximo || 0;
+
+            if (tituloEl) tituloEl.textContent = titulo;
+            if (mensajeEl) mensajeEl.textContent = mensaje;
+            if (iconoEl) {
+                iconoEl.className = 'bi ' + icono;
+            }
+            if (btnEmergencia) {
+                btnEmergencia.style.display = 'none';
+            }
+
+            if (overlay) {
+                overlay.classList.add('activo');
+                overlay.setAttribute('aria-hidden', 'false');
+            }
+
+            // Temporizador de emergencia: tras 12 segundos muestra botón de auxilio
+            if (timerEmergencia) clearTimeout(timerEmergencia);
+            timerEmergencia = setTimeout(() => {
+                if (btnEmergencia && overlay && overlay.classList.contains('activo')) {
+                    btnEmergencia.style.display = 'inline-block';
+                }
+            }, 12000);
+
+            // Temporizador de auto-cierre si se especificó
+            if (timerAutoDismiss) clearTimeout(timerAutoDismiss);
+            if (autoCerrarMs > 0) {
+                timerAutoDismiss = setTimeout(() => {
+                    window.ocultarPantallaCarga();
+                }, autoCerrarMs);
+            }
+        };
+
+        // Oculta la pantalla de procesamiento y restaura el estado
+        window.ocultarPantallaCarga = function() {
+            if (timerEmergencia) { clearTimeout(timerEmergencia); timerEmergencia = null; }
+            if (timerAutoDismiss) { clearTimeout(timerAutoDismiss); timerAutoDismiss = null; }
+
+            if (overlay) {
+                overlay.classList.remove('activo');
+                overlay.setAttribute('aria-hidden', 'true');
+            }
+
+            if (btnEmergencia) {
+                btnEmergencia.style.display = 'none';
+            }
+
+            // Restaurar botones de formularios que fueron deshabilitados
+            document.querySelectorAll('form[data-submitting="true"]').forEach(form => {
+                form.removeAttribute('data-submitting');
+                const submitBtns = form.querySelectorAll('button[type="submit"], input[type="submit"]');
+                submitBtns.forEach(btn => {
+                    btn.disabled = false;
+                    if (btn.dataset.origHtml) {
+                        btn.innerHTML = btn.dataset.origHtml;
+                        delete btn.dataset.origHtml;
+                    }
+                });
+            });
+        };
+
+        // Compatibilidad de alias
+        window.mostrarProcesando = window.mostrarPantallaCarga;
+        window.ocultarProcesando = window.ocultarPantallaCarga;
+
+        // --- 1. INTERCEPTOR INTELIGENTE DE FORMULARIOS ---
+        document.addEventListener('submit', function(e) {
+            const form = e.target;
+            if (!form || form.tagName !== 'FORM') return;
+
+            // Si un manejador local ya canceló el envío (validación fallida), no activar loader
+            if (e.defaultPrevented) return;
+
+            // Omitir si tiene clase o atributo de excepción
+            if (form.classList.contains('no-loader') || form.classList.contains('no-loading') || form.hasAttribute('data-no-loader')) {
+                return;
+            }
+
+            // Si el formulario no es válido según HTML5 (campos requeridos, tipos, etc.), no bloquear
+            if (typeof form.checkValidity === 'function' && !form.checkValidity()) {
+                return;
+            }
+
+            // Prevención estricta de doble envío
+            if (form.dataset.submitting === 'true') {
+                e.preventDefault();
+                e.stopPropagation();
+                return false;
+            }
+            form.dataset.submitting = 'true';
+
+            // Deshabilitar botones de envío físicamente en el DOM con feedback
+            const submitBtns = form.querySelectorAll('button[type="submit"], input[type="submit"]');
+            submitBtns.forEach(btn => {
+                btn.disabled = true;
+                if (btn.tagName === 'BUTTON' && !btn.dataset.origHtml) {
+                    btn.dataset.origHtml = btn.innerHTML;
+                    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span> Procesando...';
+                }
+            });
+
+            // Determinar contexto por atributos o URL/campos
+            let titulo = form.dataset.loadingTitle || '';
+            let mensaje = form.dataset.loadingMessage || '';
+            let icono = 'bi-hourglass-split';
+
+            const action = (form.getAttribute('action') || '').toLowerCase();
+            const formId = (form.id || '').toLowerCase();
+            const hasFiles = form.querySelector('input[type="file"]') !== null || (form.getAttribute('enctype') || '').includes('multipart');
+            const submitText = submitBtns.length > 0 ? (submitBtns[0].textContent || '').toLowerCase() : '';
+
+            if (!titulo) {
+                if (hasFiles || action.includes('importar') || formId.includes('subir') || action.includes('evidencia')) {
+                    titulo = 'Subiendo y procesando archivos...';
+                    mensaje = 'Por favor espere mientras los archivos se cargan y optimizan en el servidor.';
+                    icono = 'bi-cloud-arrow-up-fill';
+                } else if (action.includes('reporte') || action.includes('pdf') || action.includes('excel') || submitText.includes('reporte')) {
+                    titulo = 'Generando reporte...';
+                    mensaje = 'Compilando información y preparando el documento para su descarga.';
+                    icono = 'bi-file-earmark-bar-graph-fill';
+                } else if (action.includes('respaldo') || action.includes('backup') || submitText.includes('respaldo') || submitText.includes('restaurar')) {
+                    titulo = 'Procesando respaldo...';
+                    mensaje = 'Esta operación de base de datos puede tomar unos momentos. No cierre la ventana.';
+                    icono = 'bi-database-fill-gear';
+                } else if (action.includes('eliminar') || formId.includes('eliminar') || submitText.includes('eliminar')) {
+                    titulo = 'Eliminando registro...';
+                    mensaje = 'Aplicando cambios de forma segura en la base de datos.';
+                    icono = 'bi-trash3-fill';
+                } else if (action.includes('editar') || action.includes('actualizar') || action.includes('cambiar') || submitText.includes('actualizar') || submitText.includes('modificar')) {
+                    titulo = 'Actualizando datos...';
+                    mensaje = 'Guardando las modificaciones realizadas en el sistema.';
+                    icono = 'bi-pencil-square';
+                } else if ((form.method || '').toLowerCase() === 'get') {
+                    titulo = 'Consultando información...';
+                    mensaje = 'Filtrando registros en la base de datos...';
+                    icono = 'bi-search';
+                } else {
+                    titulo = 'Guardando información...';
+                    mensaje = 'Registrando los datos de forma segura en el sistema.';
+                    icono = 'bi-floppy2-fill';
+                }
+            }
+
+            const isFormTargetBlank = form.getAttribute('target') === '_blank';
+            const isFormDownload = (form.method || '').toLowerCase() === 'get' && (action.includes('pdf') || action.includes('excel') || action.includes('reporte'));
+
+            let tiempoMaximo = 0;
+            if (isFormTargetBlank) {
+                tiempoMaximo = 3000;
+            } else if (isFormDownload) {
+                tiempoMaximo = 5000;
+            }
+
+            window.mostrarPantallaCarga({ titulo, mensaje, icono, tiempoMaximo });
+        }, false);
+
+        // --- 2. INTERCEPTOR DE ENLACES Y BOTONES DE REPORTES / DESCARGAS / RESPALDOS ---
+        document.addEventListener('click', function(e) {
+            const target = e.target.closest('a, button');
+            if (!target) return;
+
+            // Omitir si tiene clase o atributo de excepción
+            if (target.classList.contains('no-loader') || target.classList.contains('no-loading') || target.hasAttribute('data-no-loader')) {
+                return;
+            }
+
+            const href = (target.getAttribute('href') || '').toLowerCase();
+            const onclickAttr = (target.getAttribute('onclick') || '').toLowerCase();
+            const textContent = (target.textContent || '').toLowerCase();
+            const isTargetBlank = target.getAttribute('target') === '_blank';
+
+            const esReporte = href.includes('reporte') || href.includes('exportar') || href.includes('pdf') || href.includes('excel') ||
+                              onclickAttr.includes('reporte') || onclickAttr.includes('imprimir') ||
+                              textContent.includes('exportar excel') || textContent.includes('descargar pdf') || textContent.includes('imprimir reporte');
+
+            const esRespaldo = href.includes('generar_respaldo') || href.includes('respaldo_manual') || textContent.includes('generar respaldo');
+
+            if (esReporte || esRespaldo || target.hasAttribute('data-loading-action')) {
+                // Prevenir clics múltiples seguidos (cooldown de 3.5 segundos)
+                if (target.dataset.clickLocked === 'true') {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    return false;
+                }
+                target.dataset.clickLocked = 'true';
+                setTimeout(() => {
+                    delete target.dataset.clickLocked;
+                }, 3500);
+
+                let titulo = target.dataset.loadingTitle || '';
+                let mensaje = target.dataset.loadingMessage || '';
+                let icono = 'bi-file-earmark-bar-graph-fill';
+
+                if (esRespaldo) {
+                    titulo = titulo || 'Generando copia de seguridad...';
+                    mensaje = mensaje || 'Extrayendo datos de PostgreSQL y empaquetando archivo...';
+                    icono = 'bi-database-fill-gear';
+                } else if (href.includes('excel') || textContent.includes('excel')) {
+                    titulo = titulo || 'Exportando datos a Excel...';
+                    mensaje = mensaje || 'Generando libro de cálculo con formato oficial...';
+                    icono = 'bi-file-earmark-excel-fill';
+                } else {
+                    titulo = titulo || 'Generando documento oficial...';
+                    mensaje = mensaje || 'Compilando información y renderizando el documento...';
+                    icono = 'bi-file-earmark-pdf-fill';
+                }
+
+                if (isTargetBlank) {
+                    // Si se abre en pestaña nueva, mostrar feedback breve y auto-cerrar en 2.8s
+                    window.mostrarPantallaCarga({ titulo, mensaje, icono, tiempoMaximo: 2800 });
+                } else {
+                    // Si es descarga directa en la misma pestaña, auto-cerrar en 5s tras inicio
+                    window.mostrarPantallaCarga({ titulo, mensaje, icono, tiempoMaximo: 5000 });
+                }
+            }
+        }, true);
+
+        // --- 3. RESTAURACIÓN AUTOMÁTICA EN RETROCESO (BFCACHE / PAGESHOW) ---
+        window.addEventListener('pageshow', function() {
+            window.ocultarPantallaCarga();
+        });
+
+        // --- 4. RESTAURACIÓN ANTE ERRORES AJAX GLOBALES ---
+        if (window.jQuery) {
+            $(document).ajaxError(function() {
+                window.ocultarPantallaCarga();
+            });
+        }
+    })();
+</script>
 
 <script>
     // --- LÓGICA CONMUTADOR DE TEMA CLARO / OSCURO ---

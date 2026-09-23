@@ -145,7 +145,7 @@
 <div class="modal fade" id="modalSumarStockRapido" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content border-0 shadow-lg rounded-4">
-            <form method="POST" action="{% url 'registrar_inventario' %}">
+            <form method="POST" action="{% url 'registrar_inventario' %}" data-loading-title="Actualizando Stock..." data-loading-message="Registrando el nuevo ingreso y recalculando existencias disponibles...">
                 {% csrf_token %}
                 <input type="hidden" name="codigo" id="modalSumarCodigo">
                 <input type="hidden" name="descripcion" id="modalSumarDescripcion">
@@ -243,7 +243,7 @@
                 </h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <form method="POST" action="{% url 'importar_inventario_excel' %}" enctype="multipart/form-data">
+            <form method="POST" action="{% url 'importar_inventario_excel' %}" enctype="multipart/form-data" data-loading-title="Importando Catálogo desde Excel..." data-loading-message="Analizando filas, validando códigos e ingresando existencias al inventario...">
                 {% csrf_token %}
                 <div class="modal-body p-4">
                     <p class="text-muted small mb-3">
