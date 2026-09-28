@@ -6,12 +6,12 @@
     <style>
         @page {
             size: letter portrait;
-            margin: 1.3cm 1.5cm 1.5cm 1.5cm;
+            margin: 1.2cm 1.4cm 1.4cm 1.4cm;
         }
         body {
             font-family: Helvetica, Arial, sans-serif;
             color: #1e293b;
-            font-size: 11px;
+            font-size: 14px;
             line-height: 1.4;
         }
         .header-table {
@@ -24,13 +24,13 @@
             max-height: 60px;
         }
         .title {
-            font-size: 15px;
+            font-size: 18px;
             font-weight: bold;
             color: #4f46e5;
             text-align: center;
         }
         .subtitle {
-            font-size: 10px;
+            font-size: 12px;
             color: #64748b;
             text-align: center;
         }
@@ -39,10 +39,10 @@
             background-color: #f8fafc;
             border: 1px solid #cbd5e1;
             margin-bottom: 12px;
-            padding: 6px 10px;
+            padding: 8px 10px;
         }
         .info-bar td {
-            font-size: 10px;
+            font-size: 13px;
             color: #334155;
         }
         .table-inventario {
@@ -54,24 +54,24 @@
             background-color: #312e81;
             color: #ffffff;
             font-weight: bold;
-            padding: 7px 8px;
+            padding: 9px 8px;
             text-align: left;
-            font-size: 10px;
+            font-size: 13px;
             text-transform: uppercase;
         }
         .table-inventario td {
-            padding: 6px 8px;
+            padding: 8px 8px;
             border-bottom: 1px solid #e2e8f0;
-            font-size: 10px;
+            font-size: 14px;
         }
         .text-center { text-align: center; }
         .text-right { text-align: right; }
-        .stock-normal { color: #166534; font-weight: bold; }
-        .stock-critico { color: #991b1b; font-weight: bold; }
+        .stock-normal { color: #166534; font-weight: bold; font-size: 14px; }
+        .stock-critico { color: #991b1b; font-weight: bold; font-size: 14px; }
         .footer {
             margin-top: 25px;
             text-align: center;
-            font-size: 9px;
+            font-size: 11px;
             color: #94a3b8;
             border-top: 1px solid #e2e8f0;
             padding-top: 8px;
@@ -82,13 +82,13 @@
 
     <table class="header-table">
         <tr>
-            <td width="130">
+            <td width="120">
                 <img src="https://res.cloudinary.com/tehn5bfb/image/upload/v1783630731/efad9adhn201uv8xemcn.jpg" class="logo" alt="Alcaldía">
             </td>
-            <td width="280" align="center">
+            <td width="300" align="center">
                 <div class="title">REPORTE DE INVENTARIO Y STOCK</div>
                 <div class="subtitle">Sistema de Gestión de Inventario y Atención (SIA Web)</div>
-                <div class="subtitle" style="margin-top: 3px; font-weight: bold; color: #4338ca;">
+                <div class="subtitle" style="margin-top: 3px; font-weight: bold; color: #4338ca; font-size: 13px;">
                     {% if es_filtrado %}
                         Ubicación: {{ almacen_seleccionado }}
                     {% else %}
@@ -97,7 +97,7 @@
                 </div>
                 <div class="subtitle" style="margin-top: 3px;">Fecha de emisión: {% now "d/m/Y H:i" %}</div>
             </td>
-            <td width="130" align="right">
+            <td width="120" align="right">
                 <img src="https://res.cloudinary.com/tehn5bfb/image/upload/v1783630731/hgb44vfc0d8wirbnz2th.jpg" class="logo" alt="Valera Renace">
             </td>
         </tr>
@@ -118,8 +118,8 @@
     <table class="table-inventario">
         <thead>
             <tr>
-                <th width="90" class="text-center">Código</th>
-                <th width="240">Descripción del Producto</th>
+                <th width="100" class="text-center">Código</th>
+                <th width="230">Descripción del Producto</th>
                 <th width="110">Almacén</th>
                 <th width="100" class="text-center">Stock Actual</th>
             </tr>
@@ -140,7 +140,7 @@
             </tr>
             {% empty %}
             <tr>
-                <td colspan="4" class="text-center" style="padding: 16px; color: #64748b;">
+                <td colspan="4" class="text-center" style="padding: 18px; color: #64748b; font-size: 14px;">
                     {% if es_filtrado %}
                         No hay productos registrados actualmente en el almacén <strong>{{ almacen_seleccionado }}</strong>.
                     {% else %}
