@@ -2,11 +2,11 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Reporte General de Inventario - SIA Web</title>
+    <title>Reporte de Inventario - {{ almacen_seleccionado|default:"General" }} - SIA Web</title>
     <style>
         @page {
             size: letter portrait;
-            margin: 1.5cm;
+            margin: 1.3cm 1.5cm 1.5cm 1.5cm;
         }
         body {
             font-family: Helvetica, Arial, sans-serif;
@@ -17,14 +17,14 @@
         .header-table {
             width: 100%;
             border-bottom: 2px solid #4f46e5;
-            padding-bottom: 10px;
-            margin-bottom: 20px;
+            padding-bottom: 8px;
+            margin-bottom: 12px;
         }
         .logo {
             max-height: 60px;
         }
         .title {
-            font-size: 16px;
+            font-size: 15px;
             font-weight: bold;
             color: #4f46e5;
             text-align: center;
@@ -34,30 +34,42 @@
             color: #64748b;
             text-align: center;
         }
+        .info-bar {
+            width: 100%;
+            background-color: #f8fafc;
+            border: 1px solid #cbd5e1;
+            margin-bottom: 12px;
+            padding: 6px 10px;
+        }
+        .info-bar td {
+            font-size: 10px;
+            color: #334155;
+        }
         .table-inventario {
             width: 100%;
             border-collapse: collapse;
-            margin-top: 10px;
+            margin-top: 5px;
         }
         .table-inventario th {
             background-color: #312e81;
             color: #ffffff;
             font-weight: bold;
-            padding: 8px;
+            padding: 7px 8px;
             text-align: left;
             font-size: 10px;
             text-transform: uppercase;
         }
         .table-inventario td {
-            padding: 7px 8px;
+            padding: 6px 8px;
             border-bottom: 1px solid #e2e8f0;
             font-size: 10px;
         }
         .text-center { text-align: center; }
+        .text-right { text-align: right; }
         .stock-normal { color: #166534; font-weight: bold; }
         .stock-critico { color: #991b1b; font-weight: bold; }
         .footer {
-            margin-top: 30px;
+            margin-top: 25px;
             text-align: center;
             font-size: 9px;
             color: #94a3b8;
@@ -74,12 +86,31 @@
                 <img src="https://res.cloudinary.com/tehn5bfb/image/upload/v1783630731/efad9adhn201uv8xemcn.jpg" class="logo" alt="Alcaldía">
             </td>
             <td width="280" align="center">
-                <div class="title">REPORTE GENERAL DE INVENTARIO</div>
+                <div class="title">REPORTE DE INVENTARIO Y STOCK</div>
                 <div class="subtitle">Sistema de Gestión de Inventario y Atención (SIA Web)</div>
-                <div class="subtitle" style="margin-top: 4px;">Fecha de emisión: {% now "d/m/Y H:i" %}</div>
+                <div class="subtitle" style="margin-top: 3px; font-weight: bold; color: #4338ca;">
+                    {% if es_filtrado %}
+                        Ubicación: {{ almacen_seleccionado }}
+                    {% else %}
+                        Consolidado General (Todos los Almacenes)
+                    {% endif %}
+                </div>
+                <div class="subtitle" style="margin-top: 3px;">Fecha de emisión: {% now "d/m/Y H:i" %}</div>
             </td>
             <td width="130" align="right">
                 <img src="https://res.cloudinary.com/tehn5bfb/image/upload/v1783630731/hgb44vfc0d8wirbnz2th.jpg" class="logo" alt="Valera Renace">
+            </td>
+        </tr>
+    </table>
+
+    <table class="info-bar">
+        <tr>
+            <td width="55%">
+                <strong>Almacén Reportado:</strong> <span style="color: #1e293b; font-weight: bold;">{{ almacen_seleccionado|default:"Todos los Almacenes" }}</span>
+            </td>
+            <td width="45%" class="text-right">
+                <strong>Total Ítems:</strong> <strong>{{ total_productos }}</strong> &nbsp;|&nbsp; 
+                <strong>Stock Total:</strong> <strong>{{ total_unidades }} u.</strong>
             </td>
         </tr>
     </table>
@@ -88,9 +119,9 @@
         <thead>
             <tr>
                 <th width="90" class="text-center">Código</th>
-                <th width="250">Descripción del Producto</th>
+                <th width="240">Descripción del Producto</th>
                 <th width="110">Almacén</th>
-                <th width="90" class="text-center">Stock Actual</th>
+                <th width="100" class="text-center">Stock Actual</th>
             </tr>
         </thead>
         <tbody>
@@ -98,7 +129,7 @@
             <tr>
                 <td class="text-center"><strong>{{ p.codigo }}</strong></td>
                 <td>{{ p.descripcion }}</td>
-                <td>{{ p.almacen }}</td>
+                <td>{{ p.almacen|default:"Principal" }}</td>
                 <td class="text-center">
                     {% if p.cantidad <= 5 %}
                         <span class="stock-critico">⚠️ {{ p.cantidad }} u.</span>
@@ -109,14 +140,20 @@
             </tr>
             {% empty %}
             <tr>
-                <td colspan="4" class="text-center" style="padding: 15px; color: #64748b;">No hay productos registrados en el inventario.</td>
+                <td colspan="4" class="text-center" style="padding: 16px; color: #64748b;">
+                    {% if es_filtrado %}
+                        No hay productos registrados actualmente en el almacén <strong>{{ almacen_seleccionado }}</strong>.
+                    {% else %}
+                        No hay productos registrados en el inventario.
+                    {% endif %}
+                </td>
             </tr>
             {% endfor %}
         </tbody>
     </table>
 
     <div class="footer">
-        Documento generado automáticamente por SIA Web &bull; Reporte Oficial de Almacén
+        Documento oficial generado por SIA Web &bull; Reporte de Almacén ({{ almacen_seleccionado|default:"General" }})
     </div>
 
 </body>

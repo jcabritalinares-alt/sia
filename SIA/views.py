@@ -311,11 +311,40 @@ def generar_reporte_inventario_independiente(request):
             messages.error(request, "Acceso restringido: No tienes permiso para generar reportes de Inventario.")
             return redirect(obtener_url_inicio_usuario(request.user))
     try:
-        productos = SIA_producto.objects.all()
-        html = render_to_string('reportes/inventario_pdf.html', {'productos': productos})
+        almacen_param = request.GET.get('almacen', '').strip()
+        productos = SIA_producto.objects.all().order_by('descripcion')
+        
+        es_filtrado = False
+        if almacen_param and almacen_param.lower() not in ['todos', 'all']:
+            if almacen_param.lower() == 'sin_almacen':
+                productos = productos.filter(Q(almacen__isnull=True) | Q(almacen=''))
+                almacen_seleccionado = "Sin Almacén Asignado"
+                nombre_archivo = "Reporte_Inventario_Sin_Almacen.pdf"
+                es_filtrado = True
+            else:
+                productos = productos.filter(almacen__iexact=almacen_param)
+                almacen_seleccionado = almacen_param
+                safe_almacen = "".join(c for c in almacen_param if c.isalnum() or c in (' ', '_', '-')).strip().replace(' ', '_')
+                nombre_archivo = f"Reporte_Inventario_{safe_almacen}.pdf"
+                es_filtrado = True
+        else:
+            almacen_seleccionado = "Todos los Almacenes"
+            nombre_archivo = "Reporte_Inventario_Actual.pdf"
+
+        lista_productos = list(productos)
+        total_productos = len(lista_productos)
+        total_unidades = sum((p.cantidad or 0) for p in lista_productos)
+
+        html = render_to_string('reportes/inventario_pdf.html', {
+            'productos': lista_productos,
+            'almacen_seleccionado': almacen_seleccionado,
+            'es_filtrado': es_filtrado,
+            'total_productos': total_productos,
+            'total_unidades': total_unidades,
+        })
         
         response = HttpResponse(content_type='application/pdf')
-        response['Content-Disposition'] = 'inline; filename="Reporte_Inventario_Actual.pdf"'
+        response['Content-Disposition'] = f'inline; filename="{nombre_archivo}"'
         
         pisa_status = pisa.CreatePDF(html, dest=response)
         
@@ -334,12 +363,30 @@ def exportar_inventario_excel(request):
         if perfil and not perfil.permiso_inventario:
             messages.error(request, "Acceso restringido: No tienes permiso para exportar el Inventario.")
             return redirect(obtener_url_inicio_usuario(request.user))
+            
+    almacen_param = request.GET.get('almacen', '').strip()
+    productos = SIA_producto.objects.all().order_by('descripcion')
+
+    if almacen_param and almacen_param.lower() not in ['todos', 'all']:
+        if almacen_param.lower() == 'sin_almacen':
+            productos = productos.filter(Q(almacen__isnull=True) | Q(almacen=''))
+            subtitulo = "ALMACÉN: SIN ASIGNAR"
+            nombre_archivo = "Reporte_Inventario_Sin_Almacen.xlsx"
+        else:
+            productos = productos.filter(almacen__iexact=almacen_param)
+            subtitulo = f"ALMACÉN: {almacen_param.upper()}"
+            safe_almacen = "".join(c for c in almacen_param if c.isalnum() or c in (' ', '_', '-')).strip().replace(' ', '_')
+            nombre_archivo = f"Reporte_Inventario_{safe_almacen}.xlsx"
+    else:
+        subtitulo = "REPORTE GENERAL DE INVENTARIO"
+        nombre_archivo = "Reporte_Inventario.xlsx"
+
     wb = openpyxl.Workbook()
     ws = wb.active
     ws.title = "Inventario"
     
     ws.merge_cells('A1:E1')
-    ws['A1'] = "SIA WEB - REPORTE GENERAL DE INVENTARIO"
+    ws['A1'] = f"SIA WEB - {subtitulo}"
     ws['A1'].font = Font(name='Calibri', size=14, bold=True, color="FFFFFF")
     ws['A1'].fill = PatternFill(start_color="4F46E5", end_color="4F46E5", fill_type="solid")
     ws['A1'].alignment = Alignment(horizontal="center", vertical="center")
@@ -358,7 +405,6 @@ def exportar_inventario_excel(request):
         cell.font = header_font
         cell.alignment = Alignment(horizontal="center", vertical="center")
 
-    productos = SIA_producto.objects.all()
     for row_idx, p in enumerate(productos, start=3):
         presentacion = f"Caja ({p.unidades_por_empaque} u.)" if p.tipo_presentacion == 'caja' else "Unidad"
         ws.append([p.codigo, p.descripcion, p.almacen, presentacion, p.cantidad])
@@ -372,7 +418,7 @@ def exportar_inventario_excel(request):
         ws.column_dimensions[col_letter].width = max(max_len + 4, 14)
 
     response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
-    response['Content-Disposition'] = 'attachment; filename="Reporte_Inventario.xlsx"'
+    response['Content-Disposition'] = f'attachment; filename="{nombre_archivo}"'
     wb.save(response)
     return response
 
@@ -405,7 +451,25 @@ def lista_inventario(request):
             return redirect(obtener_url_inicio_usuario(request.user))
 
     productos = SIA_producto.objects.all()
-    return render(request, 'inventario.html', {'productos': productos})
+
+    # Obtener almacenes registrados y combinarlos con los predeterminados
+    try:
+        almacenes_db = list(SIA_producto.objects.exclude(almacen__isnull=True).exclude(almacen__exact='').values_list('almacen', flat=True).distinct())
+    except Exception:
+        almacenes_db = []
+
+    almacenes_base = ['Principal', 'Almacén 1', 'Almacén 2', 'Galpón']
+    almacenes_lista = []
+    for a in almacenes_db + almacenes_base:
+        val = str(a).strip()
+        if val and val not in almacenes_lista:
+            almacenes_lista.append(val)
+    almacenes_lista.sort()
+
+    return render(request, 'inventario.html', {
+        'productos': productos,
+        'almacenes': almacenes_lista,
+    })
 
 def generar_nuevo_codigo_producto():
     ultimo = SIA_producto.objects.order_by('-id').first()

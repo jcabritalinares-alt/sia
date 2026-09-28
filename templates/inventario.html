@@ -29,12 +29,12 @@
             <button type="button" class="btn btn-outline-primary no-print d-flex align-items-center gap-2 rounded-3 fw-semibold" data-bs-toggle="modal" data-bs-target="#modalImportarExcel">
                 <i class="bi bi-file-earmark-arrow-up-fill"></i> Importar Excel
             </button>
-            <a href="{% url 'exportar_inventario_excel' %}" class="btn btn-outline-success no-print d-flex align-items-center gap-2 rounded-3 fw-semibold">
+            <a href="{% url 'exportar_inventario_excel' %}" class="btn btn-outline-success no-print d-flex align-items-center gap-2 rounded-3 fw-semibold" id="btnExportarExcel">
                 <i class="bi bi-file-earmark-excel-fill"></i> Exportar Excel
             </a>
-            <a href="{% url 'reporte_pdf' %}" target="_blank" class="btn btn-outline-danger no-print d-flex align-items-center gap-2 rounded-3 fw-semibold">
+            <button type="button" class="btn btn-outline-danger no-print d-flex align-items-center gap-2 rounded-3 fw-semibold shadow-sm" data-bs-toggle="modal" data-bs-target="#modalExportarPdfInventario">
                 <i class="bi bi-file-earmark-pdf-fill"></i> Descargar PDF
-            </a>
+            </button>
             <button onclick="imprimirReporteInventario(this)" class="btn btn-primary-custom no-print d-flex align-items-center gap-2">
                 <i class="bi bi-printer-fill"></i> Imprimir Reporte
             </button>
@@ -42,14 +42,27 @@
         {% endif %}
     </div>
 
-    <!-- Buscador de inventario en tiempo real -->
-    <div class="row mb-4">
+    <!-- Buscador de inventario y filtro por almacén en tiempo real -->
+    <div class="row mb-4 g-2 align-items-center">
         <div class="col-12 col-md-6 col-lg-5">
             <div class="input-group shadow-sm rounded-3">
                 <span class="input-group-text bg-white border-end-0 text-muted">
                     <i class="bi bi-search"></i>
                 </span>
                 <input type="text" id="buscadorInventario" class="form-control border-start-0 no-print" placeholder="🔍 Escribe para buscar código, descripción o almacén..." autocomplete="off">
+            </div>
+        </div>
+        <div class="col-12 col-md-4 col-lg-3">
+            <div class="input-group shadow-sm rounded-3">
+                <span class="input-group-text bg-white border-end-0 text-muted">
+                    <i class="bi bi-geo-alt-fill text-danger"></i>
+                </span>
+                <select id="filtroAlmacenTabla" class="form-select border-start-0 no-print" title="Filtrar por Almacén">
+                    <option value="">🏢 Todos los Almacenes</option>
+                    {% for alm in almacenes %}
+                        <option value="{{ alm }}">{{ alm }}</option>
+                    {% endfor %}
+                </select>
             </div>
         </div>
     </div>
@@ -278,28 +291,85 @@
         </div>
     </div>
 </div>
+
+<!-- Modal para Seleccionar Almacén al Exportar Catálogo a PDF -->
+<div class="modal fade" id="modalExportarPdfInventario" tabindex="-1" aria-labelledby="modalExportarPdfInventarioLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
+            <div class="modal-header bg-danger text-white py-3">
+                <h5 class="modal-title fw-bold d-flex align-items-center gap-2" id="modalExportarPdfInventarioLabel">
+                    <i class="bi bi-file-earmark-pdf-fill"></i> Exportar Catálogo de Stock a PDF
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+            </div>
+            <form action="{% url 'reporte_pdf' %}" method="GET" target="_blank" id="formExportarPdfInventario">
+                <div class="modal-body p-4">
+                    <p class="text-muted small mb-3">
+                        Selecciona el almacén o depósito específico para generar el balance e informe oficial de existencias en PDF:
+                    </p>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold text-dark small">
+                            <i class="bi bi-geo-alt-fill text-danger me-1"></i> Almacén a Exportar:
+                        </label>
+                        <select name="almacen" id="selectAlmacenPdf" class="form-select form-select-lg border-danger-subtle fw-semibold">
+                            <option value="todos" selected>🏢 Todos los Almacenes (Consolidado General)</option>
+                            {% for alm in almacenes %}
+                                <option value="{{ alm }}">📍 {{ alm }}</option>
+                            {% endfor %}
+                        </select>
+                        <div class="form-text text-muted small mt-1">
+                            Puedes exportar el balance general consolidado o delimitar por un almacén en específico.
+                        </div>
+                    </div>
+
+                    <div class="card bg-light border-0 rounded-3 p-3">
+                        <div class="d-flex align-items-center gap-2 text-secondary small">
+                            <i class="bi bi-info-circle-fill text-primary fs-5"></i>
+                            <span>El documento generado incluirá código oficial, descripción del bien, presentación física y conteo de existencias.</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light border-top py-2.5 justify-content-between">
+                    <button type="button" class="btn btn-outline-secondary rounded-3 px-3" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-danger fw-bold rounded-3 px-4 shadow-sm d-flex align-items-center gap-2" onclick="setTimeout(() => { const m = bootstrap.Modal.getInstance(document.getElementById('modalExportarPdfInventario')); if (m) m.hide(); }, 400);">
+                        <i class="bi bi-file-earmark-pdf-fill"></i> Descargar PDF
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
 <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
 <script>
-    // --- MOTOR DE BÚSQUEDA EN TIEMPO REAL INSTANTÁNEO ---
+    // --- MOTOR DE BÚSQUEDA Y FILTRADO POR ALMACÉN EN TIEMPO REAL ---
     document.addEventListener('DOMContentLoaded', function() {
         const inputBuscador = document.getElementById('buscadorInventario');
+        const selectFiltroAlmacen = document.getElementById('filtroAlmacenTabla');
+        const btnExcel = document.getElementById('btnExportarExcel');
         const tabla = document.getElementById('tablaInventario');
         
-        if (inputBuscador && tabla) {
+        if (tabla) {
             const tbody = tabla.querySelector('tbody');
             
             function ejecutarFiltro() {
-                const query = inputBuscador.value.toLowerCase().trim();
+                const query = (inputBuscador ? inputBuscador.value : '').toLowerCase().trim();
+                const almFiltro = (selectFiltroAlmacen ? selectFiltroAlmacen.value : '').toLowerCase().trim();
                 const filas = tbody.querySelectorAll('tr.fila-inventario');
                 let encontrados = 0;
 
                 filas.forEach(fila => {
                     const texto = fila.textContent.toLowerCase();
-                    if (texto.includes(query)) {
+                    const celdaAlmacen = fila.querySelector('td:nth-child(3)') ? fila.querySelector('td:nth-child(3)').textContent.toLowerCase() : '';
+                    
+                    const coincideTexto = !query || texto.includes(query);
+                    const coincideAlmacen = !almFiltro || celdaAlmacen.includes(almFiltro);
+
+                    if (coincideTexto && coincideAlmacen) {
                         fila.style.setProperty('display', '', 'important');
                         encontrados++;
                     } else {
@@ -309,23 +379,61 @@
 
                 let filaSinResultados = tbody.querySelector('.no-results-row');
                 if (encontrados === 0 && filas.length > 0) {
+                    const msg = query 
+                        ? `No se encontraron productos que coincidan con "${query}".`
+                        : `No hay productos registrados en el almacén seleccionado.`;
                     if (!filaSinResultados) {
                         filaSinResultados = document.createElement('tr');
                         filaSinResultados.className = 'no-results-row';
-                        filaSinResultados.innerHTML = `<td colspan="6" class="text-center text-muted py-4 fst-italic">No se encontraron productos que coincidan con "${query}".</td>`;
+                        filaSinResultados.innerHTML = `<td colspan="6" class="text-center text-muted py-4 fst-italic">${msg}</td>`;
                         tbody.appendChild(filaSinResultados);
                     } else {
                         filaSinResultados.style.display = '';
-                        filaSinResultados.querySelector('td').textContent = `No se encontraron productos que coincidan con "${query}".`;
+                        filaSinResultados.querySelector('td').textContent = msg;
                     }
                 } else if (filaSinResultados) {
                     filaSinResultados.style.display = 'none';
                 }
             }
 
-            inputBuscador.addEventListener('input', ejecutarFiltro);
-            inputBuscador.addEventListener('keyup', ejecutarFiltro);
-            inputBuscador.addEventListener('change', ejecutarFiltro);
+            if (inputBuscador) {
+                inputBuscador.addEventListener('input', ejecutarFiltro);
+                inputBuscador.addEventListener('keyup', ejecutarFiltro);
+                inputBuscador.addEventListener('change', ejecutarFiltro);
+            }
+
+            if (selectFiltroAlmacen) {
+                selectFiltroAlmacen.addEventListener('change', function() {
+                    ejecutarFiltro();
+                    
+                    // Sincronizar enlace de Excel si se filtra en pantalla
+                    if (btnExcel) {
+                        if (selectFiltroAlmacen.value) {
+                            btnExcel.href = `{% url 'exportar_inventario_excel' %}?almacen=${encodeURIComponent(selectFiltroAlmacen.value)}`;
+                        } else {
+                            btnExcel.href = `{% url 'exportar_inventario_excel' %}`;
+                        }
+                    }
+
+                    // Sincronizar selector del modal PDF
+                    const selectPdf = document.getElementById('selectAlmacenPdf');
+                    if (selectPdf) {
+                        selectPdf.value = selectFiltroAlmacen.value ? selectFiltroAlmacen.value : 'todos';
+                    }
+                });
+            }
+        }
+
+        // Sincronizar modal de PDF al abrirse
+        const modalPdf = document.getElementById('modalExportarPdfInventario');
+        if (modalPdf) {
+            modalPdf.addEventListener('show.bs.modal', function() {
+                const selectFiltro = document.getElementById('filtroAlmacenTabla');
+                const selectPdf = document.getElementById('selectAlmacenPdf');
+                if (selectFiltro && selectPdf && selectFiltro.value) {
+                    selectPdf.value = selectFiltro.value;
+                }
+            });
         }
     });
 

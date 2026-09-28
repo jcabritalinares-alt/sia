@@ -40,7 +40,7 @@
         border: 1px solid var(--border-color);
         border-radius: var(--radius-md);
         padding: 1.5rem 1.6rem;
-        min-height: 420px;
+        min-height: 450px;
         display: flex;
         flex-direction: column;
         box-shadow: 0 2px 10px rgba(0,0,0,0.03);
@@ -48,8 +48,8 @@
     .chart-canvas-wrapper {
         position: relative;
         flex-grow: 1;
-        min-height: 330px;
-        height: 330px;
+        min-height: 360px;
+        height: 360px;
     }
     @media print {
         body, html {
@@ -91,12 +91,12 @@
             box-shadow: none !important;
             page-break-inside: avoid !important;
             break-inside: avoid !important;
-            min-height: 360px !important;
+            min-height: 380px !important;
             margin-bottom: 24px !important;
         }
         .chart-canvas-wrapper {
-            min-height: 310px !important;
-            height: 310px !important;
+            min-height: 330px !important;
+            height: 330px !important;
         }
         .table-responsive {
             overflow: visible !important;
@@ -339,10 +339,10 @@
         <div class="col-12 col-lg-7">
             <div class="chart-container-box h-100 shadow-sm">
                 <div class="d-flex justify-content-between align-items-center mb-3 border-bottom pb-2">
-                    <h6 class="fw-bold text-dark mb-0 d-flex align-items-center gap-2">
+                    <h5 class="fw-bold text-dark mb-0 d-flex align-items-center gap-2" style="font-size: 1.05rem;">
                         <i class="bi bi-graph-up text-primary"></i> Tendencia Temporal de Actividad
-                    </h6>
-                    <span class="badge bg-secondary bg-opacity-10 text-secondary rounded-pill small">Cronológico</span>
+                    </h5>
+                    <span class="badge bg-secondary bg-opacity-10 text-secondary rounded-pill px-3 py-1.5" style="font-size: 0.8rem; font-weight: 600;">Cronológico</span>
                 </div>
                 <div class="chart-canvas-wrapper">
                     <canvas id="graficoEvolucionTemporal"></canvas>
@@ -354,10 +354,10 @@
         <div class="col-12 col-lg-5">
             <div class="chart-container-box h-100 shadow-sm">
                 <div class="d-flex justify-content-between align-items-center mb-3 border-bottom pb-2">
-                    <h6 class="fw-bold text-dark mb-0 d-flex align-items-center gap-2">
+                    <h5 class="fw-bold text-dark mb-0 d-flex align-items-center gap-2" style="font-size: 1.05rem;">
                         <i class="bi bi-pie-chart-fill text-success"></i> Estado Consolidado de Gestión
-                    </h6>
-                    <span class="badge bg-success bg-opacity-10 text-success rounded-pill small">Porcentual</span>
+                    </h5>
+                    <span class="badge bg-success bg-opacity-10 text-success rounded-pill px-3 py-1.5" style="font-size: 0.8rem; font-weight: 600;">Porcentual</span>
                 </div>
                 <div class="chart-canvas-wrapper d-flex align-items-center justify-content-center">
                     <canvas id="graficoEstadosConsolidados"></canvas>
@@ -369,10 +369,10 @@
         <div class="col-12 col-lg-6">
             <div class="chart-container-box h-100 shadow-sm">
                 <div class="d-flex justify-content-between align-items-center mb-3 border-bottom pb-2">
-                    <h6 class="fw-bold text-dark mb-0 d-flex align-items-center gap-2">
+                    <h5 class="fw-bold text-dark mb-0 d-flex align-items-center gap-2" style="font-size: 1.05rem;">
                         <i class="bi bi-bar-chart-steps text-info"></i> Insumos de Mayor Demanda (Unidades)
-                    </h6>
-                    <span class="badge bg-info bg-opacity-10 text-info rounded-pill small">Entregados vs Pendientes</span>
+                    </h5>
+                    <span class="badge bg-info bg-opacity-10 text-info rounded-pill px-3 py-1.5" style="font-size: 0.8rem; font-weight: 600;">Entregados vs Pendientes</span>
                 </div>
                 <div class="chart-canvas-wrapper">
                     <canvas id="graficoTopInsumos"></canvas>
@@ -384,10 +384,10 @@
         <div class="col-12 col-lg-6">
             <div class="chart-container-box h-100 shadow-sm">
                 <div class="d-flex justify-content-between align-items-center mb-3 border-bottom pb-2">
-                    <h6 class="fw-bold text-dark mb-0 d-flex align-items-center gap-2">
+                    <h5 class="fw-bold text-dark mb-0 d-flex align-items-center gap-2" style="font-size: 1.05rem;">
                         <i class="bi bi-person-heart text-danger"></i> Solicitudes por Categoría de Ayuda
-                    </h6>
-                    <span class="badge bg-danger bg-opacity-10 text-danger rounded-pill small">Atención Social</span>
+                    </h5>
+                    <span class="badge bg-danger bg-opacity-10 text-danger rounded-pill px-3 py-1.5" style="font-size: 0.8rem; font-weight: 600;">Atención Social</span>
                 </div>
                 <div class="chart-canvas-wrapper">
                     <canvas id="graficoTiposSolicitudes"></canvas>
@@ -438,7 +438,7 @@
                             </tr>
                             {% empty %}
                             <tr>
-                                <td colspan="5" class="text-center text-muted py-4 fst-italic">Sin entregas en el período seleccionado.</td>
+                                <td colspan="5" class="text-center text-muted py-4 fst-italic">Sin asignaciones ni entregas en el período seleccionado.</td>
                             </tr>
                             {% endfor %}
                         </tbody>
@@ -545,7 +545,7 @@
 
     function inicializarGraficos(d) {
         const savedTheme = localStorage.getItem('sia_theme') || 'light';
-        const textColor = savedTheme === 'dark' ? '#cbd5e1' : '#475569';
+        const textColor = savedTheme === 'dark' ? '#cbd5e1' : '#334155';
         const gridColor = savedTheme === 'dark' ? 'rgba(51, 65, 85, 0.4)' : 'rgba(226, 232, 240, 0.7)';
 
         // 1. Gráfico de Evolución Temporal (con cantidades por punto en badges legibles)
@@ -564,12 +564,12 @@
                             backgroundColor: 'rgba(16, 185, 129, 0.14)',
                             fill: true,
                             tension: 0.3,
-                            borderWidth: 3,
-                            pointRadius: 6,
-                            pointHoverRadius: 8,
+                            borderWidth: 3.5,
+                            pointRadius: 6.5,
+                            pointHoverRadius: 9,
                             pointBackgroundColor: '#ffffff',
                             pointBorderColor: '#10b981',
-                            pointBorderWidth: 2
+                            pointBorderWidth: 2.5
                         },
                         {
                             label: 'Pendientes',
@@ -578,12 +578,12 @@
                             backgroundColor: 'rgba(245, 158, 11, 0.14)',
                             fill: true,
                             tension: 0.3,
-                            borderWidth: 3,
-                            pointRadius: 6,
-                            pointHoverRadius: 8,
+                            borderWidth: 3.5,
+                            pointRadius: 6.5,
+                            pointHoverRadius: 9,
                             pointBackgroundColor: '#ffffff',
                             pointBorderColor: '#f59e0b',
-                            pointBorderWidth: 2
+                            pointBorderWidth: 2.5
                         },
                         {
                             label: 'Solicitudes',
@@ -592,12 +592,13 @@
                             backgroundColor: 'rgba(99, 102, 241, 0.08)',
                             fill: false,
                             tension: 0.3,
-                            borderWidth: 2.5,
+                            borderWidth: 3,
                             borderDash: [5, 5],
-                            pointRadius: 5,
+                            pointRadius: 6,
+                            pointHoverRadius: 8.5,
                             pointBackgroundColor: '#ffffff',
                             pointBorderColor: '#6366f1',
-                            pointBorderWidth: 2
+                            pointBorderWidth: 2.5
                         }
                     ]
                 },
@@ -605,12 +606,18 @@
                     responsive: true,
                     maintainAspectRatio: false,
                     layout: {
-                        padding: { top: 20, right: 15, bottom: 5, left: 10 }
+                        padding: { top: 25, right: 20, bottom: 8, left: 12 }
                     },
                     plugins: {
                         legend: { 
                             position: 'top', 
-                            labels: { color: textColor, font: { family: 'Plus Jakarta Sans', size: 12, weight: 'bold' }, padding: 15 } 
+                            labels: { color: textColor, font: { family: 'Plus Jakarta Sans', size: 14, weight: 'bold' }, padding: 18 } 
+                        },
+                        tooltip: {
+                            titleFont: { family: 'Plus Jakarta Sans', size: 14, weight: 'bold' },
+                            bodyFont: { family: 'Plus Jakarta Sans', size: 13, weight: '600' },
+                            padding: 10,
+                            cornerRadius: 6
                         },
                         datalabels: {
                             display: function(ctx) {
@@ -624,9 +631,9 @@
                                 return ctx.dataset.borderColor;
                             },
                             color: '#ffffff',
-                            borderRadius: 4,
-                            padding: { top: 2, bottom: 2, left: 6, right: 6 },
-                            font: { family: 'Plus Jakarta Sans', size: 11, weight: 'bold' },
+                            borderRadius: 5,
+                            padding: { top: 3, bottom: 3, left: 7, right: 7 },
+                            font: { family: 'Plus Jakarta Sans', size: 13, weight: 'bold' },
                             formatter: function(val) {
                                 return val;
                             }
@@ -635,12 +642,12 @@
                     scales: {
                         x: { 
                             grid: { display: false }, 
-                            ticks: { color: textColor, font: { family: 'Plus Jakarta Sans', size: 11, weight: '600' } } 
+                            ticks: { color: textColor, font: { family: 'Plus Jakarta Sans', size: 13, weight: '700' } } 
                         },
                         y: { 
                             beginAtZero: true, 
                             grid: { color: gridColor }, 
-                            ticks: { color: textColor, font: { family: 'Plus Jakarta Sans', size: 11, weight: '600' }, precision: 0 } 
+                            ticks: { color: textColor, font: { family: 'Plus Jakarta Sans', size: 13, weight: '700' }, precision: 0 } 
                         }
                     }
                 }
@@ -672,11 +679,17 @@
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
-                    cutout: '48%',
+                    cutout: '45%',
                     plugins: {
                         legend: { 
                             position: 'bottom', 
-                            labels: { color: textColor, font: { family: 'Plus Jakarta Sans', size: 12, weight: 'bold' }, padding: 16 } 
+                            labels: { color: textColor, font: { family: 'Plus Jakarta Sans', size: 14, weight: 'bold' }, padding: 18 } 
+                        },
+                        tooltip: {
+                            titleFont: { family: 'Plus Jakarta Sans', size: 14, weight: 'bold' },
+                            bodyFont: { family: 'Plus Jakarta Sans', size: 13, weight: '600' },
+                            padding: 10,
+                            cornerRadius: 6
                         },
                         datalabels: {
                             display: function(ctx) {
@@ -684,10 +697,10 @@
                                 return val > 0;
                             },
                             color: '#ffffff',
-                            backgroundColor: 'rgba(15, 23, 42, 0.85)',
+                            backgroundColor: 'rgba(15, 23, 42, 0.88)',
                             borderRadius: 6,
-                            padding: { top: 4, bottom: 4, left: 8, right: 8 },
-                            font: { family: 'Plus Jakarta Sans', size: 13, weight: 'bold' },
+                            padding: { top: 6, bottom: 6, left: 10, right: 10 },
+                            font: { family: 'Plus Jakarta Sans', size: 15, weight: 'bold' },
                             formatter: function(value, ctx) {
                                 const total = ctx.dataset.data.reduce((a, b) => a + b, 0);
                                 const pct = total > 0 ? Math.round((value / total) * 100) : 0;
@@ -705,7 +718,7 @@
         if (ctxInsumos) {
             if (chartTopInsumosInstance) chartTopInsumosInstance.destroy();
             const topList = d.top_insumos || [];
-            const labels = topList.map(item => item.descripcion.length > 22 ? item.descripcion.substring(0, 20) + '...' : item.descripcion);
+            const labels = topList.map(item => item.descripcion.length > 25 ? item.descripcion.substring(0, 23) + '...' : item.descripcion);
             const dataEnt = topList.map(item => item.entregadas);
             const dataPen = topList.map(item => item.pendientes);
 
@@ -714,18 +727,27 @@
                 data: {
                     labels: labels,
                     datasets: [
-                        { label: 'Entregadas (u.)', data: dataEnt, backgroundColor: '#10b981', borderRadius: 4, barPercentage: 0.75 },
-                        { label: 'Pendientes (u.)', data: dataPen, backgroundColor: '#f59e0b', borderRadius: 4, barPercentage: 0.75 }
+                        { label: 'Entregadas (u.)', data: dataEnt, backgroundColor: '#10b981', borderRadius: 5, barPercentage: 0.8 },
+                        { label: 'Pendientes (u.)', data: dataPen, backgroundColor: '#f59e0b', borderRadius: 5, barPercentage: 0.8 }
                     ]
                 },
                 options: {
                     indexAxis: 'y',
                     responsive: true,
                     maintainAspectRatio: false,
+                    layout: {
+                        padding: { top: 10, right: 18, bottom: 5, left: 5 }
+                    },
                     plugins: {
                         legend: { 
                             position: 'top', 
-                            labels: { color: textColor, font: { family: 'Plus Jakarta Sans', size: 12, weight: 'bold' }, padding: 12 } 
+                            labels: { color: textColor, font: { family: 'Plus Jakarta Sans', size: 14, weight: 'bold' }, padding: 16 } 
+                        },
+                        tooltip: {
+                            titleFont: { family: 'Plus Jakarta Sans', size: 14, weight: 'bold' },
+                            bodyFont: { family: 'Plus Jakarta Sans', size: 13, weight: '600' },
+                            padding: 10,
+                            cornerRadius: 6
                         },
                         datalabels: {
                             display: function(ctx) {
@@ -733,10 +755,10 @@
                                 return val > 0;
                             },
                             color: '#ffffff',
-                            backgroundColor: 'rgba(15, 23, 42, 0.75)',
-                            borderRadius: 4,
-                            padding: { top: 2, bottom: 2, left: 6, right: 6 },
-                            font: { family: 'Plus Jakarta Sans', size: 11, weight: 'bold' },
+                            backgroundColor: 'rgba(15, 23, 42, 0.82)',
+                            borderRadius: 5,
+                            padding: { top: 3, bottom: 3, left: 8, right: 8 },
+                            font: { family: 'Plus Jakarta Sans', size: 13, weight: 'bold' },
                             formatter: function(value) {
                                 return `${value} u.`;
                             }
@@ -747,12 +769,12 @@
                             stacked: true, 
                             beginAtZero: true, 
                             grid: { color: gridColor }, 
-                            ticks: { color: textColor, font: { family: 'Plus Jakarta Sans', size: 11, weight: '600' }, precision: 0 } 
+                            ticks: { color: textColor, font: { family: 'Plus Jakarta Sans', size: 13, weight: '700' }, precision: 0 } 
                         },
                         y: { 
                             stacked: true, 
                             grid: { display: false }, 
-                            ticks: { color: textColor, font: { family: 'Plus Jakarta Sans', size: 11.5, weight: 'bold' } } 
+                            ticks: { color: textColor, font: { family: 'Plus Jakarta Sans', size: 13.5, weight: 'bold' } } 
                         }
                     }
                 }
@@ -781,12 +803,18 @@
                     responsive: true,
                     maintainAspectRatio: false,
                     layout: {
-                        padding: { top: 18, right: 10, bottom: 5, left: 5 }
+                        padding: { top: 22, right: 12, bottom: 8, left: 8 }
                     },
                     plugins: {
                         legend: { 
                             position: 'top', 
-                            labels: { color: textColor, font: { family: 'Plus Jakarta Sans', size: 12, weight: 'bold' }, padding: 12 } 
+                            labels: { color: textColor, font: { family: 'Plus Jakarta Sans', size: 14, weight: 'bold' }, padding: 16 } 
+                        },
+                        tooltip: {
+                            titleFont: { family: 'Plus Jakarta Sans', size: 14, weight: 'bold' },
+                            bodyFont: { family: 'Plus Jakarta Sans', size: 13, weight: '600' },
+                            padding: 10,
+                            cornerRadius: 6
                         },
                         datalabels: {
                             display: function(ctx) {
@@ -795,14 +823,14 @@
                             },
                             anchor: 'end',
                             align: 'top',
-                            offset: 4,
+                            offset: 5,
                             backgroundColor: function(ctx) {
                                 return ctx.dataset.backgroundColor;
                             },
                             color: '#ffffff',
-                            borderRadius: 4,
-                            padding: { top: 2, bottom: 2, left: 6, right: 6 },
-                            font: { family: 'Plus Jakarta Sans', size: 11, weight: 'bold' },
+                            borderRadius: 5,
+                            padding: { top: 3, bottom: 3, left: 8, right: 8 },
+                            font: { family: 'Plus Jakarta Sans', size: 13, weight: 'bold' },
                             formatter: function(value) {
                                 return value;
                             }
@@ -811,12 +839,12 @@
                     scales: {
                         x: { 
                             grid: { display: false }, 
-                            ticks: { color: textColor, font: { family: 'Plus Jakarta Sans', size: 11, weight: '600' }, maxRotation: 20 } 
+                            ticks: { color: textColor, font: { family: 'Plus Jakarta Sans', size: 13, weight: '700' }, maxRotation: 20 } 
                         },
                         y: { 
                             beginAtZero: true, 
                             grid: { color: gridColor }, 
-                            ticks: { color: textColor, font: { family: 'Plus Jakarta Sans', size: 11, weight: '600' }, precision: 0 } 
+                            ticks: { color: textColor, font: { family: 'Plus Jakarta Sans', size: 13, weight: '700' }, precision: 0 } 
                         }
                     }
                 }
