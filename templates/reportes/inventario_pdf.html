@@ -6,7 +6,7 @@
     <style>
         @page {
             size: letter portrait;
-            margin: 1.2cm 1.4cm 1.4cm 1.4cm;
+            margin: 1.2cm 1.2cm 1.4cm 1.2cm;
         }
         body {
             font-family: Helvetica, Arial, sans-serif;
@@ -54,13 +54,13 @@
             background-color: #312e81;
             color: #ffffff;
             font-weight: bold;
-            padding: 10px 8px;
+            padding: 10px 6px;
             text-align: left;
             font-size: 18px;
             text-transform: uppercase;
         }
         .table-inventario td {
-            padding: 10px 8px;
+            padding: 9px 6px;
             border-bottom: 1px solid #e2e8f0;
             font-size: 18px;
         }
@@ -118,10 +118,11 @@
     <table class="table-inventario">
         <thead>
             <tr>
-                <th width="110" class="text-center">Código</th>
-                <th width="220">Descripción del Producto</th>
-                <th width="110">Almacén</th>
-                <th width="100" class="text-center">Stock</th>
+                <th width="16%" class="text-center">Código</th>
+                <th width="32%">Descripción</th>
+                <th width="18%">Almacén</th>
+                <th width="20%" class="text-center">Presentación</th>
+                <th width="14%" class="text-center">Stock</th>
             </tr>
         </thead>
         <tbody>
@@ -131,8 +132,17 @@
                 <td>{{ p.descripcion }}</td>
                 <td>{{ p.almacen|default:"Principal" }}</td>
                 <td class="text-center">
+                    {% if p.tipo_presentacion == 'caja' %}
+                        Caja ({{ p.unidades_por_empaque|default:1 }} u.)
+                    {% elif p.tipo_presentacion %}
+                        {{ p.tipo_presentacion|capfirst }}
+                    {% else %}
+                        Unidad
+                    {% endif %}
+                </td>
+                <td class="text-center">
                     {% if p.cantidad <= 5 %}
-                        <span class="stock-critico">⚠️ {{ p.cantidad }} u.</span>
+                        <span class="stock-critico">{{ p.cantidad }} u.</span>
                     {% else %}
                         <span class="stock-normal">{{ p.cantidad }} u.</span>
                     {% endif %}
@@ -140,7 +150,7 @@
             </tr>
             {% empty %}
             <tr>
-                <td colspan="4" class="text-center" style="padding: 18px; color: #64748b; font-size: 18px;">
+                <td colspan="5" class="text-center" style="padding: 18px; color: #64748b; font-size: 18px;">
                     {% if es_filtrado %}
                         No hay productos registrados actualmente en el almacén <strong>{{ almacen_seleccionado }}</strong>.
                     {% else %}
