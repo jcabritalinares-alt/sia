@@ -334,6 +334,55 @@ def generar_reporte_inventario_independiente(request):
         lista_productos = list(productos)
         total_productos = len(lista_productos)
         total_unidades = sum((p.cantidad or 0) for p in lista_productos)
+        total_cajas = 0
+
+        for p in lista_productos:
+            tipo = (p.tipo_presentacion or 'unidad').strip().lower()
+            empaque = p.unidades_por_empaque if (p.unidades_por_empaque and p.unidades_por_empaque > 0) else 1
+            stock = p.cantidad or 0
+
+            if tipo in ['caja', 'cajas']:
+                if empaque > 1:
+                    cajas = stock // empaque
+                    resto = stock % empaque
+                    nombre_caja = "Caja" if cajas == 1 else "Cajas"
+                    if resto == 0:
+                        p.cant_pres_texto = f"{cajas} {nombre_caja}"
+                        p.cant_pres_sub = f"({empaque} u. c/u)"
+                    elif cajas > 0:
+                        p.cant_pres_texto = f"{cajas} {nombre_caja} + {resto} u."
+                        p.cant_pres_sub = f"({empaque} u. c/u)"
+                    else:
+                        p.cant_pres_texto = f"0 Cajas + {resto} u."
+                        p.cant_pres_sub = f"({empaque} u. c/u)"
+                    total_cajas += cajas
+                else:
+                    nombre_caja = "Caja" if stock == 1 else "Cajas"
+                    p.cant_pres_texto = f"{stock} {nombre_caja}"
+                    p.cant_pres_sub = ""
+                    total_cajas += stock
+            elif tipo in ['unidad', 'unidades', 'suelta', '']:
+                nombre_u = "Unidad" if stock == 1 else "Unidades"
+                p.cant_pres_texto = f"{stock} {nombre_u}"
+                p.cant_pres_sub = ""
+            else:
+                tipo_cap = tipo.capitalize()
+                if empaque > 1:
+                    cants = stock // empaque
+                    resto = stock % empaque
+                    if resto == 0:
+                        p.cant_pres_texto = f"{cants} {tipo_cap}s"
+                        p.cant_pres_sub = f"({empaque} u. c/u)"
+                    elif cants > 0:
+                        p.cant_pres_texto = f"{cants} {tipo_cap}s + {resto} u."
+                        p.cant_pres_sub = f"({empaque} u. c/u)"
+                    else:
+                        p.cant_pres_texto = f"0 {tipo_cap}s + {resto} u."
+                        p.cant_pres_sub = f"({empaque} u. c/u)"
+                else:
+                    s_plural = 's' if stock != 1 else ''
+                    p.cant_pres_texto = f"{stock} {tipo_cap}{s_plural}"
+                    p.cant_pres_sub = ""
 
         html = render_to_string('reportes/inventario_pdf.html', {
             'productos': lista_productos,
@@ -341,6 +390,7 @@ def generar_reporte_inventario_independiente(request):
             'es_filtrado': es_filtrado,
             'total_productos': total_productos,
             'total_unidades': total_unidades,
+            'total_cajas': total_cajas,
         })
         
         response = HttpResponse(content_type='application/pdf')
@@ -406,7 +456,7 @@ def exportar_inventario_excel(request):
         cell.alignment = Alignment(horizontal="center", vertical="center")
 
     for row_idx, p in enumerate(productos, start=3):
-        presentacion = f"Caja ({p.unidades_por_empaque} u.)" if p.tipo_presentacion == 'caja' else "Unidad"
+        presentacion = p.presentacion_con_cantidad
         ws.append([p.codigo, p.descripcion, p.almacen, presentacion, p.cantidad])
         ws.cell(row=row_idx, column=1).alignment = Alignment(horizontal="center")
         ws.cell(row=row_idx, column=4).alignment = Alignment(horizontal="center")

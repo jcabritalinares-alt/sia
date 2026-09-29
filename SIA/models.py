@@ -31,6 +31,62 @@ class SIA_producto(models.Model):
     def __str__(self):
         return f'[{self.codigo}] {self.descripcion[:60]}'
 
+    @property
+    def cant_pres_texto(self):
+        tipo = (self.tipo_presentacion or 'unidad').strip().lower()
+        empaque = self.unidades_por_empaque if (self.unidades_por_empaque and self.unidades_por_empaque > 0) else 1
+        stock = self.cantidad or 0
+
+        if tipo in ['caja', 'cajas']:
+            if empaque > 1:
+                cajas = stock // empaque
+                resto = stock % empaque
+                nombre_caja = "Caja" if cajas == 1 else "Cajas"
+                if resto == 0:
+                    return f"{cajas} {nombre_caja}"
+                elif cajas > 0:
+                    return f"{cajas} {nombre_caja} + {resto} u."
+                else:
+                    return f"0 Cajas + {resto} u."
+            else:
+                nombre_caja = "Caja" if stock == 1 else "Cajas"
+                return f"{stock} {nombre_caja}"
+        elif tipo in ['unidad', 'unidades', 'suelta', '']:
+            nombre_u = "Unidad" if stock == 1 else "Unidades"
+            return f"{stock} {nombre_u}"
+        else:
+            tipo_cap = tipo.capitalize()
+            if empaque > 1:
+                cants = stock // empaque
+                resto = stock % empaque
+                if resto == 0:
+                    return f"{cants} {tipo_cap}s"
+                elif cants > 0:
+                    return f"{cants} {tipo_cap}s + {resto} u."
+                else:
+                    return f"0 {tipo_cap}s + {resto} u."
+            else:
+                s_plural = 's' if stock != 1 else ''
+                return f"{stock} {tipo_cap}{s_plural}"
+
+    @property
+    def cant_pres_sub(self):
+        tipo = (self.tipo_presentacion or 'unidad').strip().lower()
+        empaque = self.unidades_por_empaque if (self.unidades_por_empaque and self.unidades_por_empaque > 0) else 1
+
+        if tipo in ['caja', 'cajas'] and empaque > 1:
+            return f"({empaque} u. c/u)"
+        elif tipo not in ['unidad', 'unidades', 'suelta', ''] and empaque > 1:
+            return f"({empaque} u. c/u)"
+        return ""
+
+    @property
+    def presentacion_con_cantidad(self):
+        sub = self.cant_pres_sub
+        if sub:
+            return f"{self.cant_pres_texto} {sub}"
+        return self.cant_pres_texto
+
 
 
 
