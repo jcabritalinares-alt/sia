@@ -336,9 +336,6 @@ def generar_reporte_inventario_independiente(request):
         total_unidades = sum((p.cantidad or 0) for p in lista_productos)
         total_cajas = 0
         for p in lista_productos:
-            p.cant_pres_texto = p.cant_pres_texto
-            p.cant_pres_sub = ""
-            
             tipo_raw = (p.tipo_presentacion or '').strip().lower()
             desc_raw = (p.descripcion or '').strip().lower()
             empaque = p.unidades_por_empaque if (p.unidades_por_empaque and p.unidades_por_empaque > 0) else 1

@@ -33,6 +33,9 @@ class SIA_producto(models.Model):
 
     @property
     def cant_pres_texto(self):
+        if hasattr(self, '_cant_pres_texto') and self._cant_pres_texto is not None:
+            return self._cant_pres_texto
+
         tipo_raw = (self.tipo_presentacion or '').strip().lower()
         desc_raw = (self.descripcion or '').strip().lower()
         empaque = self.unidades_por_empaque if (self.unidades_por_empaque and self.unidades_por_empaque > 0) else 1
@@ -78,13 +81,29 @@ class SIA_producto(models.Model):
             nom = singular if stock == 1 else plural
             return f"{stock} {nom}"
 
+    @cant_pres_texto.setter
+    def cant_pres_texto(self, value):
+        self._cant_pres_texto = value
+
     @property
     def cant_pres_sub(self):
+        if hasattr(self, '_cant_pres_sub') and self._cant_pres_sub is not None:
+            return self._cant_pres_sub
         return ""
+
+    @cant_pres_sub.setter
+    def cant_pres_sub(self, value):
+        self._cant_pres_sub = value
 
     @property
     def presentacion_con_cantidad(self):
+        if hasattr(self, '_presentacion_con_cantidad') and self._presentacion_con_cantidad is not None:
+            return self._presentacion_con_cantidad
         return self.cant_pres_texto
+
+    @presentacion_con_cantidad.setter
+    def presentacion_con_cantidad(self, value):
+        self._presentacion_con_cantidad = value
 
 
 
