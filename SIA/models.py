@@ -33,58 +33,57 @@ class SIA_producto(models.Model):
 
     @property
     def cant_pres_texto(self):
-        tipo = (self.tipo_presentacion or 'unidad').strip().lower()
+        tipo_raw = (self.tipo_presentacion or '').strip().lower()
+        desc_raw = (self.descripcion or '').strip().lower()
         empaque = self.unidades_por_empaque if (self.unidades_por_empaque and self.unidades_por_empaque > 0) else 1
         stock = self.cantidad or 0
 
-        if tipo in ['caja', 'cajas']:
-            if empaque > 1:
-                cajas = stock // empaque
-                resto = stock % empaque
-                nombre_caja = "Caja" if cajas == 1 else "Cajas"
-                if resto == 0:
-                    return f"{cajas} {nombre_caja}"
-                elif cajas > 0:
-                    return f"{cajas} {nombre_caja} + {resto} u."
-                else:
-                    return f"0 Cajas + {resto} u."
-            else:
-                nombre_caja = "Caja" if stock == 1 else "Cajas"
-                return f"{stock} {nombre_caja}"
-        elif tipo in ['unidad', 'unidades', 'suelta', '']:
-            nombre_u = "Unidad" if stock == 1 else "Unidades"
-            return f"{stock} {nombre_u}"
+        # Determinar denominación exacta: Bulto, Paquete, Caja, o Unidad
+        if 'bulto' in tipo_raw or 'bulto' in desc_raw:
+            singular = 'Bulto'
+            plural = 'Bultos'
+            es_empaque = True
+        elif 'paquete' in tipo_raw or 'paquete' in desc_raw:
+            singular = 'Paquete'
+            plural = 'Paquetes'
+            es_empaque = True
+        elif tipo_raw in ['caja', 'cajas'] or 'caja' in tipo_raw or 'caja' in desc_raw:
+            singular = 'Caja'
+            plural = 'Cajas'
+            es_empaque = True
+        elif tipo_raw in ['unidad', 'unidades', 'suelta', ''] or empaque <= 1:
+            singular = 'Unidad'
+            plural = 'Unidades'
+            es_empaque = False
         else:
-            tipo_cap = tipo.capitalize()
+            singular = tipo_raw.capitalize()
+            plural = f"{singular}s"
+            es_empaque = empaque > 1
+
+        if es_empaque:
             if empaque > 1:
-                cants = stock // empaque
+                cant = stock // empaque
                 resto = stock % empaque
+                nom = singular if cant == 1 else plural
                 if resto == 0:
-                    return f"{cants} {tipo_cap}s"
-                elif cants > 0:
-                    return f"{cants} {tipo_cap}s + {resto} u."
+                    return f"{cant} {nom}"
+                elif cant > 0:
+                    return f"{cant} {nom} (+{resto} sueltas)"
                 else:
-                    return f"0 {tipo_cap}s + {resto} u."
+                    return f"{resto} Unidades"
             else:
-                s_plural = 's' if stock != 1 else ''
-                return f"{stock} {tipo_cap}{s_plural}"
+                nom = singular if stock == 1 else plural
+                return f"{stock} {nom}"
+        else:
+            nom = singular if stock == 1 else plural
+            return f"{stock} {nom}"
 
     @property
     def cant_pres_sub(self):
-        tipo = (self.tipo_presentacion or 'unidad').strip().lower()
-        empaque = self.unidades_por_empaque if (self.unidades_por_empaque and self.unidades_por_empaque > 0) else 1
-
-        if tipo in ['caja', 'cajas'] and empaque > 1:
-            return f"({empaque} u. c/u)"
-        elif tipo not in ['unidad', 'unidades', 'suelta', ''] and empaque > 1:
-            return f"({empaque} u. c/u)"
         return ""
 
     @property
     def presentacion_con_cantidad(self):
-        sub = self.cant_pres_sub
-        if sub:
-            return f"{self.cant_pres_texto} {sub}"
         return self.cant_pres_texto
 
 

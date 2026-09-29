@@ -111,7 +111,7 @@
             <td width="50%" class="text-right">
                 <strong>Total Ítems:</strong> <strong>{{ total_productos }}</strong> &nbsp;|&nbsp; 
                 {% if total_cajas > 0 %}
-                    <strong>Cajas:</strong> <strong>{{ total_cajas }}</strong> &nbsp;|&nbsp; 
+                    <strong>Cajas / Empaques:</strong> <strong>{{ total_cajas }}</strong> &nbsp;|&nbsp; 
                 {% endif %}
                 <strong>Stock Total:</strong> <strong>{{ total_unidades }} u.</strong>
             </td>
@@ -135,23 +135,9 @@
                 <td>{{ p.descripcion }}</td>
                 <td>{{ p.almacen|default:"Principal" }}</td>
                 <td class="text-center">
-                    {% if p.cant_pres_texto %}
-                        <span style="font-weight: bold; color: #1e293b; font-size: 17px;">{{ p.cant_pres_texto }}</span>
-                        {% if p.cant_pres_sub %}
-                            <br/><span style="font-size: 13px; color: #64748b; font-weight: normal;">{{ p.cant_pres_sub }}</span>
-                        {% endif %}
-                    {% elif p.presentacion_con_cantidad %}
-                        <span style="font-weight: bold; color: #1e293b; font-size: 17px;">{{ p.presentacion_con_cantidad }}</span>
-                    {% else %}
-                        {% if p.tipo_presentacion == 'caja' %}
-                            <span style="font-weight: bold; color: #1e293b; font-size: 17px;">Caja</span>
-                            <br/><span style="font-size: 13px; color: #64748b; font-weight: normal;">({{ p.unidades_por_empaque|default:1 }} u.)</span>
-                        {% elif p.tipo_presentacion %}
-                            <span style="font-weight: bold; color: #1e293b; font-size: 17px;">{{ p.tipo_presentacion|capfirst }}</span>
-                        {% else %}
-                            <span style="font-weight: bold; color: #1e293b; font-size: 17px;">Unidad</span>
-                        {% endif %}
-                    {% endif %}
+                    <span style="font-weight: bold; color: #1e293b; font-size: 17px;">
+                        {{ p.cant_pres_texto|default:p.presentacion_con_cantidad }}
+                    </span>
                 </td>
                 <td class="text-center">
                     {% if p.cantidad <= 5 %}
