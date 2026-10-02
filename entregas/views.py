@@ -648,13 +648,42 @@ def historial_entregas(request):
     paginator = Paginator(lista_entregas, per_page)
     page_obj = paginator.get_page(page_number)
 
-    # Enriquecer los items de la página con teléfono y dirección desde Beneficiario
-    cedulas_pagina = [item['cedula'] for item in page_obj.object_list if item.get('cedula')]
-    bens_map = {b.cedula: b for b in Beneficiario.objects.filter(cedula__in=cedulas_pagina)}
+    # Enriquecer los items de la página con teléfono y dirección desde Beneficiario (y SolicitudCiudadano de respaldo)
+    cedulas_raw = [str(item['cedula']).strip() for item in page_obj.object_list if item.get('cedula')]
+    cedulas_limpias = [re.sub(r'\D', '', c) for c in cedulas_raw if c]
+    todas_cedulas = set(cedulas_raw + [c for c in cedulas_limpias if c])
+
+    bens_map = {}
+    for b in Beneficiario.objects.filter(cedula__in=todas_cedulas):
+        bens_map[str(b.cedula).strip()] = b
+        c_limp = re.sub(r'\D', '', str(b.cedula))
+        if c_limp:
+            bens_map[c_limp] = b
+
+    # Búsqueda de respaldo en SolicitudCiudadano para aquellos sin teléfono en Beneficiario
+    sols_map = {}
+    for s in SolicitudCiudadano.objects.filter(cedula__in=todas_cedulas).exclude(telefono__isnull=True).exclude(telefono='').order_by('id'):
+        sols_map[str(s.cedula).strip()] = s
+        c_limp = re.sub(r'\D', '', str(s.cedula))
+        if c_limp:
+            sols_map[c_limp] = s
+
     for item in page_obj.object_list:
-        ben = bens_map.get(item.get('cedula'))
-        item['telefono'] = (ben.telefono or '') if ben else ''
-        item['direccion'] = (ben.direccion or '') if ben else ''
+        c = str(item.get('cedula') or '').strip()
+        c_limp = re.sub(r'\D', '', c)
+        ben = bens_map.get(c) or (bens_map.get(c_limp) if c_limp else None)
+        sol = sols_map.get(c) or (sols_map.get(c_limp) if c_limp else None)
+
+        tel = (ben.telefono or '').strip() if ben else ''
+        if not tel and sol and sol.telefono:
+            tel = sol.telefono.strip()
+
+        direc = (ben.direccion or '').strip() if ben else ''
+        if not direc and sol and sol.direccion:
+            direc = sol.direccion.strip()
+
+        item['telefono'] = tel
+        item['direccion'] = direc
 
     return render(request, 'historial.html', {
         'entregas': page_obj.object_list, 
@@ -700,14 +729,14 @@ def exportar_historial_excel(request):
     ws = wb.active
     ws.title = "Historial Entregas"
 
-    ws.merge_cells('A1:F1')
+    ws.merge_cells('A1:I1')
     ws['A1'] = "SIA WEB - HISTORIAL GENERAL DE ENTREGAS"
     ws['A1'].font = Font(name='Calibri', size=14, bold=True, color="FFFFFF")
     ws['A1'].fill = PatternFill(start_color="4F46E5", end_color="4F46E5", fill_type="solid")
     ws['A1'].alignment = Alignment(horizontal="center", vertical="center")
     ws.row_dimensions[1].height = 35
 
-    headers = ["Fecha Registro", "Fecha Entrega", "Cédula", "Beneficiario", "Producto", "Cantidad", "Estado", "Observaciones / Vía"]
+    headers = ["Fecha Registro", "Fecha Entrega", "Cédula", "Beneficiario", "Teléfono", "Producto", "Cantidad", "Estado", "Observaciones / Vía"]
     ws.append(headers)
     ws.row_dimensions[2].height = 24
 
@@ -720,16 +749,45 @@ def exportar_historial_excel(request):
         cell.font = header_font
         cell.alignment = Alignment(horizontal="center", vertical="center")
 
+    # Mapeo eficiente de teléfonos para el reporte Excel
+    cedulas_raw = [str(e.cedula).strip() for e in entregas if e.cedula]
+    cedulas_limpias = [re.sub(r'\D', '', c) for c in cedulas_raw if c]
+    todas_cedulas = set(cedulas_raw + [c for c in cedulas_limpias if c])
+
+    bens_map = {}
+    for b in Beneficiario.objects.filter(cedula__in=todas_cedulas):
+        bens_map[str(b.cedula).strip()] = b
+        c_limp = re.sub(r'\D', '', str(b.cedula))
+        if c_limp:
+            bens_map[c_limp] = b
+
+    sols_map = {}
+    for s in SolicitudCiudadano.objects.filter(cedula__in=todas_cedulas).exclude(telefono__isnull=True).exclude(telefono='').order_by('id'):
+        sols_map[str(s.cedula).strip()] = s
+        c_limp = re.sub(r'\D', '', str(s.cedula))
+        if c_limp:
+            sols_map[c_limp] = s
+
     for row_idx, e in enumerate(entregas, start=3):
         fecha_reg_str = e.fecha.strftime('%d/%m/%Y') if e.fecha else 'N/A'
         fecha_ent_str = e.fecha_entrega.strftime('%d/%m/%Y') if getattr(e, 'fecha_entrega', None) else (fecha_reg_str if e.status == 'Entregado' else 'Pendiente')
         via_str = e.via or 'Atención Directa'
-        ws.append([fecha_reg_str, fecha_ent_str, e.cedula, e.nombre_beneficiario, e.descripcion_prod, e.cantidad_dada, e.status, via_str])
+
+        c = str(e.cedula or '').strip()
+        c_limp = re.sub(r'\D', '', c)
+        ben = bens_map.get(c) or (bens_map.get(c_limp) if c_limp else None)
+        sol = sols_map.get(c) or (sols_map.get(c_limp) if c_limp else None)
+        tel = (ben.telefono or '').strip() if ben else ''
+        if not tel and sol and sol.telefono:
+            tel = sol.telefono.strip()
+
+        ws.append([fecha_reg_str, fecha_ent_str, e.cedula, e.nombre_beneficiario, tel or 'N/A', e.descripcion_prod, e.cantidad_dada, e.status, via_str])
         ws.cell(row=row_idx, column=1).alignment = Alignment(horizontal="center")
         ws.cell(row=row_idx, column=2).alignment = Alignment(horizontal="center")
         ws.cell(row=row_idx, column=3).alignment = Alignment(horizontal="center")
-        ws.cell(row=row_idx, column=6).alignment = Alignment(horizontal="center")
+        ws.cell(row=row_idx, column=5).alignment = Alignment(horizontal="center")
         ws.cell(row=row_idx, column=7).alignment = Alignment(horizontal="center")
+        ws.cell(row=row_idx, column=8).alignment = Alignment(horizontal="center")
 
     for col in ws.columns:
         max_len = max(len(str(cell.value or '')) for cell in col)
@@ -764,11 +822,20 @@ def ver_comprobante_entrega_publico(request, entrega_id):
             if getattr(e, 'url_evidencia_3', None) and e.url_evidencia_3 not in evidencias:
                 evidencias.append(e.url_evidencia_3)
 
+    c = str(entrega.cedula or '').strip()
+    c_limp = re.sub(r'\D', '', c)
+    beneficiario = Beneficiario.objects.filter(Q(cedula=c) | Q(cedula=c_limp)).first() if (c or c_limp) else None
+    if not beneficiario:
+        sol = SolicitudCiudadano.objects.filter(Q(cedula=c) | Q(cedula=c_limp)).order_by('-id').first() if (c or c_limp) else None
+        if sol:
+            beneficiario = Beneficiario(cedula=sol.cedula, nombre_apellido=sol.nombre_apellido, telefono=sol.telefono, direccion=sol.direccion)
+
     url_base = obtener_url_publica_comprobante(request, custom_path=f"/comprobante/entrega/{entrega.id}/")
     firma_hash = generar_hash_firma_digital(entrega)
 
     return render(request, 'entregas/comprobante_publico.html', {
         'entrega': entrega,
+        'beneficiario': beneficiario,
         'evidencias': evidencias,
         'qr_comprobante_url': url_base,
         'firma_hash': firma_hash
@@ -805,11 +872,20 @@ def generar_comprobante_pdf(request, entrega_id):
         except Exception:
             huella_local_path = None
 
+    c = str(entrega.cedula or '').strip()
+    c_limp = re.sub(r'\D', '', c)
+    beneficiario = Beneficiario.objects.filter(Q(cedula=c) | Q(cedula=c_limp)).first() if (c or c_limp) else None
+    if not beneficiario:
+        sol = SolicitudCiudadano.objects.filter(Q(cedula=c) | Q(cedula=c_limp)).order_by('-id').first() if (c or c_limp) else None
+        if sol:
+            beneficiario = Beneficiario(cedula=sol.cedula, nombre_apellido=sol.nombre_apellido, telefono=sol.telefono, direccion=sol.direccion)
+
     qr_comprobante_url = obtener_url_publica_comprobante(request, custom_path=f"/comprobante/entrega/{entrega.id}/")
     firma_hash = generar_hash_firma_digital(entrega)
 
     context = {
         'entrega': entrega,
+        'beneficiario': beneficiario,
         'firma_local_path': firma_local_path,
         'huella_local_path': huella_local_path,
         'qr_comprobante_url': qr_comprobante_url,

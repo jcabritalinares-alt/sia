@@ -117,7 +117,7 @@
             </thead>
             <tbody>
                 {% for e in entregas %}
-                <tr class="fila-historial" data-id="{{ e.id }}" data-firma-hash="{{ e.firma_hash }}" data-nombre="{{ e.nombre_beneficiario }}" data-cedula="{{ e.cedula }}" data-producto="{{ e.descripcion_prod }}" data-cantidad="{{ e.cantidad_dada }}" data-fecha="{{ e.fecha_legible }}" data-fecha-entrega="{{ e.fecha_entrega_legible|default:'' }}" data-via="{{ e.via }}">
+                <tr class="fila-historial" data-id="{{ e.id }}" data-firma-hash="{{ e.firma_hash }}" data-nombre="{{ e.nombre_beneficiario }}" data-cedula="{{ e.cedula }}" data-telefono="{{ e.telefono|default:'' }}" data-producto="{{ e.descripcion_prod }}" data-cantidad="{{ e.cantidad_dada }}" data-fecha="{{ e.fecha_legible }}" data-fecha-entrega="{{ e.fecha_entrega_legible|default:'' }}" data-via="{{ e.via }}">
                     <textarea class="data-firma d-none" style="display:none;">{{ e.firma_beneficiario|default:'' }}</textarea>
                     <textarea class="data-huella d-none" style="display:none;">{{ e.huella_dactilar|default:'' }}</textarea>
                     <td class="small">
@@ -130,12 +130,23 @@
                     </td>
                     <td>
                         <div class="fw-bold text-dark">{{ e.nombre_beneficiario }}</div>
-                        <div class="small text-muted font-monospace">
-                            C.I. {{ e.cedula }}
+                        <div class="small text-muted font-monospace d-flex align-items-center flex-wrap gap-1">
+                            <span>C.I. {{ e.cedula }}</span>
                             {% if e.tiene_firma %}
                                 <span class="badge bg-primary bg-opacity-10 text-primary ms-1" title="Firma digital registrada"><i class="bi bi-pen-fill me-1"></i>Firmado</span>
                             {% endif %}
                         </div>
+                        {% if e.telefono %}
+                            <div class="small text-secondary d-flex align-items-center gap-1 mt-0.5" style="font-size: 0.78rem;" title="Teléfono del beneficiario">
+                                <i class="bi bi-telephone-fill text-primary" style="font-size: 0.72rem;"></i>
+                                <span class="fw-semibold font-monospace">{{ e.telefono }}</span>
+                            </div>
+                        {% else %}
+                            <div class="small text-muted d-flex align-items-center gap-1 mt-0.5 opacity-75" style="font-size: 0.75rem;" title="Sin número de teléfono registrado">
+                                <i class="bi bi-telephone text-muted" style="font-size: 0.72rem;"></i>
+                                <span class="fst-italic">Sin teléfono</span>
+                            </div>
+                        {% endif %}
                     </td>
                     <td><span class="badge bg-light text-dark border">{{ e.descripcion_prod }}</span></td>
                     <td class="text-center fw-bold fs-6 text-dark">{{ e.cantidad_dada }}</td>
@@ -275,7 +286,7 @@
                                 <i class="bi bi-camera-fill text-primary"></i> Gestionar Evidencias Fotográficas
                             </h5>
                             <span class="small text-muted d-block">
-                                Entrega #{{ e.id }} · Beneficiario: <strong>{{ e.nombre_beneficiario }}</strong> (C.I: {{ e.cedula }}) · Insumo: <strong>{{ e.descripcion_prod }}</strong>
+                                Entrega #{{ e.id }} · Beneficiario: <strong>{{ e.nombre_beneficiario }}</strong> (C.I: {{ e.cedula }}{% if e.telefono %} · <i class="bi bi-telephone-fill text-primary"></i> {{ e.telefono }}{% endif %}) · Insumo: <strong>{{ e.descripcion_prod }}</strong>
                             </span>
                         </div>
                         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
@@ -832,6 +843,7 @@
         const estado = row.cells[4].innerText.trim();
         const nombreBeneficiario = row.getAttribute('data-nombre') || '';
         const cedulaBeneficiario = row.getAttribute('data-cedula') || '';
+        const telefonoBeneficiario = row.getAttribute('data-telefono') || '';
         const producto = row.getAttribute('data-producto') || row.cells[2].innerText.trim();
         const cantidad = row.getAttribute('data-cantidad') || row.cells[3].innerText.trim();
         const via = row.getAttribute('data-via') || 'Atención Directa';
@@ -986,7 +998,10 @@
                                     <th class="bg-white text-secondary fw-bold" style="width: 22%;">Beneficiario:</th>
                                     <td class="fw-bold text-primary" style="width: 28%; font-size: 13.5px;">${nombreBeneficiario}</td>
                                     <th class="bg-white text-secondary fw-bold" style="width: 22%;">Cédula de Identidad:</th>
-                                    <td class="fw-bold font-monospace text-dark" style="width: 28%; font-size: 13px;">C.I. ${cedulaBeneficiario}</td>
+                                    <td class="fw-bold font-monospace text-dark" style="width: 28%; font-size: 13px;">
+                                        C.I. ${cedulaBeneficiario}
+                                        ${telefonoBeneficiario ? `<div class="small text-secondary fw-normal font-sans-serif mt-1" style="font-size: 11.5px;"><i class="bi bi-telephone me-1"></i>Tel: <strong>${telefonoBeneficiario}</strong></div>` : ''}
+                                    </td>
                                 </tr>
                                 <tr>
                                     <th class="bg-white text-secondary fw-bold">Fecha de Registro:</th>
@@ -1088,6 +1103,7 @@
         const fechaEntrega = row.getAttribute('data-fecha-entrega') || '';
         const nombreBeneficiario = row.getAttribute('data-nombre') || '';
         const cedulaBeneficiario = row.getAttribute('data-cedula') || '';
+        const telefonoBeneficiario = row.getAttribute('data-telefono') || '';
         const producto = row.getAttribute('data-producto') || row.cells[2].innerText.trim();
         const cantidad = row.getAttribute('data-cantidad') || row.cells[3].innerText.trim();
         const estado = row.cells[4].innerText.trim();
@@ -1126,6 +1142,7 @@
                     ${estado.includes('Entregado') ? `<tr><td>FECHA ENTREGA:</td><td style="text-align:right;" class="bold">${fechaEntrega || fecha}</td></tr>` : ''}
                     <tr><td>BENEFICIARIO:</td><td style="text-align:right;">${nombreBeneficiario}</td></tr>
                     <tr><td>CÉDULA:</td><td style="text-align:right;">C.I. ${cedulaBeneficiario}</td></tr>
+                    ${telefonoBeneficiario ? `<tr><td>TELÉFONO:</td><td style="text-align:right;">${telefonoBeneficiario}</td></tr>` : ''}
                 </table>
                 <div class="linea"></div>
                 <div class="bold">PRODUCTO:</div>
