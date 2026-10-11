@@ -204,6 +204,31 @@
                             </div>
                         </div>
                     </div>
+
+                    <!-- Opción de Notificación por Telegram para estado Entregado -->
+                    <div class="row mt-3" id="panelTelegramRegistro" style="display: none;">
+                        <div class="col-12">
+                            <div class="card bg-info bg-opacity-10 border border-info border-opacity-25 rounded-4 p-3 shadow-xs">
+                                <div class="d-flex flex-wrap align-items-center justify-content-between gap-2">
+                                    <div class="d-flex align-items-center gap-2">
+                                        <i class="bi bi-telegram fs-3 text-info"></i>
+                                        <div>
+                                            <h6 class="fw-bold text-dark mb-0">Transmisión de Evidencia por Telegram</h6>
+                                            <small class="text-secondary">Al guardar en estado 'Entregado', la evidencia fotográfica seleccionada se transmitirá incluyendo el Nombre y Teléfono del beneficiario.</small>
+                                        </div>
+                                    </div>
+                                    <div class="d-flex align-items-center gap-2">
+                                        <label class="form-label mb-0 small fw-semibold text-secondary me-1">Foto a enviar:</label>
+                                        <select id="selectFotoTelegramRegistro" class="form-select form-select-sm border-info rounded-3" style="width: auto;">
+                                            <option value="1">📷 Foto Evidencia #1</option>
+                                            <option value="2">📷 Foto Evidencia #2</option>
+                                            <option value="3">📷 Foto Evidencia #3</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
                 <div class="col-12 col-md-6" id="colVia">
@@ -1592,5 +1617,47 @@
         $('#panelHuellaCapturada').hide();
         $('#panelHuellaVacia').fadeIn();
     }
+
+    // Alternar panel Telegram según estado Entregado
+    document.getElementById('statusSelect')?.addEventListener('change', function() {
+        const isEntregado = this.value === 'Entregado';
+        const panelTg = document.getElementById('panelTelegramRegistro');
+        if (panelTg) panelTg.style.display = isEntregado ? 'block' : 'none';
+    });
+
+    {% if telegram_entrega_id %}
+    // Auto-activación de envío por Telegram tras registrar entrega
+    document.addEventListener('DOMContentLoaded', function() {
+        setTimeout(() => {
+            fetch(`/api/entregas/enviar-telegram/?entrega_id={{ telegram_entrega_id }}&slot=1`)
+                .then(r => r.json())
+                .then(data => {
+                    if (data.success) {
+                        Swal.fire({
+                            title: '<strong>¡Entrega Guardada! 📱 Telegram</strong>',
+                            icon: 'success',
+                            html: `
+                                <p class="small text-secondary mb-3">La entrega fue registrada en estado <strong>Entregado</strong>. ¿Deseas transmitir la evidencia fotográfica por Telegram al beneficiario?</p>
+                                <div class="card bg-light border-0 p-3 text-start mb-3 font-monospace small">
+                                    <strong>👤 Beneficiario:</strong> ${data.nombre_beneficiario}<br>
+                                    <strong>📞 Teléfono:</strong> ${data.telefono || 'Sin teléfono'}<br>
+                                    <strong>🆔 Cédula:</strong> C.I. ${data.cedula}<br>
+                                    <strong>🎁 Beneficio:</strong> ${data.descripcion_prod}
+                                </div>
+                            `,
+                            showCancelButton: true,
+                            confirmButtonText: '<i class="bi bi-telegram me-1"></i> Transmitir por Telegram',
+                            cancelButtonText: 'Cerrar',
+                            confirmButtonColor: '#0088cc',
+                        }).then((result) => {
+                            if (result.isConfirmed) {
+                                window.open(data.share_url, '_blank');
+                            }
+                        });
+                    }
+                });
+        }, 500);
+    });
+    {% endif %}
 </script>
 {% endblock %}

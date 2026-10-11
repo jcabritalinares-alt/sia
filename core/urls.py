@@ -50,6 +50,7 @@ urlpatterns = [
     path('beneficiarios/', beneficiarios_views.consulta_beneficiarios, name='consulta_beneficiarios'),
     path('api/beneficiarios/consultar/', beneficiarios_views.api_consultar_beneficiario_expediente, name='api_consultar_beneficiario_expediente'),
     path('api/beneficiarios/whatsapp-lista/', beneficiarios_views.api_obtener_beneficiarios_whatsapp, name='api_obtener_beneficiarios_whatsapp'),
+    path('api/entregas/enviar-telegram/', entregas_views.api_enviar_telegram_evidencia, name='api_enviar_telegram_evidencia'),
 
 
     # Asignaciones Especiales

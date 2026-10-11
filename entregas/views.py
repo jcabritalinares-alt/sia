@@ -368,6 +368,8 @@ def registrar_entrega(request):
                 modulo="Entregas",
                 timestamp=timezone.now()
             )
+            if status == "Entregado":
+                request.session['ultimo_telegram_entrega_id'] = entrega.id
         
         messages.success(request, "Registro de entrega guardado correctamente.")
         return redirect('asignar_beneficio')
@@ -377,13 +379,15 @@ def registrar_entrega(request):
         solicitud_id = request.GET.get('solicitud_id', '').strip()
         tipo_solicitud = request.GET.get('tipo_solicitud', '').strip()
         cedula_param = request.GET.get('cedula', '').strip()
+        telegram_entrega_id = request.session.pop('ultimo_telegram_entrega_id', None)
 
         return render(request, 'asignar_beneficio.html', {
             'inventario': lista_inventario, 
             'hoy': date.today().strftime("%Y-%m-%d"),
             'solicitud_id': solicitud_id,
             'tipo_solicitud': tipo_solicitud,
-            'cedula_param': cedula_param
+            'cedula_param': cedula_param,
+            'telegram_entrega_id': telegram_entrega_id
         })
 
 @login_required
@@ -685,13 +689,16 @@ def historial_entregas(request):
         item['telefono'] = tel
         item['direccion'] = direc
 
+    telegram_entrega_id = request.session.pop('ultimo_telegram_entrega_id', None)
+
     return render(request, 'historial.html', {
         'entregas': page_obj.object_list, 
         'page_obj': page_obj,
         'status_actual': status_filtro,
         'fecha_inicio': fecha_inicio_raw,
         'fecha_fin': fecha_fin_raw,
-        'per_page': per_page
+        'per_page': per_page,
+        'telegram_entrega_id': telegram_entrega_id
     })
 
 @login_required
@@ -1158,6 +1165,9 @@ def cambiar_estado(request, entrega_id, nuevo_status):
         # Sincronización automática de estado con el Módulo de Atención al Ciudadano
         sincronizar_estado_solicitud(entrega, nuevo_status)
 
+        if nuevo_status == 'Entregado':
+            request.session['ultimo_telegram_entrega_id'] = entrega.id
+
         RegistroAuditoria.objects.create(
             usuario=request.user,
             accion=f"Cambio de estado en entrega #{entrega.id} ({entrega.nombre_beneficiario}) de '{status_anterior}' a '{nuevo_status}'.",
@@ -1235,6 +1245,127 @@ def buscar_beneficiario(request):
         })
 
     return JsonResponse({'existe': False, 'error': 'No encontrado'})
+
+@login_required
+def api_enviar_telegram_evidencia(request):
+    """
+    API endpoint para generar enlace de envío o enviar evidencia fotográfica por Telegram
+    con Cédula, Nombre, Teléfono y Beneficio.
+    """
+    entrega_id = request.GET.get('entrega_id') or request.POST.get('entrega_id')
+    slot = request.GET.get('slot', '1') or request.POST.get('slot', '1')
+
+    if not entrega_id:
+        return JsonResponse({'success': False, 'error': 'ID de entrega no especificado.'}, status=400)
+
+    try:
+        entrega = BeneficioEntregado.objects.get(id=entrega_id)
+    except BeneficioEntregado.DoesNotExist:
+        return JsonResponse({'success': False, 'error': 'Registro de entrega no encontrado.'}, status=404)
+
+    # Seleccionar la URL de la evidencia fotográfica según el slot (1, 2 o 3)
+    foto_url = None
+    if str(slot) == '2' and entrega.url_evidencia_2:
+        foto_url = entrega.url_evidencia_2
+    elif str(slot) == '3' and getattr(entrega, 'url_evidencia_3', None):
+        foto_url = entrega.url_evidencia_3
+    else:
+        foto_url = entrega.url_evidencia_1 or entrega.url_evidencia_2 or getattr(entrega, 'url_evidencia_3', None)
+
+    import urllib.parse
+    import urllib.request
+
+    telefono = (request.GET.get('telefono') or request.POST.get('telefono') or getattr(entrega, 'telefono', '') or '').strip()
+    if not telefono:
+        ben = Beneficiario.objects.filter(cedula=entrega.cedula).first()
+        if ben and ben.telefono:
+            telefono = ben.telefono.strip()
+        else:
+            sol = SolicitudCiudadano.objects.filter(cedula=entrega.cedula).exclude(telefono__isnull=True).exclude(telefono='').first()
+            if sol and sol.telefono:
+                telefono = sol.telefono.strip()
+
+    telefono_digits = re.sub(r'\D', '', telefono)
+    telefono_tg = ''
+    if telefono_digits:
+        if telefono_digits.startswith('0') and len(telefono_digits) == 11:
+            telefono_tg = '58' + telefono_digits[1:]
+        elif len(telefono_digits) == 10 and not telefono_digits.startswith('58'):
+            telefono_tg = '58' + telefono_digits
+        elif telefono_digits.startswith('58'):
+            telefono_tg = telefono_digits
+        else:
+            telefono_tg = telefono_digits
+
+    fecha_str = 'N/A'
+    if entrega.fecha_entrega:
+        try:
+            fecha_str = entrega.fecha_entrega.strftime('%d/%m/%Y')
+        except AttributeError:
+            fecha_str = str(entrega.fecha_entrega)
+    elif entrega.fecha:
+        try:
+            fecha_str = entrega.fecha.strftime('%d/%m/%Y')
+        except AttributeError:
+            fecha_str = str(entrega.fecha)
+
+    lineas = [
+        "📦 *SIA WEB - EVIDENCIA DE ENTREGA DE BENEFICIO*",
+        f"👤 *Beneficiario:* {entrega.nombre_beneficiario}",
+        f"📞 *Teléfono:* {telefono if telefono else 'Sin teléfono registrado'}",
+        f"🆔 *Cédula:* C.I. {entrega.cedula}",
+        f"🎁 *Beneficio:* {entrega.descripcion_prod} (Cant: {entrega.cantidad_dada})",
+        f"📅 *Fecha:* {fecha_str}",
+        f"📍 *Vía / Observación:* {entrega.via or 'Atención Directa'}"
+    ]
+
+    if foto_url:
+        lineas.append(f"\n📷 *Foto Evidencia:* {foto_url}")
+
+    texto_mensaje = "\n".join(lineas)
+    texto_encoded = urllib.parse.quote(texto_mensaje)
+
+    if foto_url:
+        foto_encoded = urllib.parse.quote(foto_url)
+        tg_share_url = f"https://t.me/share/url?url={foto_encoded}&text={texto_encoded}"
+    else:
+        tg_share_url = f"https://t.me/share/url?url=&text={texto_encoded}"
+
+    tg_direct_chat = f"https://t.me/+{telefono_tg}" if telefono_tg else "#"
+
+    bot_enviado = False
+    bot_token = getattr(settings, 'TELEGRAM_BOT_TOKEN', os.getenv('TELEGRAM_BOT_TOKEN', '')).strip()
+    bot_chat_id = getattr(settings, 'TELEGRAM_CHAT_ID', os.getenv('TELEGRAM_CHAT_ID', '')).strip()
+
+    if bot_token and bot_chat_id and foto_url:
+        try:
+            url_api = f"https://api.telegram.org/bot{bot_token}/sendPhoto"
+            payload = json.dumps({
+                'chat_id': bot_chat_id,
+                'photo': foto_url,
+                'caption': texto_mensaje,
+                'parse_mode': 'Markdown'
+            }).encode('utf-8')
+            req = urllib.request.Request(url_api, data=payload, headers={'Content-Type': 'application/json'})
+            with urllib.request.urlopen(req, timeout=5) as response:
+                if response.status == 200:
+                    bot_enviado = True
+        except Exception as err:
+            logger.warning(f"Error al enviar evidencia por Bot de Telegram: {err}")
+
+    return JsonResponse({
+        'success': True,
+        'entrega_id': entrega.id,
+        'nombre_beneficiario': entrega.nombre_beneficiario,
+        'telefono': telefono,
+        'cedula': entrega.cedula,
+        'descripcion_prod': entrega.descripcion_prod,
+        'foto_url': foto_url,
+        'texto_mensaje': texto_mensaje,
+        'share_url': tg_share_url,
+        'direct_chat': tg_direct_chat,
+        'bot_enviado': bot_enviado
+    })
 
 @login_required
 @transaction.atomic
