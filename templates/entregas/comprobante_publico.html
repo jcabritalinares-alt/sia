@@ -163,7 +163,7 @@
                         {% for foto_url in evidencias %}
                             <div class="col-6 col-sm-4 text-center">
                                 <a href="{{ foto_url }}" target="_blank" class="d-block text-decoration-none">
-                                    <img src="{{ foto_url }}" class="img-fluid rounded-3 border shadow-sm" style="max-height: 160px; width: 100%; object-fit: cover;" alt="Evidencia Fotográfica">
+                                    <img src="{{ foto_url }}" loading="lazy" decoding="async" class="img-fluid rounded-3 border shadow-sm" style="max-height: 160px; width: 100%; object-fit: cover;" alt="Evidencia Fotográfica">
                                     <small class="text-primary fw-semibold d-block mt-1" style="font-size: 0.72rem;"><i class="bi bi-zoom-in me-1"></i>Ver foto completa</small>
                                 </a>
                             </div>

@@ -87,9 +87,15 @@ def subir_archivo_evidencia_seguro(archivo_file, request=None):
     if not archivo_file:
         return None
 
-    # Intento 1: Cloudinary con timestamp sincronizado
+    # Intento 1: Cloudinary con timestamp sincronizado y optimización de peso/resolución
     try:
-        resp = cloudinary.uploader.upload(archivo_file)
+        resp = cloudinary.uploader.upload(
+            archivo_file,
+            folder="evidencias_sia",
+            transformation=[
+                {'width': 1200, 'crop': 'limit', 'quality': 'auto:good'}
+            ]
+        )
         sec_url = resp.get('secure_url')
         if sec_url:
             return sec_url
