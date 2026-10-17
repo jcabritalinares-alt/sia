@@ -196,6 +196,9 @@ STORAGES = {
     },
 }
 
+# Optimización de caché para WhiteNoise (1 año de caché para assets inmutables en producción)
+WHITENOISE_MAX_AGE = 31536000 if not DEBUG else 0
+
 # Cabeceras de seguridad HTTP
 SECURE_CONTENT_TYPE_NOSNIFF = True
 SECURE_BROWSER_XSS_FILTER = True
@@ -216,7 +219,8 @@ CACHES = {
 
 # Configuración de Sesiones e Inactividad (15 Minutos = 900 Segundos)
 SESSION_COOKIE_AGE = 900
-SESSION_SAVE_EVERY_REQUEST = True
+# Optimización: evitar escribir en PostgreSQL en cada petición HTTP de solo lectura o AJAX
+SESSION_SAVE_EVERY_REQUEST = False
 SESSION_EXPIRE_AT_BROWSER_CLOSE = True
 
 LOGS_DIR = BASE_DIR / 'logs'

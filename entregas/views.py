@@ -589,8 +589,20 @@ def historial_entregas(request):
         except Exception as e:
             logger.warning(f"Error al filtrar entregas por fecha_fin: {e}")
   
-    lista_entregas = []
-    for e in entregas:
+    per_page_raw = request.GET.get('per_page', '50').strip()
+    try:
+        per_page = int(per_page_raw)
+        if per_page not in [15, 30, 50, 100]:
+            per_page = 50
+    except ValueError:
+        per_page = 50
+
+    page_number = request.GET.get('page', 1)
+    paginator = Paginator(entregas, per_page)
+    page_obj = paginator.get_page(page_number)
+
+    lista_entregas_pagina = []
+    for e in page_obj.object_list:
         fecha_legible = 'N/A'
         if e.fecha:
             try:
@@ -638,19 +650,9 @@ def historial_entregas(request):
             'huella_dactilar': getattr(e, 'huella_dactilar', None) or '',
             'firma_hash': generar_hash_firma_digital(e)
         }
-        lista_entregas.append(data)
+        lista_entregas_pagina.append(data)
   
-    per_page_raw = request.GET.get('per_page', '50').strip()
-    try:
-        per_page = int(per_page_raw)
-        if per_page not in [15, 30, 50, 100]:
-            per_page = 50
-    except ValueError:
-        per_page = 50
-
-    page_number = request.GET.get('page', 1)
-    paginator = Paginator(lista_entregas, per_page)
-    page_obj = paginator.get_page(page_number)
+    page_obj.object_list = lista_entregas_pagina
 
     # Enriquecer los items de la página con teléfono y dirección desde Beneficiario (y SolicitudCiudadano de respaldo)
     cedulas_raw = [str(item['cedula']).strip() for item in page_obj.object_list if item.get('cedula')]

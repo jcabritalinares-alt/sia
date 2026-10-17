@@ -293,15 +293,21 @@ def api_estadisticas_entregas_dashboard(request):
 
 @login_required
 def api_notificaciones_resumen(request):
-    alertas_productos = list(SIA_producto.objects.filter(cantidad__lte=5).values('codigo', 'descripcion', 'cantidad'))
-    pendientes_count = BeneficioEntregado.objects.filter(status='Pendiente').count()
+    from django.core.cache import cache
+    cache_key = 'sia_resumen_notificaciones'
+    datos = cache.get(cache_key)
+    if not datos:
+        alertas_productos = list(SIA_producto.objects.filter(cantidad__lte=5).values('codigo', 'descripcion', 'cantidad'))
+        pendientes_count = BeneficioEntregado.objects.filter(status='Pendiente').count()
+        datos = {
+            'alertas_stock': alertas_productos,
+            'alertas_count': len(alertas_productos),
+            'pendientes_count': pendientes_count,
+            'total_notificaciones': len(alertas_productos) + (1 if pendientes_count > 0 else 0)
+        }
+        cache.set(cache_key, datos, 45)  # 45 segundos de caché
     
-    return JsonResponse({
-        'alertas_stock': alertas_productos,
-        'alertas_count': len(alertas_productos),
-        'pendientes_count': pendientes_count,
-        'total_notificaciones': len(alertas_productos) + (1 if pendientes_count > 0 else 0)
-    })
+    return JsonResponse(datos)
 
 @login_required
 def generar_reporte_inventario_independiente(request):

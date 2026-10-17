@@ -1470,11 +1470,11 @@ def configurar_institucion_view(request):
 def api_busqueda_global(request):
     q = request.GET.get('q', '').strip()
     resultados = []
-    if len(q) >= 2:
-        # 1. Buscar en Solicitudes de Atención
+    if len(q) >= 3:
+        # 1. Buscar en Solicitudes de Atención (solo columnas necesarias)
         solicitudes = SolicitudCiudadano.objects.filter(
             Q(cedula__icontains=q) | Q(nombre_apellido__icontains=q) | Q(descripcion_solicitud__icontains=q)
-        )[:5]
+        ).only('id', 'cedula', 'nombre_apellido', 'tipo_solicitud', 'status')[:5]
         for s in solicitudes:
             resultados.append({
                 'tipo': 'solicitud',
@@ -1485,10 +1485,10 @@ def api_busqueda_global(request):
                 'url': reverse('lista_solicitudes_ciudadano') + f"?search={s.cedula}"
             })
 
-        # 2. Buscar en Beneficiarios (Ficha 360)
+        # 2. Buscar en Beneficiarios (solo columnas necesarias)
         beneficiarios = Beneficiario.objects.filter(
             Q(cedula__icontains=q) | Q(nombre_apellido__icontains=q)
-        )[:5]
+        ).only('id', 'cedula', 'nombre_apellido', 'telefono')[:5]
         for b in beneficiarios:
             resultados.append({
                 'tipo': 'ciudadano',
@@ -1499,10 +1499,10 @@ def api_busqueda_global(request):
                 'url': reverse('ficha_ciudadano_360', args=[b.cedula])
             })
 
-        # 3. Buscar en Inventario
+        # 3. Buscar en Inventario (solo columnas necesarias)
         productos = SIA_producto.objects.filter(
             Q(codigo__icontains=q) | Q(descripcion__icontains=q)
-        )[:5]
+        ).only('id', 'codigo', 'descripcion', 'cantidad', 'almacen')[:5]
         for p in productos:
             resultados.append({
                 'tipo': 'producto',
