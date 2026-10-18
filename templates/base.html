@@ -9,6 +9,9 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <link rel="manifest" href="{% static 'manifest.json' %}">
+    <link rel="icon" type="image/svg+xml" href="{% static 'img/sia_icon.svg' %}">
+    <link rel="icon" type="image/png" sizes="64x64" href="{% static 'img/favicon.png' %}">
+    <link rel="apple-touch-icon" href="{% static 'img/icon-192.png' %}">
     <title>SIA Web | Sistema de Inventario y Atención</title>
     <script>
         if ('serviceWorker' in navigator) {
@@ -258,22 +261,22 @@
         }
 
         .brand-icon-box {
-            width: 38px;
-            height: 38px;
-            min-width: 38px;
-            background: linear-gradient(135deg, #4f46e5 0%, #06b6d4 100%);
+            width: 40px;
+            height: 40px;
+            min-width: 40px;
+            background: transparent;
             border-radius: 10px;
-            color: white;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 1.2rem;
-            box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);
-            transition: transform 0.2s ease;
+            box-shadow: 0 4px 14px rgba(79, 70, 229, 0.3);
+            transition: transform 0.25s ease, filter 0.25s ease;
+            overflow: hidden;
         }
 
         .sidebar-brand-link:hover .brand-icon-box {
-            transform: rotate(-6deg) scale(1.06);
+            transform: scale(1.08);
+            filter: drop-shadow(0 0 8px rgba(6, 182, 212, 0.6));
         }
 
         .btn-sidebar-toggle {
@@ -1137,7 +1140,7 @@
         <div class="sidebar-header d-flex align-items-center justify-content-between p-3 border-bottom">
             <a class="sidebar-brand-link d-flex align-items-center gap-2.5 text-decoration-none" href="{% if user.is_superuser or user.perfil.permiso_dashboard %}{% url 'dashboard' %}{% elif user.perfil.permiso_estadisticas %}{% url 'panel_estadisticas_avanzadas' %}{% elif user.perfil.permiso_atencion_ciudadano %}{% url 'lista_solicitudes_ciudadano' %}{% elif user.perfil.permiso_inventario %}{% url 'inventario' %}{% elif user.perfil.permiso_entradas %}{% url 'lista_entradas_inventario' %}{% elif user.perfil.permiso_entregas %}{% url 'asignar_beneficio' %}{% elif user.perfil.permiso_asignaciones_especiales %}{% url 'lista_asignaciones_especiales' %}{% elif user.perfil.permiso_usuarios %}{% url 'registrar_usuario' %}{% elif user.perfil.permiso_auditoria %}{% url 'lista_auditoria' %}{% elif user.perfil.permiso_respaldos %}{% url 'gestion_respaldos' %}{% else %}#{% endif %}" title="SIA Web - Ir al Inicio">
                 <div class="brand-icon-box">
-                    <i class="bi bi-layers-fill"></i>
+                    <img src="{% static 'img/sia_icon.svg' %}" alt="SIA Logo" style="width: 100%; height: 100%; object-fit: contain;">
                 </div>
                 <div class="sidebar-brand-text">
                     <div class="fw-extrabold fs-5 lh-1 text-dark">SIA Web</div>
@@ -1395,7 +1398,8 @@
             <div class="d-flex align-items-center gap-2">
                 <!-- Marca móvil (solo visible en pantallas < 992px) -->
                 <a class="brand-badge text-decoration-none d-lg-none" href="{% if user.is_superuser or user.perfil.permiso_dashboard %}{% url 'dashboard' %}{% else %}{% url 'inventario' %}{% endif %}">
-                    <i class="bi bi-layers-fill"></i> SIA Web
+                    <img src="{% static 'img/sia_icon.svg' %}" alt="SIA Logo" style="width: 24px; height: 24px; border-radius: 6px; object-fit: contain;">
+                    <span>SIA Web</span>
                 </a>
                 
                 <!-- Botón de colapsar/expandir barra lateral (Desktop) -->
@@ -1525,7 +1529,8 @@
 <div class="offcanvas offcanvas-end offcanvas-sia d-lg-none" tabindex="-1" id="offcanvasNavRight" aria-labelledby="offcanvasNavRightLabel">
     <div class="offcanvas-header border-bottom py-3">
         <div class="brand-badge" id="offcanvasNavRightLabel" style="font-size: 1.05rem;">
-            <i class="bi bi-layers-fill"></i> SIA Web
+            <img src="{% static 'img/sia_icon.svg' %}" alt="SIA Logo" style="width: 26px; height: 26px; border-radius: 6px; object-fit: contain;">
+            <span>SIA Web</span>
         </div>
         <button type="button" class="btn-close text-reset" data-bs-dismiss="offcanvas" aria-label="Cerrar menú"></button>
     </div>

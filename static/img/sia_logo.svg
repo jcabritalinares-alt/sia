@@ -1,0 +1,81 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 520 120" fill="none">
+    <defs>
+        <!-- Degradados Principales -->
+        <linearGradient id="siaGradPrimary" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="#4f46e5"/>
+            <stop offset="50%" stop-color="#3b82f6"/>
+            <stop offset="100%" stop-color="#06b6d4"/>
+        </linearGradient>
+
+        <linearGradient id="siaGradCyan" x1="0%" y1="100%" x2="100%" y2="0%">
+            <stop offset="0%" stop-color="#06b6d4"/>
+            <stop offset="100%" stop-color="#38bdf8"/>
+        </linearGradient>
+
+        <linearGradient id="siaGradGold" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="#f59e0b"/>
+            <stop offset="100%" stop-color="#fbbf24"/>
+        </linearGradient>
+
+        <linearGradient id="siaGradDarkBg" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="#0f172a"/>
+            <stop offset="100%" stop-color="#1e1b4b"/>
+        </linearGradient>
+
+        <!-- Filtros de Resplandor Neón -->
+        <filter id="siaGlow" x="-20%" y="-20%" width="140%" height="140%">
+            <feGaussianBlur stdDeviation="4" result="blur"/>
+            <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+        </filter>
+        <filter id="siaSoftShadow" x="-10%" y="-10%" width="120%" height="120%">
+            <feDropShadow dx="0" dy="8" stdDeviation="6" flood-color="#4f46e5" flood-opacity="0.3"/>
+        </filter>
+    </defs>
+
+    <!-- ISOTIPO: Emblema Isométrico de Almacén + Lazo Social Dinámico -->
+    <g transform="translate(15, 10)" filter="url(#siaSoftShadow)">
+        <!-- Contenedor Base de Cristal Oscuro -->
+        <rect x="0" y="0" width="100" height="100" rx="24" fill="url(#siaGradDarkBg)" stroke="rgba(255,255,255,0.12)" stroke-width="1.5"/>
+
+        <!-- Cara Superior del Cubo Isométrico (Inventario/Stock) -->
+        <polygon points="50,22 76,37 50,52 24,37" fill="url(#siaGradCyan)" opacity="0.95"/>
+        
+        <!-- Cara Izquierda del Cubo -->
+        <polygon points="24,37 50,52 50,80 24,65" fill="#312e81" opacity="0.9"/>
+        
+        <!-- Cara Derecha del Cubo -->
+        <polygon points="50,52 76,37 76,65 50,80" fill="url(#siaGradPrimary)" opacity="0.9"/>
+
+        <!-- Borde de Conexión Lumínica Superior -->
+        <polyline points="24,37 50,22 76,37" stroke="#38bdf8" stroke-width="1.8" stroke-linecap="round" fill="none"/>
+
+        <!-- Escudo / Núcleo Dorado Central (Atención Social / Protección) -->
+        <path d="M50 42 L60 48 V58 C60 65 50 71 50 71 C50 71 40 65 40 58 V48 Z" fill="url(#siaGradGold)" opacity="0.95" filter="url(#siaGlow)"/>
+
+        <!-- Ondas Dinámicas Inferiores (Distribución y Operativos Sociales) -->
+        <path d="M20 72 C35 64 65 82 80 72" stroke="url(#siaGradCyan)" stroke-width="3" stroke-linecap="round" fill="none"/>
+        <path d="M26 80 C40 72 60 88 74 80" stroke="#818cf8" stroke-width="2.2" stroke-linecap="round" fill="none" opacity="0.8"/>
+    </g>
+
+    <!-- LOGOTIPO / TIPOGRAFÍA "SIA WEB" -->
+    <g transform="translate(132, 28)">
+        <!-- Letras SIA con Degradado Tecnológico y Espaciado Premium -->
+        <text x="0" y="44" font-family="'Plus Jakarta Sans', 'Inter', system-ui, -apple-system, sans-serif" font-size="46" font-weight="900" letter-spacing="-0.03em" fill="url(#siaGradPrimary)">
+            SIA
+        </text>
+
+        <!-- Badge "WEB" de Alta Visibilidad -->
+        <rect x="94" y="10" width="76" height="38" rx="10" fill="url(#siaGradCyan)" filter="url(#siaSoftShadow)"/>
+        <text x="132" y="36" font-family="'Plus Jakarta Sans', 'Inter', system-ui, -apple-system, sans-serif" font-size="20" font-weight="800" letter-spacing="0.06em" fill="#0f172a" text-anchor="middle">
+            WEB
+        </text>
+
+        <!-- Subtítulo Institucional y Tecnológico -->
+        <text x="2" y="68" font-family="'Inter', system-ui, -apple-system, sans-serif" font-size="11.5" font-weight="700" letter-spacing="0.14em" fill="#64748b">
+            SISTEMA INTEGRADO DE ALMACÉN
+        </text>
+
+        <!-- Línea Decorativa Acentuada -->
+        <rect x="2" y="74" width="220" height="2" rx="1" fill="url(#siaGradPrimary)" opacity="0.6"/>
+    </g>
+</svg>
