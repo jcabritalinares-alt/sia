@@ -1,0 +1,546 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block style %}
+<style>
+    .jornada-header-card {
+        background: linear-gradient(135deg, #1e1b4b 0%, #312e81 50%, #4338ca 100%);
+        color: #ffffff;
+        border-radius: 18px;
+        padding: 1.5rem;
+        box-shadow: 0 10px 25px rgba(49, 46, 129, 0.25);
+    }
+
+    .kpi-jornada-card {
+        background: #ffffff;
+        border-radius: 14px;
+        border: 1px solid rgba(226, 232, 240, 0.8);
+        padding: 1rem 1.25rem;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+
+    .input-express-cedula {
+        font-size: 1.5rem !important;
+        font-weight: 800 !important;
+        letter-spacing: 0.05em;
+        text-align: center;
+        border-radius: 14px !important;
+        border: 2px solid #4f46e5 !important;
+        box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.12);
+        padding: 0.75rem 1rem !important;
+    }
+
+    .input-express-cedula:focus {
+        border-color: #4338ca !important;
+        box-shadow: 0 0 0 6px rgba(79, 70, 229, 0.2) !important;
+    }
+
+    .signature-pad-jornada {
+        border: 2px dashed #cbd5e1;
+        border-radius: 12px;
+        background: #fafafa;
+        cursor: crosshair;
+        width: 100%;
+        height: 120px;
+        touch-action: none;
+    }
+
+    .fila-jornada-nueva {
+        animation: highlightFila 2.5s ease-out;
+    }
+
+    @keyframes highlightFila {
+        0% { background-color: #dcfce7; transform: scale(1.01); }
+        100% { background-color: transparent; transform: scale(1); }
+    }
+</style>
+{% endblock %}
+
+{% block contenido %}
+<div class="container-fluid px-0">
+
+    <!-- Encabezado de Modo Jornada -->
+    <div class="jornada-header-card mb-4">
+        <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3">
+            <div>
+                <div class="badge bg-warning text-dark px-3 py-1 rounded-pill fw-bold mb-2 shadow-xs">
+                    <i class="bi bi-lightning-charge-fill me-1"></i> Modo Jornada / Operativo en Lote
+                </div>
+                <h2 class="fw-extrabold text-white mb-1">Registro Continuo de Entregas Masivas</h2>
+                <p class="text-white-50 small mb-0">Configura el producto y la parroquia una sola vez y registra entregas continuas en menos de 5 segundos</p>
+            </div>
+            <div class="d-flex flex-wrap gap-2">
+                <a href="{% url 'historial' %}" class="btn btn-outline-light d-inline-flex align-items-center gap-1.5 fw-semibold rounded-3">
+                    <i class="bi bi-journal-text"></i> Ver Historial Completo
+                </a>
+                <a href="{% url 'asignar_beneficio' %}" class="btn btn-light text-dark d-inline-flex align-items-center gap-1.5 fw-bold rounded-3">
+                    <i class="bi bi-arrow-left"></i> Modo Estándar
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Barra de Configuración del Operativo Actual -->
+    <div class="card border border-light rounded-4 shadow-sm p-3 mb-4 bg-light">
+        <div class="row g-3 align-items-end">
+            <div class="col-12 col-md-4">
+                <label class="form-label fw-bold text-dark small">
+                    <i class="bi bi-box-seam text-primary me-1"></i> 1. Producto del Operativo:
+                </label>
+                <select id="cfgProducto" class="form-select fw-bold border-primary shadow-xs" onchange="actualizarInfoProducto()">
+                    {% for p in productos %}
+                    <option value="{{ p.id }}" data-nombre="{{ p.descripcion }}" data-stock="{{ p.cantidad }}">
+                        {{ p.descripcion }} (Stock: {{ p.cantidad }} u.)
+                    </option>
+                    {% empty %}
+                    <option value="">No hay productos con stock disponible</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="col-6 col-md-2">
+                <label class="form-label fw-bold text-dark small">
+                    <i class="bi bi-123 text-success me-1"></i> Cantidad Fija:
+                </label>
+                <input type="number" id="cfgCantidad" class="form-control fw-bold text-center border-success" value="1" min="1">
+            </div>
+
+            <div class="col-6 col-md-3">
+                <label class="form-label fw-bold text-dark small">
+                    <i class="bi bi-geo-alt-fill text-danger me-1"></i> Parroquia:
+                </label>
+                <select id="cfgParroquia" class="form-select fw-semibold">
+                    {% for val, label in parroquias %}
+                    <option value="{{ val }}" {% if forloop.first %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="col-12 col-md-3">
+                <label class="form-label fw-bold text-dark small">
+                    <i class="bi bi-flag-fill text-warning me-1"></i> Nombre de la Jornada / Vía:
+                </label>
+                <input type="text" id="cfgVia" class="form-control fw-semibold" value="Jornada Parroquial Social" placeholder="Ej: Operativo Clap / Jornada Médica">
+            </div>
+        </div>
+    </div>
+
+    <!-- Tarjetas KPI en Vivo -->
+    <div class="row g-3 mb-4">
+        <div class="col-12 col-md-4">
+            <div class="kpi-jornada-card">
+                <div>
+                    <div class="small text-muted fw-bold uppercase">Beneficiarios Atendidos Hoy</div>
+                    <div class="fs-2 fw-extrabold text-primary mt-1" id="kpiTotalBeneficiarios">{{ total_hoy }}</div>
+                </div>
+                <div class="fs-1 text-primary opacity-50"><i class="bi bi-people-fill"></i></div>
+            </div>
+        </div>
+
+        <div class="col-12 col-md-4">
+            <div class="kpi-jornada-card">
+                <div>
+                    <div class="small text-muted fw-bold uppercase">Unidades Entregadas Hoy</div>
+                    <div class="fs-2 fw-extrabold text-success mt-1" id="kpiTotalUnidades">{{ total_unidades_hoy }}</div>
+                </div>
+                <div class="fs-1 text-success opacity-50"><i class="bi bi-gift-fill"></i></div>
+            </div>
+        </div>
+
+        <div class="col-12 col-md-4">
+            <div class="kpi-jornada-card">
+                <div>
+                    <div class="small text-muted fw-bold uppercase">Stock Restante de este Producto</div>
+                    <div class="fs-2 fw-extrabold text-dark mt-1" id="kpiStockRestante">-- u.</div>
+                </div>
+                <div class="fs-1 text-warning opacity-75"><i class="bi bi-boxes"></i></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Área de Trabajo Principal: Formulario Rápido + Feed en Vivo -->
+    <div class="row g-4">
+        <!-- FORMULARIO DE INGRESO EXPRÉS -->
+        <div class="col-12 col-lg-5">
+            <div class="card border border-light rounded-4 shadow-sm p-4 h-100">
+                <div class="d-flex justify-content-between align-items-center border-bottom pb-2 mb-3">
+                    <h5 class="fw-bold text-dark mb-0 d-flex align-items-center gap-2">
+                        <i class="bi bi-person-plus-fill text-primary"></i> Ingreso Exprés
+                    </h5>
+                    <span class="badge bg-light text-secondary border font-monospace small" id="lblClockLive">--:--:--</span>
+                </div>
+
+                <form id="formJornadaExpres" autocomplete="off" onsubmit="event.preventDefault(); procesarEntregaJornada();">
+                    {% csrf_token %}
+
+                    <!-- Cédula o QR -->
+                    <div class="mb-3">
+                        <label class="form-label fw-bold text-dark small d-flex justify-content-between align-items-center">
+                            <span><i class="bi bi-qr-code-scan text-primary me-1"></i> Cédula o Carnet QR:</span>
+                            <span class="badge bg-success-subtle text-success small fw-semibold" id="lblEstadoBusqueda">Listo para escanear</span>
+                        </label>
+                        <input type="text" id="jornadaCedula" class="form-control input-express-cedula" placeholder="V-12345678" autofocus required>
+                        <div class="form-text text-muted small text-center mt-1">
+                            <i class="bi bi-keyboard me-1"></i> Escribe la cédula o apunta el lector al Carnet QR (Autobúsqueda activa).
+                        </div>
+                    </div>
+
+                    <!-- Nombre y Apellidos -->
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold text-secondary small">Nombre Completo del Beneficiario *</label>
+                        <div class="input-group">
+                            <span class="input-group-text bg-light text-muted border-end-0"><i class="bi bi-person"></i></span>
+                            <input type="text" id="jornadaNombre" class="form-control border-start-0 fw-bold" placeholder="Nombres y Apellidos" required>
+                        </div>
+                    </div>
+
+                    <!-- Teléfono y Dirección -->
+                    <div class="row g-2 mb-3">
+                        <div class="col-12 col-sm-6">
+                            <label class="form-label fw-semibold text-secondary small">Teléfono (WhatsApp)</label>
+                            <input type="tel" id="jornadaTelefono" class="form-control font-monospace" placeholder="0412-1234567">
+                        </div>
+                        <div class="col-12 col-sm-6">
+                            <label class="form-label fw-semibold text-secondary small">Sector / Comunidad</label>
+                            <input type="text" id="jornadaDireccion" class="form-control" placeholder="Ej: Sector 1, Calle 3">
+                        </div>
+                    </div>
+
+                    <!-- Firma Digital Rápida (Opcional / Desplegable) -->
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <label class="form-label fw-semibold text-secondary small mb-0">Firma Digital (Opcional)</label>
+                            <button type="button" class="btn btn-sm btn-link p-0 text-decoration-none small" onclick="limpiarFirmaJornada()">Limpiar firma</button>
+                        </div>
+                        <canvas id="canvasFirmaJornada" class="signature-pad-jornada"></canvas>
+                    </div>
+
+                    <!-- Botón Gigante de Entrega -->
+                    <button type="submit" id="btnConfirmarEntrega" class="btn btn-success w-100 py-3 fs-5 fw-extrabold d-flex align-items-center justify-content-center gap-2 shadow-sm">
+                        <i class="bi bi-check2-circle fs-4"></i> CONFIRMAR ENTREGA (ENTER)
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <!-- FEED EN VIVO DE ENTREGAS REALIZADAS EN ESTA JORNADA -->
+        <div class="col-12 col-lg-7">
+            <div class="card border border-light rounded-4 shadow-sm p-4 h-100">
+                <div class="d-flex justify-content-between align-items-center border-bottom pb-2 mb-3">
+                    <h5 class="fw-bold text-dark mb-0 d-flex align-items-center gap-2">
+                        <i class="bi bi-clock-history text-success"></i> Entregas Registradas en este Operativo
+                    </h5>
+                    <span class="badge bg-primary text-white rounded-pill px-3 py-1 font-monospace" id="lblContadorSesion">0 en esta sesión</span>
+                </div>
+
+                <div class="table-responsive rounded-3 border" style="max-height: 480px; overflow-y: auto;">
+                    <table class="table table-hover align-middle mb-0" id="tablaFeedJornada">
+                        <thead class="bg-light text-secondary small text-uppercase fw-bold sticky-top">
+                            <tr>
+                                <th style="width: 70px;">Hora</th>
+                                <th>Beneficiario</th>
+                                <th>Parroquia</th>
+                                <th class="text-center" style="width: 80px;">Cant.</th>
+                                <th class="text-end" style="width: 130px;">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tbodyFeedJornada">
+                            {% for e in entregas_hoy %}
+                            <tr class="fila-jornada" data-id="{{ e.id }}">
+                                <td class="font-monospace small text-muted">{{ e.fecha|date:"H:i"|default:"Hoy" }}</td>
+                                <td>
+                                    <div class="fw-bold text-dark">{{ e.nombre_beneficiario }}</div>
+                                    <div class="small text-muted font-monospace">C.I. {{ e.cedula }}</div>
+                                </td>
+                                <td>
+                                    <span class="badge bg-light text-secondary border small">{{ e.parroquia|default:"Valera" }}</span>
+                                </td>
+                                <td class="text-center fw-bold text-success">{{ e.cantidad_dada }} u.</td>
+                                <td class="text-end">
+                                    <div class="d-inline-flex gap-1">
+                                        <a href="{% url 'generar_comprobante_pdf' e.id %}" target="_blank" class="btn btn-sm btn-outline-danger p-1" style="width: 28px; height: 28px;" title="Ver PDF">
+                                            <i class="bi bi-file-earmark-pdf-fill"></i>
+                                        </a>
+                                        <a href="{% url 'carnet_ciudadano' e.cedula %}" target="_blank" class="btn btn-sm btn-outline-dark p-1" style="width: 28px; height: 28px;" title="Ver Carnet QR">
+                                            <i class="bi bi-qr-code"></i>
+                                        </a>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr id="filaVaciaFeed">
+                                <td colspan="5" class="text-center text-muted py-4 fst-italic">
+                                    No hay entregas registradas aún en el operativo de hoy.
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // --- RELOJ EN VIVO ---
+    function updateClock() {
+        const now = new Date();
+        const lbl = document.getElementById('lblClockLive');
+        if (lbl) lbl.textContent = now.toLocaleTimeString();
+    }
+    setInterval(updateClock, 1000);
+    updateClock();
+
+    // --- MANEJO DEL CANVAS DE FIRMA ---
+    const canvas = document.getElementById('canvasFirmaJornada');
+    let ctx = canvas ? canvas.getContext('2d') : null;
+    let isDrawing = false;
+    let hasSignature = false;
+
+    function resizeCanvas() {
+        if (!canvas) return;
+        const rect = canvas.getBoundingClientRect();
+        canvas.width = rect.width;
+        canvas.height = rect.height;
+        ctx.strokeStyle = "#1e293b";
+        ctx.lineWidth = 2.5;
+        ctx.lineCap = "round";
+    }
+    window.addEventListener('resize', resizeCanvas);
+    setTimeout(resizeCanvas, 200);
+
+    if (canvas) {
+        function getPos(e) {
+            const rect = canvas.getBoundingClientRect();
+            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+            return { x: clientX - rect.left, y: clientY - rect.top };
+        }
+
+        canvas.addEventListener('mousedown', (e) => { isDrawing = true; const p = getPos(e); ctx.beginPath(); ctx.moveTo(p.x, p.y); });
+        canvas.addEventListener('mousemove', (e) => { if (!isDrawing) return; const p = getPos(e); ctx.lineTo(p.x, p.y); ctx.stroke(); hasSignature = true; });
+        window.addEventListener('mouseup', () => { isDrawing = false; });
+
+        canvas.addEventListener('touchstart', (e) => { e.preventDefault(); isDrawing = true; const p = getPos(e); ctx.beginPath(); ctx.moveTo(p.x, p.y); }, { passive: false });
+        canvas.addEventListener('touchmove', (e) => { e.preventDefault(); if (!isDrawing) return; const p = getPos(e); ctx.lineTo(p.x, p.y); ctx.stroke(); hasSignature = true; }, { passive: false });
+        window.addEventListener('touchend', () => { isDrawing = false; });
+    }
+
+    function limpiarFirmaJornada() {
+        if (ctx && canvas) {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            hasSignature = false;
+        }
+    }
+
+    // --- AUDIO CHIME AL REGISTRAR ÉXITO (Web Audio API nativa sin archivos externos) ---
+    function reproducirSonidoExito() {
+        try {
+            const AudioContext = window.AudioContext || window.webkitAudioContext;
+            if (!AudioContext) return;
+            const ctxAudio = new AudioContext();
+            const osc = ctxAudio.createOscillator();
+            const gain = ctxAudio.createGain();
+
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(587.33, ctxAudio.currentTime); // D5
+            osc.frequency.exponentialRampToValueAtTime(880, ctxAudio.currentTime + 0.15); // A5
+
+            gain.gain.setValueAtTime(0.2, ctxAudio.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, ctxAudio.currentTime + 0.35);
+
+            osc.connect(gain);
+            gain.connect(ctxAudio.destination);
+
+            osc.start();
+            osc.stop(ctxAudio.currentTime + 0.35);
+        } catch (e) {}
+    }
+
+    // --- ACTUALIZAR INDICADOR DE STOCK DEL PRODUCTO SELECCIONADO ---
+    function actualizarInfoProducto() {
+        const select = document.getElementById('cfgProducto');
+        const opt = select.options[select.selectedIndex];
+        if (opt) {
+            const stock = opt.getAttribute('data-stock') || '0';
+            document.getElementById('kpiStockRestante').textContent = `${stock} u.`;
+        }
+    }
+    actualizarInfoProducto();
+
+    // --- CONSULTA RÁPIDA DE BENEFICIARIO POR CÉDULA / QR ---
+    const inputCedula = document.getElementById('jornadaCedula');
+    let timerBusqueda = null;
+
+    inputCedula.addEventListener('input', function() {
+        clearTimeout(timerBusqueda);
+        const raw = inputCedula.value.trim().toUpperCase();
+        if (raw.length >= 4) {
+            timerBusqueda = setTimeout(() => buscarDatosCiudadano(raw), 300);
+        }
+    });
+
+    function buscarDatosCiudadano(cedulaRaw) {
+        let clean = cedulaRaw.replace('SIA:CEDULA:', '').trim();
+        const lbl = document.getElementById('lblEstadoBusqueda');
+        lbl.textContent = "Buscando...";
+        lbl.className = "badge bg-warning-subtle text-warning small fw-semibold";
+
+        fetch(`/api/beneficiarios/consultar/?cedula=${encodeURIComponent(clean)}`)
+            .then(res => res.json())
+            .then(data => {
+                if (data.encontrado && data.ciudadano) {
+                    document.getElementById('jornadaNombre').value = data.ciudadano.nombre || '';
+                    if (data.ciudadano.telefono) document.getElementById('jornadaTelefono').value = data.ciudadano.telefono;
+                    if (data.ciudadano.direccion) document.getElementById('jornadaDireccion').value = data.ciudadano.direccion;
+                    if (data.ciudadano.parroquia) {
+                        const selParroq = document.getElementById('cfgParroquia');
+                        for (let i = 0; i < selParroq.options.length; i++) {
+                            if (selParroq.options[i].value.toLowerCase() === data.ciudadano.parroquia.toLowerCase()) {
+                                selParroq.selectedIndex = i;
+                                break;
+                            }
+                        }
+                    }
+                    lbl.textContent = "Ciudadano Verificado ✓";
+                    lbl.className = "badge bg-success-subtle text-success small fw-semibold";
+                } else {
+                    lbl.textContent = "Nuevo en Sistema";
+                    lbl.className = "badge bg-info-subtle text-info small fw-semibold";
+                }
+            })
+            .catch(() => {
+                lbl.textContent = "Búsqueda local lista";
+                lbl.className = "badge bg-light text-secondary border small";
+            });
+    }
+
+    // --- PROCESAR ENTREGA EN LOTE (AJAX ULTRA RÁPIDO) ---
+    let entregasEnSesionCount = 0;
+
+    function procesarEntregaJornada() {
+        const cedula = document.getElementById('jornadaCedula').value.trim();
+        const nombre = document.getElementById('jornadaNombre').value.trim();
+        const telefono = document.getElementById('jornadaTelefono').value.trim();
+        const direccion = document.getElementById('jornadaDireccion').value.trim();
+        const productoId = document.getElementById('cfgProducto').value;
+        const cantidad = document.getElementById('cfgCantidad').value;
+        const parroquia = document.getElementById('cfgParroquia').value;
+        const via = document.getElementById('cfgVia').value;
+        const csrf = document.querySelector('[name=csrfmiddlewaretoken]').value;
+        const btn = document.getElementById('btnConfirmarEntrega');
+
+        if (!cedula || !nombre || !productoId) {
+            alert("Cédula, Nombre del Beneficiario y Producto son requeridos.");
+            return;
+        }
+
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span> Registrando entrega...';
+
+        let firmaData = '';
+        if (hasSignature && canvas) {
+            firmaData = canvas.toDataURL('image/png');
+        }
+
+        const formData = new FormData();
+        formData.append('csrfmiddlewaretoken', csrf);
+        formData.append('cedula', cedula);
+        formData.append('nombre_beneficiario', nombre);
+        formData.append('telefono', telefono);
+        formData.append('direccion', direccion);
+        formData.append('producto_id', productoId);
+        formData.append('cantidad_dada', cantidad);
+        formData.append('parroquia', parroquia);
+        formData.append('via', via);
+        formData.append('firma_data', firmaData);
+
+        fetch("{% url 'jornada_operativo' %}", {
+            method: 'POST',
+            body: formData,
+            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        })
+        .then(res => res.json())
+        .then(data => {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="bi bi-check2-circle fs-4"></i> CONFIRMAR ENTREGA (ENTER)';
+
+            if (!data.success) {
+                alert(`⚠️ Error: ${data.error || 'No se pudo registrar la entrega'}`);
+                return;
+            }
+
+            // Éxito: audio chime y actualizar contadores
+            reproducirSonidoExito();
+            entregasEnSesionCount++;
+            document.getElementById('lblContadorSesion').textContent = `${entregasEnSesionCount} en esta sesión`;
+
+            // Actualizar stock visual
+            if (data.stock_restante !== undefined) {
+                document.getElementById('kpiStockRestante').textContent = `${data.stock_restante} u.`;
+                const sel = document.getElementById('cfgProducto');
+                const opt = sel.options[sel.selectedIndex];
+                if (opt) opt.setAttribute('data-stock', data.stock_restante);
+            }
+
+            // Actualizar KPIs
+            const kpiBen = document.getElementById('kpiTotalBeneficiarios');
+            kpiBen.textContent = parseInt(kpiBen.textContent || 0) + 1;
+            const kpiUni = document.getElementById('kpiTotalUnidades');
+            kpiUni.textContent = parseInt(kpiUni.textContent || 0) + parseInt(cantidad);
+
+            // Agregar fila arriba en el Feed de la Jornada
+            const filaVacia = document.getElementById('filaVaciaFeed');
+            if (filaVacia) filaVacia.remove();
+
+            const tbody = document.getElementById('tbodyFeedJornada');
+            const tr = document.createElement('tr');
+            tr.className = 'fila-jornada-nueva';
+            tr.innerHTML = `
+                <td class="font-monospace small text-muted">${data.hora || 'Ahora'}</td>
+                <td>
+                    <div class="fw-bold text-dark">${data.nombre_beneficiario}</div>
+                    <div class="small text-muted font-monospace">C.I. ${data.cedula}</div>
+                </td>
+                <td>
+                    <span class="badge bg-light text-secondary border small">${parroquia}</span>
+                </td>
+                <td class="text-center fw-bold text-success">${data.cantidad} u.</td>
+                <td class="text-end">
+                    <div class="d-inline-flex gap-1">
+                        <a href="/comprobante/${data.entrega_id}/pdf/" target="_blank" class="btn btn-sm btn-outline-danger p-1" style="width: 28px; height: 28px;" title="Ver PDF">
+                            <i class="bi bi-file-earmark-pdf-fill"></i>
+                        </a>
+                        <a href="/ciudadano/${data.cedula}/carnet/" target="_blank" class="btn btn-sm btn-outline-dark p-1" style="width: 28px; height: 28px;" title="Ver Carnet QR">
+                            <i class="bi bi-qr-code"></i>
+                        </a>
+                    </div>
+                </td>
+            `;
+            tbody.insertBefore(tr, tbody.firstChild);
+
+            // Limpiar formulario y enfocar cédula para la siguiente persona
+            document.getElementById('jornadaCedula').value = '';
+            document.getElementById('jornadaNombre').value = '';
+            document.getElementById('jornadaTelefono').value = '';
+            document.getElementById('jornadaDireccion').value = '';
+            limpiarFirmaJornada();
+            document.getElementById('lblEstadoBusqueda').textContent = "Listo para el siguiente";
+            document.getElementById('lblEstadoBusqueda').className = "badge bg-success-subtle text-success small fw-semibold";
+            document.getElementById('jornadaCedula').focus();
+        })
+        .catch(err => {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="bi bi-check2-circle fs-4"></i> CONFIRMAR ENTREGA (ENTER)';
+            alert("Error de conexión al procesar la entrega. Verifique su red.");
+        });
+    }
+</script>
+{% endblock %}

@@ -497,4 +497,78 @@ def validar_telefono_venezolano(telefono_raw):
         
     return True, telefono_formateado
 
+def generar_link_whatsapp(telefono, mensaje):
+    """
+    Genera un enlace wa.me oficial con número internacional (+58) y texto codificado.
+    """
+    if not telefono:
+        return ""
+    import urllib.parse
+    import re
+    digitos = re.sub(r'\D', '', str(telefono))
+    if not digitos:
+        return ""
+    if digitos.startswith('58'):
+        pass
+    elif digitos.startswith('0'):
+        digitos = '58' + digitos[1:]
+    else:
+        digitos = '58' + digitos
+    
+    texto_encoded = urllib.parse.quote(mensaje.strip())
+    return f"https://wa.me/{digitos}?text={texto_encoded}"
+
+def generar_link_whatsapp_comprobante(entrega):
+    """
+    Genera el enlace de WhatsApp para comprobante de entrega oficial.
+    """
+    tel = getattr(entrega, 'telefono', '') or ''
+    nombre = getattr(entrega, 'nombre_beneficiario', '') or 'Ciudadano(a)'
+    cedula = getattr(entrega, 'cedula', '') or ''
+    producto = getattr(entrega, 'descripcion_prod', '') or 'Beneficio Social'
+    cant = getattr(entrega, 'cantidad_dada', 1)
+    status = getattr(entrega, 'status', 'Entregado')
+    id_entrega = getattr(entrega, 'id', '')
+    fecha = getattr(entrega, 'fecha_legible', '') or str(getattr(entrega, 'fecha', ''))
+    parroquia = getattr(entrega, 'parroquia', '') or ''
+
+    msg = (
+        f"🏛️ *ALCALDÍA DE VALERA - SIA WEB*\n"
+        f"Comprobante de Entrega Social #{id_entrega}\n\n"
+        f"Estimado(a) *{nombre}* (C.I. {cedula}):\n"
+        f"Se ha procesado su entrega de manera exitosa.\n\n"
+        f"📦 *Producto:* {producto}\n"
+        f"🔢 *Cantidad:* {cant}\n"
+        f"📅 *Fecha:* {fecha}\n"
+        f"📍 *Parroquia:* {parroquia if parroquia else 'Valera'}\n"
+        f"✅ *Estado:* {status}\n\n"
+        f"_Este mensaje certifica la asignación y trazabilidad en el Sistema Integrado de Almacén (SIA)._"
+    )
+    return generar_link_whatsapp(tel, msg)
+
+def generar_link_whatsapp_solicitud(solicitud):
+    """
+    Genera el enlace de WhatsApp para estatus de solicitud en Atención al Ciudadano.
+    """
+    tel = getattr(solicitud, 'telefono', '') or ''
+    nombre = getattr(solicitud, 'nombre_apellido', '') or 'Ciudadano(a)'
+    cedula = getattr(solicitud, 'cedula', '') or ''
+    tipo = getattr(solicitud, 'tipo_solicitud', '') or 'Solicitud Social'
+    id_sol = getattr(solicitud, 'id', '')
+    status = getattr(solicitud, 'status', 'Recibida')
+    parroquia = getattr(solicitud, 'parroquia', '') or ''
+
+    msg = (
+        f"🏛️ *ALCALDÍA DE VALERA - ATENCIÓN AL CIUDADANO*\n"
+        f"Actualización de Solicitud #{id_sol}\n\n"
+        f"Estimado(a) *{nombre}* (C.I. {cedula}):\n"
+        f"Le informamos sobre el estatus de su requerimiento:\n\n"
+        f"📋 *Trámite:* {tipo}\n"
+        f"🔄 *Estatus Actual:* *{status.upper()}*\n"
+        f"📍 *Parroquia:* {parroquia if parroquia else 'Valera'}\n\n"
+        f"_Gobierno Municipal de Valera trabajando por su bienestar._"
+    )
+    return generar_link_whatsapp(tel, msg)
+
+
 

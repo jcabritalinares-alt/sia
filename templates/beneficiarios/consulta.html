@@ -147,6 +147,9 @@
                     <a href="{% url 'ficha_ciudadano_360' cedula=ciudadano.cedula|default:'0' %}" id="btnFicha360Accion" class="btn btn-outline-secondary d-inline-flex align-items-center gap-1 rounded-3 py-2 px-2.5" title="Ver Ficha 360 Integral">
                         <i class="bi bi-person-bounding-box"></i>
                     </a>
+                    <a href="{% url 'carnet_ciudadano' cedula=ciudadano.cedula|default:'0' %}" id="btnCarnetAccion" target="_blank" class="btn btn-outline-dark d-inline-flex align-items-center gap-1 rounded-3 py-2 px-2.5" title="Ver e Imprimir Carnet Digital QR">
+                        <i class="bi bi-qr-code"></i>
+                    </a>
                 </div>
             </div>
 

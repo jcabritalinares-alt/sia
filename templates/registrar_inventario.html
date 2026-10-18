@@ -131,6 +131,21 @@
                                 <span id="calcStockResultante" class="fw-extrabold text-success fs-3">0 u.</span>
                             </div>
                         </div>
+
+                        <div class="row g-3 mt-1">
+                            <div class="col-12 col-md-6">
+                                <label class="form-label fw-semibold text-secondary small d-flex align-items-center gap-1">
+                                    <i class="bi bi-bell text-warning"></i> Stock Mínimo de Alerta (Opcional)
+                                </label>
+                                <input type="number" name="stock_minimo" id="existenteStockMinimo" class="form-control" placeholder="Mínimo (Ej: 5)">
+                            </div>
+                            <div class="col-12 col-md-6">
+                                <label class="form-label fw-semibold text-secondary small d-flex align-items-center gap-1">
+                                    <i class="bi bi-calendar-event text-primary"></i> Fecha de Vencimiento de este Lote (Opcional)
+                                </label>
+                                <input type="date" name="fecha_vencimiento" id="existenteFechaVencimiento" class="form-control">
+                            </div>
+                        </div>
                     </div>
 
                     <button type="submit" id="btnGuardarExistente" class="btn btn-success w-100 py-3 fs-6 d-flex align-items-center justify-content-center gap-2" style="display: none;">
@@ -196,7 +211,7 @@
                         </div>
                     </div>
 
-                    <div class="row g-3 mb-4">
+                    <div class="row g-3 mb-3">
                         <div class="col-12 col-md-6">
                             <label id="labelCantidadNuevo" class="form-label fw-semibold text-secondary small">Cantidad Inicial de Unidades</label>
                             <input type="number" name="cantidad" class="form-control fw-bold" min="1" placeholder="Ej: 10" required>
@@ -206,6 +221,24 @@
                             <label class="form-label fw-semibold text-secondary small">Unidades por Caja / Paquete</label>
                             <input type="number" name="unidades_por_caja" id="unidades_por_caja_nuevo" class="form-control fw-bold" value="1" min="1">
                             <small class="text-muted d-block mt-1">El sistema calculará automáticamente: Cantidad de Cajas × Unidades.</small>
+                        </div>
+                    </div>
+
+                    <div class="row g-3 mb-4">
+                        <div class="col-12 col-md-6">
+                            <label class="form-label fw-semibold text-secondary small d-flex align-items-center gap-1">
+                                <i class="bi bi-bell-fill text-warning"></i> Stock Mínimo de Alerta
+                            </label>
+                            <input type="number" name="stock_minimo" class="form-control" value="5" min="1" placeholder="Ej: 5">
+                            <small class="text-muted d-block mt-1">El sistema emitirá alerta en la campana cuando el stock sea menor o igual a este valor.</small>
+                        </div>
+
+                        <div class="col-12 col-md-6">
+                            <label class="form-label fw-semibold text-secondary small d-flex align-items-center gap-1">
+                                <i class="bi bi-calendar-event text-primary"></i> Fecha de Vencimiento / Caducidad
+                            </label>
+                            <input type="date" name="fecha_vencimiento" class="form-control">
+                            <small class="text-muted d-block mt-1">Opcional. Ideal para medicamentos, fórmulas y alimentos con fecha límite.</small>
                         </div>
                     </div>
 

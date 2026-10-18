@@ -294,18 +294,50 @@ def api_estadisticas_entregas_dashboard(request):
 @login_required
 def api_notificaciones_resumen(request):
     from django.core.cache import cache
+    from django.db.models import F
     cache_key = 'sia_resumen_notificaciones'
     datos = cache.get(cache_key)
     if not datos:
-        alertas_productos = list(SIA_producto.objects.filter(cantidad__lte=5).values('codigo', 'descripcion', 'cantidad'))
+        hoy = timezone.now().date()
+        limite_30d = hoy + timedelta(days=30)
+
+        # 1. Alertas de bajo stock usando stock_minimo configurable por producto
+        alertas_productos = list(
+            SIA_producto.objects.filter(
+                Q(cantidad__lte=F('stock_minimo')) | Q(cantidad__lte=5)
+            ).values('codigo', 'descripcion', 'cantidad', 'stock_minimo')
+        )
+
+        # 2. Alertas de vencimiento (próximos a vencer en <= 30 días o ya vencidos)
+        prods_vencimiento = SIA_producto.objects.filter(
+            fecha_vencimiento__isnull=False,
+            fecha_vencimiento__lte=limite_30d
+        ).order_by('fecha_vencimiento')
+
+        alertas_vencimiento = []
+        for p in prods_vencimiento:
+            dias = (p.fecha_vencimiento - hoy).days
+            alertas_vencimiento.append({
+                'codigo': p.codigo,
+                'descripcion': p.descripcion,
+                'cantidad': p.cantidad,
+                'fecha_vencimiento': p.fecha_vencimiento.strftime('%d/%m/%Y'),
+                'dias_para_vencer': dias,
+                'esta_vencido': dias <= 0
+            })
+
         pendientes_count = BeneficioEntregado.objects.filter(status='Pendiente').count()
+        total_notifs = len(alertas_productos) + len(alertas_vencimiento) + (1 if pendientes_count > 0 else 0)
+
         datos = {
             'alertas_stock': alertas_productos,
             'alertas_count': len(alertas_productos),
+            'alertas_vencimiento': alertas_vencimiento,
+            'vencimiento_count': len(alertas_vencimiento),
             'pendientes_count': pendientes_count,
-            'total_notificaciones': len(alertas_productos) + (1 if pendientes_count > 0 else 0)
+            'total_notificaciones': total_notifs
         }
-        cache.set(cache_key, datos, 45)  # 45 segundos de caché
+        cache.set(cache_key, datos, 30)  # 30 segundos de caché
     
     return JsonResponse(datos)
 
@@ -539,6 +571,14 @@ def registrar_inventario(request):
         else:
             nueva_cantidad = cantidad_ingresada
         
+        try:
+            stock_minimo = int(request.POST.get('stock_minimo', 5))
+        except (ValueError, TypeError):
+            stock_minimo = 5
+
+        fecha_vencimiento_raw = request.POST.get('fecha_vencimiento', '').strip()
+        fecha_vencimiento = parse_date_safe(fecha_vencimiento_raw)
+
         producto, creado = SIA_producto.objects.get_or_create(
             codigo=codigo,
             defaults={
@@ -546,7 +586,9 @@ def registrar_inventario(request):
                 'almacen': request.POST.get('almacen', 'Principal'),
                 'cantidad': nueva_cantidad,
                 'tipo_presentacion': tipo_ingreso,
-                'unidades_por_empaque': unidades_por_caja
+                'unidades_por_empaque': unidades_por_caja,
+                'stock_minimo': stock_minimo,
+                'fecha_vencimiento': fecha_vencimiento
             }
         )
         
@@ -554,6 +596,10 @@ def registrar_inventario(request):
             producto.cantidad += nueva_cantidad
             producto.tipo_presentacion = tipo_ingreso
             producto.unidades_por_empaque = unidades_por_caja
+            if request.POST.get('stock_minimo'):
+                producto.stock_minimo = stock_minimo
+            if fecha_vencimiento:
+                producto.fecha_vencimiento = fecha_vencimiento
             producto.save()
 
             registrar_auditoria(

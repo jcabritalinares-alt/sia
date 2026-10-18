@@ -17,12 +17,16 @@
                     <div class="d-flex flex-wrap align-items-center gap-3 small text-secondary">
                         <span><i class="bi bi-card-heading text-primary me-1"></i><strong>C.I.:</strong> {{ cedula }}</span>
                         <span><i class="bi bi-telephone-fill text-success me-1"></i><strong>Teléfono:</strong> {{ beneficiario.telefono|default:"Sin registro" }}</span>
+                        <span><i class="bi bi-geo-alt text-secondary me-1"></i><strong>Parroquia:</strong> {{ beneficiario.parroquia|default:"Valera" }}</span>
                         <span><i class="bi bi-geo-alt-fill text-danger me-1"></i><strong>Dirección:</strong> {{ beneficiario.direccion|default:"Sin dirección" }}</span>
                     </div>
                 </div>
             </div>
             
             <div class="d-flex flex-wrap gap-2">
+                <a href="{% url 'carnet_ciudadano' cedula %}" target="_blank" class="btn btn-outline-dark fw-bold d-inline-flex align-items-center gap-2 shadow-sm" title="Ver e Imprimir Carnet Digital de Identificación">
+                    <i class="bi bi-qr-code fs-5"></i> Carnet Digital QR
+                </a>
                 {% if beneficiario.telefono %}
                 <button type="button" class="btn btn-success fw-bold d-inline-flex align-items-center gap-2 shadow-sm" onclick="enviarWhatsAppDirecto('{{ beneficiario.telefono }}', '{{ beneficiario.nombre_apellido }}')">
                     <i class="bi bi-whatsapp fs-5"></i> Contactar por WhatsApp

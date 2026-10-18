@@ -59,18 +59,38 @@
                 </div>
 
                 <div class="col-12 col-md-4">
-                    <label class="form-label fw-semibold text-secondary small">Teléfono de Contacto</label>
+                    <label class="form-label fw-semibold text-secondary small">Parroquia (Municipio Valera) <span class="text-danger fw-bold">*</span></label>
                     <div class="input-group">
-                        <span class="input-group-text bg-light text-muted border-end-0"><i class="bi bi-telephone"></i></span>
-                        <input type="text" name="telefono" id="telefono" class="form-control border-start-0 enter-next" data-next="#direccion" placeholder="Ej: 04121234567">
+                        <span class="input-group-text bg-light text-muted border-end-0"><i class="bi bi-pin-map-fill"></i></span>
+                        <select name="parroquia" id="parroquia" class="form-select border-start-0 enter-next" data-next="#direccion" required>
+                            {% for p_val, p_lbl in parroquias %}
+                            <option value="{{ p_val }}" {% if p_val == 'Juan Ignacio Montilla' %}selected{% endif %}>{{ p_lbl }}</option>
+                            {% empty %}
+                            <option value="Juan Ignacio Montilla" selected>Juan Ignacio Montilla</option>
+                            <option value="La Beatriz">La Beatriz</option>
+                            <option value="Mercedes Díaz">Mercedes Díaz</option>
+                            <option value="San Luis">San Luis</option>
+                            <option value="Mendoza Fría">Mendoza Fría</option>
+                            <option value="La Puerta">La Puerta</option>
+                            <option value="Otra / Foránea">Otra / Foránea</option>
+                            {% endfor %}
+                        </select>
                     </div>
                 </div>
 
-                <div class="col-12 col-md-8">
-                    <label class="form-label fw-semibold text-secondary small">Dirección de Habitación / Sector</label>
+                <div class="col-12 col-md-4">
+                    <label class="form-label fw-semibold text-secondary small">Dirección / Sector / Comunidad</label>
                     <div class="input-group">
                         <span class="input-group-text bg-light text-muted border-end-0"><i class="bi bi-geo-alt"></i></span>
-                        <input type="text" name="direccion" id="direccion" class="form-control border-start-0 enter-next" data-next="#tipoSolicitud" placeholder="Comunidad / Parroquia / Dirección exacta">
+                        <input type="text" name="direccion" id="direccion" class="form-control border-start-0 enter-next" data-next="#telefono" placeholder="Comunidad / Sector / Calle">
+                    </div>
+                </div>
+
+                <div class="col-12 col-md-4">
+                    <label class="form-label fw-semibold text-secondary small">Teléfono de Contacto</label>
+                    <div class="input-group">
+                        <span class="input-group-text bg-light text-muted border-end-0"><i class="bi bi-telephone"></i></span>
+                        <input type="text" name="telefono" id="telefono" class="form-control border-start-0 enter-next" data-next="#tipoSolicitud" placeholder="Ej: 04121234567">
                     </div>
                 </div>
             </div>
@@ -161,6 +181,7 @@
             success: function(res) {
                 if (res.existe) {
                     $('#nombre').val(res.nombre_apellido);
+                    if (res.parroquia) $('#parroquia').val(res.parroquia);
                     if (res.direccion && !$('#direccion').val()) $('#direccion').val(res.direccion);
                     if (res.telefono && !$('#telefono').val()) $('#telefono').val(res.telefono);
 

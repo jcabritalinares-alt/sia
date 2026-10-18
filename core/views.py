@@ -813,6 +813,7 @@ def registrar_solicitud_ciudadano(request):
         cedula = request.POST.get('cedula', '').strip()
         nombre_apellido = request.POST.get('nombre_apellido', '').strip()
         telefono = normalizar_telefono_venezolano(request.POST.get('telefono', '').strip())
+        parroquia = request.POST.get('parroquia', '').strip() or 'Juan Ignacio Montilla'
         direccion = request.POST.get('direccion', '').strip()
         tipo_solicitud = request.POST.get('tipo_solicitud', '').strip()
         descripcion_solicitud = request.POST.get('descripcion_solicitud', '').strip()
@@ -823,19 +824,23 @@ def registrar_solicitud_ciudadano(request):
             return redirect('registrar_solicitud_ciudadano')
 
         # Actualizar o crear ficha de beneficiario/ciudadano
+        defaults_beneficiario = {
+            'nombre_apellido': nombre_apellido,
+            'telefono': telefono,
+            'direccion': direccion,
+        }
+        if parroquia:
+            defaults_beneficiario['parroquia'] = parroquia
         Beneficiario.objects.update_or_create(
             cedula=cedula,
-            defaults={
-                'nombre_apellido': nombre_apellido,
-                'telefono': telefono,
-                'direccion': direccion
-            }
+            defaults=defaults_beneficiario
         )
 
         solicitud = SolicitudCiudadano.objects.create(
             cedula=cedula,
             nombre_apellido=nombre_apellido,
             telefono=telefono,
+            parroquia=parroquia,
             direccion=direccion,
             tipo_solicitud=tipo_solicitud,
             descripcion_solicitud=descripcion_solicitud,
@@ -853,7 +858,10 @@ def registrar_solicitud_ciudadano(request):
         messages.success(request, f"Solicitud #{solicitud.id} registrada correctamente para {nombre_apellido}.")
         return redirect('lista_solicitudes_ciudadano')
 
-    return render(request, 'atencion_ciudadano/registrar_solicitud.html')
+    from beneficiarios.models import PARROQUIAS_VALERA
+    return render(request, 'atencion_ciudadano/registrar_solicitud.html', {
+        'parroquias': PARROQUIAS_VALERA
+    })
 
 @login_required
 def cambiar_estado_solicitud(request, pk):
@@ -1311,6 +1319,68 @@ def ficha_ciudadano_360(request, cedula):
         'total_solicitudes': total_solicitudes,
         'total_entregas': total_entregas
     })
+
+@login_required
+def carnet_ciudadano_view(request, cedula):
+    cedula_clean = str(cedula).strip()
+    beneficiario = Beneficiario.objects.filter(cedula=cedula_clean).first()
+    if not beneficiario:
+        num_c = re.sub(r'\D', '', cedula_clean)
+        if num_c:
+            beneficiario = Beneficiario.objects.filter(
+                Q(cedula=f"V-{num_c}") | Q(cedula=f"E-{num_c}") | Q(cedula=num_c)
+            ).first()
+
+    nombre = beneficiario.nombre_apellido if beneficiario else ''
+    telefono = beneficiario.telefono if beneficiario else ''
+    direccion = beneficiario.direccion if beneficiario else ''
+    parroquia = getattr(beneficiario, 'parroquia', '') if beneficiario else ''
+
+    if not nombre:
+        sol = SolicitudCiudadano.objects.filter(cedula__icontains=cedula_clean).first()
+        if sol:
+            nombre = sol.nombre_apellido
+            telefono = sol.telefono or telefono
+            direccion = sol.direccion or direccion
+            parroquia = getattr(sol, 'parroquia', '') or parroquia
+
+    if not nombre:
+        ent = BeneficioEntregado.objects.filter(cedula__icontains=cedula_clean).first()
+        if ent:
+            nombre = ent.nombre_beneficiario
+            telefono = ent.telefono or telefono
+            direccion = ent.direccion or direccion
+            parroquia = getattr(ent, 'parroquia', '') or parroquia
+
+    if not nombre:
+        nombre = f"Ciudadano(a) C.I. {cedula_clean}"
+
+    total_solicitudes = SolicitudCiudadano.objects.filter(cedula__icontains=cedula_clean).count()
+    total_entregas = BeneficioEntregado.objects.filter(cedula__icontains=cedula_clean).count()
+
+    # Hash de validación criptográfica y autenticidad
+    raw_hash_seed = f"SIA-CARNET-VALERA-{cedula_clean}-{nombre}-AUTENTICO"
+    import hashlib
+    hash_seguridad = hashlib.sha256(raw_hash_seed.encode('utf-8')).hexdigest().upper()
+    codigo_seguridad = f"CARNET-{hash_seguridad[:4]}-{hash_seguridad[4:8]}-{hash_seguridad[8:12]}"
+
+    # Payload para QR: estándar de lectura rápida para lector de códigos o cámara SIA
+    qr_payload = f"SIA:CEDULA:{cedula_clean}"
+
+    context = {
+        'cedula': cedula_clean,
+        'nombre_apellido': nombre,
+        'telefono': telefono,
+        'direccion': direccion,
+        'parroquia': parroquia or 'Juan Ignacio Montilla',
+        'beneficiario': beneficiario,
+        'total_solicitudes': total_solicitudes,
+        'total_entregas': total_entregas,
+        'codigo_seguridad': codigo_seguridad,
+        'qr_payload': qr_payload,
+        'fecha_emision': timezone.now().date(),
+    }
+    return render(request, 'atencion_ciudadano/carnet_digital.html', context)
 
 @login_required
 def panel_estadisticas_avanzadas(request):

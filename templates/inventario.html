@@ -103,18 +103,29 @@
                     </td>
 
                     <td class="text-center">
-                        {% if p.cantidad > 10 %}
-                            <span class="badge bg-success text-white px-3 py-2 fs-6 fw-extrabold shadow-sm" style="min-width: 80px; display: inline-block;">
-                                {{ p.cantidad }} u.
+                        {% if p.es_stock_critico %}
+                            <span class="badge bg-danger text-white px-3 py-2 fs-6 fw-extrabold shadow-sm" style="min-width: 80px; display: inline-block;" title="Stock Crítico (Mínimo: {{ p.stock_minimo }})">
+                                ⚠️ {{ p.cantidad }} u.
                             </span>
-                        {% elif p.cantidad > 5 %}
+                            <div class="small text-danger fw-bold mt-1" style="font-size: 0.75rem;">Crítico (&le; {{ p.stock_minimo }})</div>
+                        {% elif p.cantidad <= 10 %}
                             <span class="badge bg-warning text-dark px-3 py-2 fs-6 fw-extrabold shadow-sm" style="min-width: 80px; display: inline-block;">
                                 {{ p.cantidad }} u.
                             </span>
                         {% else %}
-                            <span class="badge bg-danger text-white px-3 py-2 fs-6 fw-extrabold shadow-sm" style="min-width: 80px; display: inline-block;">
-                                ⚠️ {{ p.cantidad }} u.
+                            <span class="badge bg-success text-white px-3 py-2 fs-6 fw-extrabold shadow-sm" style="min-width: 80px; display: inline-block;">
+                                {{ p.cantidad }} u.
                             </span>
+                        {% endif %}
+
+                        {% if p.fecha_vencimiento %}
+                            {% if p.dias_para_vencer <= 0 %}
+                                <div class="mt-1"><span class="badge bg-danger text-white px-2 py-0.5" style="font-size: 0.7rem;"><i class="bi bi-x-circle-fill me-1"></i>Vencido ({{ p.fecha_vencimiento|date:'d/m/Y' }})</span></div>
+                            {% elif p.dias_para_vencer <= 30 %}
+                                <div class="mt-1"><span class="badge bg-warning text-dark border border-warning px-2 py-0.5" style="font-size: 0.7rem;"><i class="bi bi-clock-fill me-1"></i>Vence en {{ p.dias_para_vencer }}d</span></div>
+                            {% else %}
+                                <div class="mt-1 small text-muted" style="font-size: 0.7rem;"><i class="bi bi-calendar-event me-1"></i>Vence: {{ p.fecha_vencimiento|date:'d/m/Y' }}</div>
+                            {% endif %}
                         {% endif %}
                     </td>
 
@@ -207,6 +218,17 @@
                                 <span class="small text-muted d-block">Stock Resultante</span>
                                 <span id="txtStockResultante" class="fw-extrabold text-primary fs-5">0 u.</span>
                             </div>
+                        </div>
+                    </div>
+
+                    <div class="row g-2 mb-2">
+                        <div class="col-6">
+                            <label class="form-label small fw-semibold text-secondary">Stock Mínimo Alerta:</label>
+                            <input type="number" name="stock_minimo" class="form-control form-control-sm" placeholder="Ej: 5">
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label small fw-semibold text-secondary">Vencimiento del Lote:</label>
+                            <input type="date" name="fecha_vencimiento" class="form-control form-control-sm">
                         </div>
                     </div>
                 </div>

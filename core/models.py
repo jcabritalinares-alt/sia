@@ -56,10 +56,21 @@ class SolicitudCiudadano(models.Model):
         ('Rechazada', 'Rechazada'),
     ]
 
+    PARROQUIAS_VALERA = [
+        ('Juan Ignacio Montilla', 'Juan Ignacio Montilla'),
+        ('La Beatriz', 'La Beatriz'),
+        ('Mercedes Díaz', 'Mercedes Díaz'),
+        ('San Luis', 'San Luis'),
+        ('Mendoza Fría', 'Mendoza Fría'),
+        ('La Puerta', 'La Puerta'),
+        ('Otra / Foránea', 'Otra / Foránea'),
+    ]
+
     cedula = models.CharField(max_length=20, db_index=True)
     nombre_apellido = models.CharField(max_length=255)
     telefono = models.CharField(max_length=50, blank=True, null=True)
     direccion = models.TextField(blank=True, null=True)
+    parroquia = models.CharField(max_length=100, choices=PARROQUIAS_VALERA, default='Juan Ignacio Montilla', blank=True, null=True, db_index=True, verbose_name="Parroquia")
     tipo_solicitud = models.CharField(max_length=100, choices=TIPO_CHOICES, default='Enseres / Ayuda Social', db_index=True)
     descripcion_solicitud = models.TextField()
     prioridad = models.CharField(max_length=20, choices=PRIORIDAD_CHOICES, default='Media', db_index=True)

@@ -1267,6 +1267,13 @@
                     <span class="sidebar-text flex-grow-1">Registrar Entrega</span>
                     <span class="sidebar-badge badge rounded-pill" style="background: var(--mod-atencion-bg); color: var(--mod-atencion);">Directa</span>
                 </a>
+                <a href="{% url 'jornada_operativo' %}" class="sidebar-item-link" data-bs-toggle="tooltip" data-bs-placement="right" title="Modo Jornada / Operativo en Lote" data-modulo="atencion">
+                    <div class="sidebar-icon-box" style="background: rgba(245, 158, 11, 0.15); color: #d97706;">
+                        <i class="bi bi-lightning-charge-fill"></i>
+                    </div>
+                    <span class="sidebar-text flex-grow-1">Modo Jornada</span>
+                    <span class="sidebar-badge badge rounded-pill bg-warning-subtle text-warning-emphasis border border-warning-subtle">Operativo</span>
+                </a>
                 <a href="{% url 'historial' %}" class="sidebar-item-link" data-bs-toggle="tooltip" data-bs-placement="right" title="Historial de Entregas y Actas" data-modulo="atencion">
                     <div class="sidebar-icon-box" style="background: var(--mod-atencion-bg); color: var(--mod-atencion);">
                         <i class="bi bi-clock-history"></i>
@@ -1682,6 +1689,13 @@
                             <div>
                                 <div class="fw-bold small text-dark">Registrar Entrega</div>
                                 <div class="text-muted" style="font-size: 0.72rem;">Despacho directo con acta</div>
+                            </div>
+                        </a>
+                        <a href="{% url 'jornada_operativo' %}" class="mobile-card-sublink" data-modulo="atencion">
+                            <i class="bi bi-lightning-charge-fill fs-5 text-warning"></i>
+                            <div>
+                                <div class="fw-bold small text-dark">Modo Jornada / Operativo</div>
+                                <div class="text-muted" style="font-size: 0.72rem;">Despacho rápido continuo</div>
                             </div>
                         </a>
                         <a href="{% url 'historial' %}" class="mobile-card-sublink" data-modulo="atencion">
@@ -2344,16 +2358,36 @@
                         res.alertas_stock.forEach(p => {
                             html += `
                             <li>
-                                <div class="dropdown-item dropdown-item-custom py-2 border-bottom d-flex justify-content-between align-items-center" style="cursor: default; white-space: normal;">
+                                <a href="{% url 'inventario' %}" class="dropdown-item dropdown-item-custom py-2 border-bottom d-flex justify-content-between align-items-center" style="white-space: normal; text-decoration: none;">
                                     <div class="d-flex align-items-center gap-2">
                                         <i class="bi bi-exclamation-triangle-fill text-danger fs-6"></i>
                                         <div>
                                             <div class="fw-bold text-dark small mb-0">${p.descripcion}</div>
-                                            <div class="text-danger small">Stock crítico: <strong>${p.cantidad} u.</strong></div>
+                                            <div class="text-danger small">Stock crítico: <strong>${p.cantidad} u.</strong> (Mín: ${p.stock_minimo || 5})</div>
                                         </div>
                                     </div>
-                                    <span class="badge bg-warning-subtle text-warning-emphasis border border-warning rounded-pill px-2 py-1 small ms-2">Bajo Stock</span>
-                                </div>
+                                    <span class="badge bg-danger text-white rounded-pill px-2 py-1 small ms-2">Bajo Stock</span>
+                                </a>
+                            </li>`;
+                        });
+                    }
+
+                    if (res.alertas_vencimiento && res.alertas_vencimiento.length > 0) {
+                        res.alertas_vencimiento.forEach(v => {
+                            const badgeClass = v.esta_vencido ? 'bg-danger text-white' : 'bg-warning-subtle text-warning-emphasis border border-warning';
+                            const badgeTxt = v.esta_vencido ? 'Vencido' : `Vence en ${v.dias_para_vencer}d`;
+                            html += `
+                            <li>
+                                <a href="{% url 'inventario' %}" class="dropdown-item dropdown-item-custom py-2 border-bottom d-flex justify-content-between align-items-center" style="white-space: normal; text-decoration: none;">
+                                    <div class="d-flex align-items-center gap-2">
+                                        <i class="bi bi-calendar-x-fill ${v.esta_vencido ? 'text-danger' : 'text-warning'} fs-6"></i>
+                                        <div>
+                                            <div class="fw-bold text-dark small mb-0">${v.descripcion}</div>
+                                            <div class="text-muted small">Fecha: <strong>${v.fecha_vencimiento}</strong> (${v.cantidad} u.)</div>
+                                        </div>
+                                    </div>
+                                    <span class="badge ${badgeClass} rounded-pill px-2 py-1 small ms-2">${badgeTxt}</span>
+                                </a>
                             </li>`;
                         });
                     }
@@ -2361,7 +2395,7 @@
                     if (res.pendientes_count > 0) {
                         html += `
                         <li>
-                            <div class="dropdown-item dropdown-item-custom py-2 d-flex justify-content-between align-items-center" style="cursor: default; white-space: normal;">
+                            <a href="{% url 'historial' %}?status=Pendiente" class="dropdown-item dropdown-item-custom py-2 d-flex justify-content-between align-items-center" style="white-space: normal; text-decoration: none;">
                                 <div class="d-flex align-items-center gap-2">
                                     <i class="bi bi-clock-history text-warning fs-6"></i>
                                     <div>
@@ -2370,7 +2404,7 @@
                                     </div>
                                 </div>
                                 <span class="badge bg-secondary text-white rounded-pill px-2 py-1 small ms-2">Pendiente</span>
-                            </div>
+                            </a>
                         </li>`;
                     }
                     list.html(html);

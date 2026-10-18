@@ -258,6 +258,7 @@ def registrar_entrega(request):
         status = request.POST.get('status', '').strip()
         fecha_input = request.POST.get('fecha', '').strip()
         solicitud_id_input = request.POST.get('solicitud_id', '').strip()
+        parroquia = request.POST.get('parroquia', '').strip() or 'Juan Ignacio Montilla'
 
         # 0. Validación de Campos Obligatorios
         if not cedula or not nombre_beneficiario or not direccion or not telefono or not codigo_prod or not via or not fecha_input:
@@ -333,13 +334,16 @@ def registrar_entrega(request):
                 producto.cantidad = stock_actual - cantidad_dada
                 producto.save(update_fields=['cantidad'])
 
+            defaults_beneficiario = {
+                'nombre_apellido': nombre_beneficiario,
+                'direccion': direccion,
+                'telefono': telefono
+            }
+            if parroquia:
+                defaults_beneficiario['parroquia'] = parroquia
             Beneficiario.objects.update_or_create(
                 cedula=cedula,
-                defaults={
-                    'nombre_apellido': nombre_beneficiario,
-                    'direccion': direccion,
-                    'telefono': telefono
-                }
+                defaults=defaults_beneficiario
             )
 
             fecha_entrega = None
@@ -354,6 +358,7 @@ def registrar_entrega(request):
                 codigo_prod=producto.codigo,
                 descripcion_prod=descripcion_prod,
                 cantidad_dada=cantidad_dada,
+                parroquia=parroquia,
                 via=via,
                 fecha=fecha_a_guardar,
                 fecha_entrega=fecha_entrega,
@@ -387,13 +392,15 @@ def registrar_entrega(request):
         cedula_param = request.GET.get('cedula', '').strip()
         telegram_entrega_id = request.session.pop('ultimo_telegram_entrega_id', None)
 
+        from beneficiarios.models import PARROQUIAS_VALERA
         return render(request, 'asignar_beneficio.html', {
             'inventario': lista_inventario, 
             'hoy': date.today().strftime("%Y-%m-%d"),
             'solicitud_id': solicitud_id,
             'tipo_solicitud': tipo_solicitud,
             'cedula_param': cedula_param,
-            'telegram_entrega_id': telegram_entrega_id
+            'telegram_entrega_id': telegram_entrega_id,
+            'parroquias': PARROQUIAS_VALERA,
         })
 
 @login_required
@@ -644,6 +651,7 @@ def historial_entregas(request):
             'cantidad_dada': e.cantidad_dada,
             'via': e.via or 'Atención Directa',
             'status': e.status,
+            'parroquia': getattr(e, 'parroquia', '') or '',
             'url_evidencia_1': e.url_evidencia_1,
             'url_evidencia_2': e.url_evidencia_2,
             'url_evidencia_3': getattr(e, 'url_evidencia_3', None),
@@ -660,7 +668,7 @@ def historial_entregas(request):
   
     page_obj.object_list = lista_entregas_pagina
 
-    # Enriquecer los items de la página con teléfono y dirección desde Beneficiario (y SolicitudCiudadano de respaldo)
+    # Enriquecer los items de la página con teléfono, dirección y parroquia desde Beneficiario (y SolicitudCiudadano de respaldo)
     cedulas_raw = [str(item['cedula']).strip() for item in page_obj.object_list if item.get('cedula')]
     cedulas_limpias = [re.sub(r'\D', '', c) for c in cedulas_raw if c]
     todas_cedulas = set(cedulas_raw + [c for c in cedulas_limpias if c])
@@ -694,8 +702,15 @@ def historial_entregas(request):
         if not direc and sol and sol.direccion:
             direc = sol.direccion.strip()
 
+        parroq = item.get('parroquia') or ''
+        if not parroq and ben and getattr(ben, 'parroquia', None):
+            parroq = ben.parroquia
+        if not parroq and sol and getattr(sol, 'parroquia', None):
+            parroq = sol.parroquia
+
         item['telefono'] = tel
         item['direccion'] = direc
+        item['parroquia'] = parroq
 
     telegram_entrega_id = request.session.pop('ultimo_telegram_entrega_id', None)
 
@@ -1222,6 +1237,7 @@ def buscar_beneficiario(request):
             'nombre_apellido': beneficiario.nombre_apellido,
             'direccion': beneficiario.direccion or '',
             'telefono': beneficiario.telefono or '',
+            'parroquia': getattr(beneficiario, 'parroquia', '') or '',
             'historial_previo': historial_previo
         })
 
@@ -1252,6 +1268,7 @@ def buscar_beneficiario(request):
             'nombre_apellido': beneficiario.nombre_apellido,
             'direccion': beneficiario.direccion or '',
             'telefono': beneficiario.telefono or '',
+            'parroquia': getattr(beneficiario, 'parroquia', '') or '',
             'historial_previo': historial_previo
         })
 
@@ -1488,3 +1505,132 @@ def imprimir_asignacion_especial(request, pk):
         'asignacion': asignacion,
         'firma_hash': firma_hash
     })
+
+@login_required
+def jornada_operativo_view(request):
+    """
+    Modo Jornada / Operativo en Lote para entregas masivas y continuas en campo.
+    Permite fijar producto, cantidad y parroquia, y registrar beneficiarios a máxima velocidad
+    con soporte para escaneo de Carnet QR o cédula.
+    """
+    if not request.user.is_superuser:
+        perfil = getattr(request.user, 'perfil', None)
+        if perfil and not perfil.permiso_entregas:
+            messages.error(request, "Acceso restringido: No tienes permiso para acceder al módulo de Entregas.")
+            return redirect(obtener_url_inicio_usuario(request.user))
+
+    from beneficiarios.models import PARROQUIAS_VALERA
+    from core.utils import generar_link_whatsapp_comprobante
+    hoy = timezone.now().date()
+
+    if request.method == 'POST':
+        cedula = request.POST.get('cedula', '').strip().upper()
+        if cedula.startswith('SIA:CEDULA:'):
+            cedula = cedula.replace('SIA:CEDULA:', '').strip()
+        nombre_beneficiario = request.POST.get('nombre_beneficiario', '').strip()
+        direccion = request.POST.get('direccion', '').strip()
+        telefono = normalizar_telefono_venezolano(request.POST.get('telefono', '').strip())
+        producto_id = request.POST.get('producto_id', '').strip()
+        parroquia = request.POST.get('parroquia', '').strip() or 'Juan Ignacio Montilla'
+        via = request.POST.get('via', '').strip() or 'Jornada / Operativo Social'
+        firma_data = request.POST.get('firma_data', '').strip()
+
+        try:
+            cantidad_dada = int(request.POST.get('cantidad_dada', 1))
+            if cantidad_dada < 1:
+                cantidad_dada = 1
+        except (ValueError, TypeError):
+            cantidad_dada = 1
+
+        if not cedula or not nombre_beneficiario or not producto_id:
+            return JsonResponse({'success': False, 'error': 'Cédula, Nombre del Beneficiario y Producto son obligatorios.'}, status=400)
+
+        # Control de Duplicidad en la misma jornada / día
+        es_admin = request.user.is_superuser
+        entrega_hoy = BeneficioEntregado.objects.filter(cedula=cedula, fecha=hoy).first()
+        if entrega_hoy and not es_admin:
+            return JsonResponse({
+                'success': False,
+                'error': f'El ciudadano con C.I. {cedula} ya recibió {entrega_hoy.descripcion_prod} el día de hoy (#{entrega_hoy.id}).'
+            }, status=400)
+
+        with transaction.atomic():
+            producto = SIA_producto.objects.select_for_update().filter(id=producto_id).first()
+            if not producto:
+                return JsonResponse({'success': False, 'error': 'El producto seleccionado no existe en el inventario.'}, status=404)
+
+            if producto.cantidad < cantidad_dada:
+                return JsonResponse({
+                    'success': False,
+                    'error': f'Stock insuficiente para {producto.descripcion}. Solo quedan {producto.cantidad} unidades disponibles.'
+                }, status=400)
+
+            # Descontar stock
+            producto.cantidad -= cantidad_dada
+            producto.save(update_fields=['cantidad'])
+
+            # Guardar o actualizar datos del beneficiario
+            Beneficiario.objects.update_or_create(
+                cedula=cedula,
+                defaults={
+                    'nombre_apellido': nombre_beneficiario,
+                    'direccion': direccion or f"Parroquia {parroquia}",
+                    'telefono': telefono,
+                    'parroquia': parroquia
+                }
+            )
+
+            # Crear registro de entrega inmediata
+            entrega = BeneficioEntregado.objects.create(
+                producto=producto,
+                cedula=cedula,
+                nombre_beneficiario=nombre_beneficiario,
+                codigo_prod=producto.codigo,
+                descripcion_prod=producto.descripcion,
+                cantidad_dada=cantidad_dada,
+                via=via,
+                parroquia=parroquia,
+                fecha=hoy,
+                fecha_entrega=hoy,
+                status='Entregado',
+                firma_beneficiario=firma_data if firma_data else None
+            )
+
+            RegistroAuditoria.objects.create(
+                usuario=request.user,
+                accion=f"Entrega en Jornada/Operativo #{entrega.id}: {cantidad_dada}x {producto.descripcion} a {nombre_beneficiario} (C.I.: {cedula}) en {parroquia}.",
+                modulo="Entregas",
+                timestamp=timezone.now()
+            )
+
+        # Generar link de WhatsApp para el comprobante
+        whatsapp_url = generar_link_whatsapp_comprobante(entrega)
+
+        return JsonResponse({
+            'success': True,
+            'mensaje': f'¡Entrega #{entrega.id} registrada con éxito!',
+            'entrega_id': entrega.id,
+            'nombre_beneficiario': nombre_beneficiario,
+            'cedula': cedula,
+            'producto': producto.descripcion,
+            'cantidad': cantidad_dada,
+            'stock_restante': producto.cantidad,
+            'whatsapp_url': whatsapp_url,
+            'hora': timezone.now().strftime('%H:%M:%S')
+        })
+
+    # GET: Pantalla de Operativo
+    productos = SIA_producto.objects.filter(cantidad__gt=0).order_by('descripcion')
+    entregas_hoy = BeneficioEntregado.objects.filter(fecha=hoy, status='Entregado').order_by('-id')[:25]
+    total_hoy = BeneficioEntregado.objects.filter(fecha=hoy, status='Entregado').count()
+    total_unidades_hoy = BeneficioEntregado.objects.filter(fecha=hoy, status='Entregado').aggregate(tot=Sum('cantidad_dada'))['tot'] or 0
+
+    return render(request, 'entregas/jornada.html', {
+        'productos': productos,
+        'parroquias': PARROQUIAS_VALERA,
+        'entregas_hoy': entregas_hoy,
+        'total_hoy': total_hoy,
+        'total_unidades_hoy': total_unidades_hoy,
+        'hoy': hoy.strftime('%Y-%m-%d'),
+    })
+

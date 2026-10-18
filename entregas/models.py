@@ -24,6 +24,7 @@ class BeneficioEntregado(models.Model):
     url_evidencia_3 = models.URLField(max_length=500, blank=True, null=True)
     
     via = models.CharField(max_length=100, blank=True, null=True)
+    parroquia = models.CharField(max_length=100, blank=True, null=True, db_index=True, verbose_name="Parroquia")
     firma_beneficiario = models.TextField(blank=True, null=True)
     huella_dactilar = models.TextField(blank=True, null=True)
 

@@ -14,6 +14,8 @@ class SIA_producto(models.Model):
     unidades_por_empaque = models.IntegerField(default=1, verbose_name='Unidades por Empaque')
     almacen = models.CharField(max_length=255, blank=True, null=True, db_index=True, verbose_name='Almacen')
     cantidad = models.IntegerField(default=0, verbose_name='Cantidad')
+    stock_minimo = models.IntegerField(default=5, verbose_name='Stock Mínimo de Alerta')
+    fecha_vencimiento = models.DateField(blank=True, null=True, verbose_name='Fecha de Vencimiento')
     timestamp = models.DateTimeField(auto_now_add=True, verbose_name='Fecha de Registro')
 
     class Meta:
@@ -80,6 +82,17 @@ class SIA_producto(models.Model):
         else:
             nom = singular if stock == 1 else plural
             return f"{stock} {nom}"
+
+    @property
+    def es_stock_critico(self):
+        return (self.cantidad or 0) <= (self.stock_minimo or 0)
+
+    @property
+    def dias_para_vencer(self):
+        if not self.fecha_vencimiento:
+            return None
+        from django.utils import timezone
+        return (self.fecha_vencimiento - timezone.now().date()).days
 
     @cant_pres_texto.setter
     def cant_pres_texto(self, value):

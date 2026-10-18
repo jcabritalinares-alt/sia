@@ -11,3 +11,4 @@ backups/
 *.msi
 *.exe
 .active_tunnel
+scratch/

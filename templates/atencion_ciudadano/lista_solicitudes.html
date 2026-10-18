@@ -178,8 +178,11 @@
                         <td class="small text-muted fw-semibold">{{ s.fecha_solicitud|date:"d/m/Y H:i" }}</td>
                         <td>
                             <div class="fw-bold text-dark">{{ s.nombre_apellido }}</div>
-                            <div class="small text-muted font-monospace">
-                                C.I. {{ s.cedula }}
+                            <div class="small text-muted font-monospace d-flex align-items-center flex-wrap gap-1">
+                                <span>C.I. {{ s.cedula }}</span>
+                                {% if s.parroquia %}
+                                    <span class="badge bg-light text-secondary border ms-1" title="Parroquia del Ciudadano"><i class="bi bi-geo-alt-fill text-danger me-1"></i>{{ s.parroquia }}</span>
+                                {% endif %}
                                 {% if s.telefono %}<span class="ms-1 text-secondary">• <i class="bi bi-telephone"></i> {{ s.telefono }}</span>{% endif %}
                             </div>
                         </td>
@@ -239,6 +242,11 @@
                                 <!-- Ficha 360° del Ciudadano -->
                                 <a href="{% url 'ficha_ciudadano_360' s.cedula %}" class="btn btn-sm btn-outline-info text-dark rounded-3 p-1" style="width: 32px; height: 32px;" title="Ver Ficha 360° Expediente Unificado">
                                     <i class="bi bi-person-vcard-fill text-info"></i>
+                                </a>
+
+                                <!-- Carnet Digital QR del Ciudadano -->
+                                <a href="{% url 'carnet_ciudadano' s.cedula %}" target="_blank" class="btn btn-sm btn-outline-dark rounded-3 p-1" style="width: 32px; height: 32px;" title="Ver e Imprimir Carnet Digital QR">
+                                    <i class="bi bi-qr-code"></i>
                                 </a>
 
                                 {% if s.telefono %}
@@ -699,13 +707,18 @@
     }
 
     function enviarWhatsAppSolicitud(telefono, nombre, id, status) {
+        if (!telefono) {
+            alert("Este registro no posee número de teléfono registrado.");
+            return;
+        }
         let numClean = telefono.replace(/[^0-9]/g, '');
         if (!numClean.startsWith('58')) {
             if (numClean.startsWith('0')) numClean = '58' + numClean.substring(1);
             else numClean = '58' + numClean;
         }
-        let texto = encodeURIComponent(`Estimado(a) ${nombre}, te saludamos de la Dirección de Atención Social (Alcaldía). Te informamos que tu solicitud #${id} se encuentra en estado: *${status.toUpperCase()}*.`);
-        window.open(`https://api.whatsapp.com/send?phone=${numClean}&text=${texto}`, '_blank');
+        let msg = `🏛️ *ALCALDÍA DE VALERA - ATENCIÓN AL CIUDADANO*\n*Actualización de Solicitud #${id}*\n\nEstimado(a) *${nombre}*:\nLe informamos sobre el estatus de su requerimiento social:\n\n🔄 *Estatus Actual:* *${status.toUpperCase()}*\n\n_Alcaldía de Valera al servicio de nuestro pueblo._`;
+        let url = `https://wa.me/${numClean}?text=${encodeURIComponent(msg)}`;
+        window.open(url, '_blank');
     }
 
     // --- LÓGICA DE ENTREGA DESDE INVENTARIO (ATENCIÓN AL CIUDADANO) ---

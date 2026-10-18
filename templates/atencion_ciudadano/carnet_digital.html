@@ -1,0 +1,397 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block style %}
+<style>
+    /* Estilos del Carnet Digital */
+    .carnet-wrapper {
+        perspective: 1000px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 1.5rem;
+    }
+
+    .carnet-card {
+        width: 100%;
+        max-width: 460px;
+        height: 280px;
+        background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #312e81 100%);
+        border-radius: 20px;
+        box-shadow: 0 20px 40px rgba(15, 23, 42, 0.35);
+        color: #ffffff;
+        position: relative;
+        overflow: hidden;
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        padding: 1.25rem 1.5rem;
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
+
+    .carnet-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 25px 50px rgba(15, 23, 42, 0.45);
+    }
+
+    .carnet-card::before {
+        content: "";
+        position: absolute;
+        top: -50%;
+        right: -50%;
+        width: 100%;
+        height: 100%;
+        background: radial-gradient(circle, rgba(99, 102, 241, 0.25) 0%, transparent 70%);
+        pointer-events: none;
+    }
+
+    .carnet-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+        padding-bottom: 0.6rem;
+    }
+
+    .carnet-title-inst {
+        font-size: 0.68rem;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: #94a3b8;
+        line-height: 1.2;
+    }
+
+    .carnet-title-sub {
+        font-size: 0.78rem;
+        font-weight: 900;
+        color: #f8fafc;
+        letter-spacing: 0.05em;
+    }
+
+    .carnet-body {
+        display: flex;
+        gap: 1rem;
+        align-items: center;
+        margin: 0.5rem 0;
+    }
+
+    .carnet-avatar {
+        width: 72px;
+        height: 72px;
+        background: linear-gradient(135deg, #4f46e5 0%, #06b6d4 100%);
+        border-radius: 14px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 2.2rem;
+        color: #ffffff;
+        box-shadow: 0 8px 16px rgba(0, 0, 0, 0.25);
+        border: 2px solid rgba(255, 255, 255, 0.3);
+        flex-shrink: 0;
+    }
+
+    .carnet-info {
+        flex-grow: 1;
+        overflow: hidden;
+    }
+
+    .carnet-nombre {
+        font-size: 1.05rem;
+        font-weight: 800;
+        color: #ffffff;
+        line-height: 1.2;
+        margin-bottom: 0.25rem;
+        text-transform: uppercase;
+        letter-spacing: 0.02em;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .carnet-cedula {
+        font-size: 1rem;
+        font-weight: 800;
+        color: #38bdf8;
+        font-family: monospace;
+        letter-spacing: 0.08em;
+        margin-bottom: 0.25rem;
+    }
+
+    .carnet-detalles {
+        font-size: 0.72rem;
+        color: #cbd5e1;
+        line-height: 1.3;
+    }
+
+    .carnet-qr-container {
+        width: 82px;
+        height: 82px;
+        background: #ffffff;
+        padding: 5px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    }
+
+    .carnet-qr-container img, .carnet-qr-container canvas {
+        width: 100% !important;
+        height: 100% !important;
+    }
+
+    .carnet-footer {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-top: 1px solid rgba(255, 255, 255, 0.12);
+        padding-top: 0.5rem;
+        font-size: 0.65rem;
+        color: #94a3b8;
+    }
+
+    .carnet-holograma {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.3rem;
+        background: rgba(255, 255, 255, 0.1);
+        padding: 0.2rem 0.5rem;
+        border-radius: 20px;
+        font-family: monospace;
+        color: #a5f3fc;
+        font-size: 0.62rem;
+        border: 1px solid rgba(255, 255, 255, 0.15);
+    }
+
+    /* REVERSO DEL CARNET */
+    .carnet-back {
+        background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+    }
+
+    .carnet-back-rules {
+        font-size: 0.68rem;
+        color: #cbd5e1;
+        line-height: 1.4;
+    }
+
+    /* FORMATO DE IMPRESIÓN (Tarjeta estándar ID-1 / CR80 o documento 1/2 carta) */
+    @media print {
+        body {
+            background: #ffffff !important;
+            color: #000000 !important;
+            padding: 0 !important;
+        }
+        .navbar, .sidebar, .btn, .no-print, header, footer {
+            display: none !important;
+        }
+        .container-fluid {
+            padding: 0 !important;
+            margin: 0 !important;
+        }
+        .carnet-wrapper {
+            margin: 20px auto;
+            flex-direction: row;
+            justify-content: center;
+            gap: 20px;
+        }
+        .carnet-card {
+            width: 85.6mm !important;
+            height: 54mm !important;
+            max-width: none !important;
+            border-radius: 10px !important;
+            box-shadow: none !important;
+            border: 1px solid #333 !important;
+            page-break-inside: avoid;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block contenido %}
+<div class="container-fluid px-0">
+
+    <!-- Encabezado con Botones de Acción -->
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-4 gap-3 no-print">
+        <div>
+            <h2 class="fw-extrabold text-dark mb-1 d-flex align-items-center gap-2">
+                <i class="bi bi-person-badge-fill text-primary"></i> Carnet Digital de Identificación Social
+            </h2>
+            <p class="text-muted small mb-0">Credencial oficial institucional con Código QR para validación y escaneo rápido en operativos</p>
+        </div>
+        <div class="d-flex flex-wrap gap-2">
+            <button onclick="window.print()" class="btn btn-primary-custom d-inline-flex align-items-center gap-2 fw-bold shadow-sm">
+                <i class="bi bi-printer-fill fs-5"></i> Imprimir Carnet (Credencial PVC)
+            </button>
+            {% if telefono %}
+            <button onclick="compartirCarnetWhatsApp()" class="btn btn-success d-inline-flex align-items-center gap-2 fw-bold shadow-sm">
+                <i class="bi bi-whatsapp fs-5"></i> Enviar al Ciudadano por WhatsApp
+            </button>
+            {% endif %}
+            <a href="{% url 'ficha_ciudadano_360' cedula %}" class="btn btn-outline-secondary d-inline-flex align-items-center gap-2 fw-semibold">
+                <i class="bi bi-arrow-left"></i> Volver al Expediente 360°
+            </a>
+        </div>
+    </div>
+
+    <!-- Contenedor del Carnet (Anverso y Reverso) -->
+    <div class="row g-4 justify-content-center">
+        <!-- ANVERSO -->
+        <div class="col-12 col-md-6 col-lg-5">
+            <div class="carnet-wrapper">
+                <div class="text-center no-print">
+                    <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-3 py-1 rounded-pill fw-bold">
+                        <i class="bi bi-front me-1"></i> Frente / Anverso Oficial
+                    </span>
+                </div>
+
+                <div class="carnet-card" id="carnetAnverso">
+                    <div class="carnet-header">
+                        <div>
+                            <div class="carnet-title-inst">República Bolivariana de Venezuela • Edo. Trujillo</div>
+                            <div class="carnet-title-sub">ALCALDÍA DEL MUNICIPIO VALERA</div>
+                        </div>
+                        <div class="text-end">
+                            <span class="badge bg-warning text-dark px-2 py-0.5 fw-bold" style="font-size: 0.65rem;">SIA WEB</span>
+                        </div>
+                    </div>
+
+                    <div class="carnet-body">
+                        <div class="carnet-avatar">
+                            <i class="bi bi-person-fill"></i>
+                        </div>
+                        <div class="carnet-info">
+                            <div class="carnet-nombre">{{ nombre_apellido }}</div>
+                            <div class="carnet-cedula">C.I. {{ cedula }}</div>
+                            <div class="carnet-detalles">
+                                <div><i class="bi bi-geo-alt-fill text-danger me-1"></i><strong>Parroquia:</strong> {{ parroquia }}</div>
+                                {% if telefono %}
+                                <div><i class="bi bi-telephone-fill text-success me-1"></i><strong>Telf:</strong> {{ telefono }}</div>
+                                {% endif %}
+                                <div class="text-truncate" style="max-width: 220px;"><i class="bi bi-house-door-fill text-info me-1"></i>{{ direccion|default:"Valera, Trujillo" }}</div>
+                            </div>
+                        </div>
+                        <div class="carnet-qr-container" id="qrContainerAnverso" title="Escanea para consultar o cargar en SIA">
+                            <!-- Canvas o imagen generado por JS -->
+                        </div>
+                    </div>
+
+                    <div class="carnet-footer">
+                        <div class="carnet-holograma">
+                            <i class="bi bi-shield-check text-success"></i> {{ codigo_seguridad }}
+                        </div>
+                        <div class="text-end font-monospace" style="font-size: 0.62rem;">
+                            EXP: SIA-{{ cedula }}-{{ fecha_emision|date:"Y" }}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- REVERSO -->
+        <div class="col-12 col-md-6 col-lg-5">
+            <div class="carnet-wrapper">
+                <div class="text-center no-print">
+                    <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle px-3 py-1 rounded-pill fw-bold">
+                        <i class="bi bi-back me-1"></i> Reverso / Certificación
+                    </span>
+                </div>
+
+                <div class="carnet-card carnet-back" id="carnetReverso">
+                    <div class="carnet-header">
+                        <div>
+                            <div class="carnet-title-inst">DIRECCIÓN DE DESARROLLO SOCIAL Y PARTICIPACIÓN</div>
+                            <div class="carnet-title-sub">REGISTRO ÚNICO DE BENEFICIARIOS (RUB)</div>
+                        </div>
+                        <i class="bi bi-qr-code text-white-50 fs-5"></i>
+                    </div>
+
+                    <div class="carnet-back-rules my-2">
+                        <p class="mb-1"><strong>1. Uso Intransferible:</strong> Este carnet digital certifica la inclusión en el Sistema Integrado de Almacén (SIA) de la Alcaldía de Valera.</p>
+                        <p class="mb-1"><strong>2. Escaneo Rápido:</strong> El código QR permite la verificación instantánea en operativos parroquiales, jornadas de salud y entrega de beneficios.</p>
+                        <p class="mb-0"><strong>3. Trazabilidad:</strong> Total asistencias registradas: <strong>{{ total_entregas }} entrega(s)</strong> | <strong>{{ total_solicitudes }} trámite(s)</strong>.</p>
+                    </div>
+
+                    <div class="carnet-footer">
+                        <div>
+                            <div class="fw-bold text-white">Gobierno Municipal de Valera</div>
+                            <div style="font-size: 0.58rem;">Al servicio del pueblo • Valera Renace</div>
+                        </div>
+                        <div class="text-end font-monospace text-warning fw-bold" style="font-size: 0.65rem;">
+                            EMISIÓN: {{ fecha_emision|date:"d/m/Y" }}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Instrucciones de Uso y Escáner -->
+    <div class="card border border-light rounded-4 shadow-sm p-4 mt-4 no-print">
+        <h5 class="fw-bold text-dark mb-2 d-flex align-items-center gap-2">
+            <i class="bi bi-lightbulb-fill text-warning"></i> ¿Cómo funciona el Carnet QR en los Operativos?
+        </h5>
+        <div class="row g-3 mt-1">
+            <div class="col-12 col-md-4">
+                <div class="p-3 bg-light rounded-3 border h-100">
+                    <div class="fw-bold text-dark mb-1"><i class="bi bi-1-circle-fill text-primary me-1"></i> Identificación Inmediata</div>
+                    <div class="small text-muted">El ciudadano puede presentar este carnet impreso o desde la pantalla de su teléfono móvil.</div>
+                </div>
+            </div>
+            <div class="col-12 col-md-4">
+                <div class="p-3 bg-light rounded-3 border h-100">
+                    <div class="fw-bold text-dark mb-1"><i class="bi bi-2-circle-fill text-primary me-1"></i> Escaneo 1-Segundo</div>
+                    <div class="small text-muted">Al apuntar cualquier lector de código de barras o la cámara en "Entregas", el sistema autocompleta la cédula automáticamente.</div>
+                </div>
+            </div>
+            <div class="col-12 col-md-4">
+                <div class="p-3 bg-light rounded-3 border h-100">
+                    <div class="fw-bold text-dark mb-1"><i class="bi bi-3-circle-fill text-primary me-1"></i> Control de Duplicados</div>
+                    <div class="small text-muted">Garantiza total transparencia evitando entregas duplicadas en la misma jornada u operativo social.</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<!-- Librería QRCode.js para generación de alta definición -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        const qrContainer = document.getElementById("qrContainerAnverso");
+        if (qrContainer) {
+            new QRCode(qrContainer, {
+                text: "{{ qr_payload }}",
+                width: 72,
+                height: 72,
+                colorDark : "#0f172a",
+                colorLight : "#ffffff",
+                correctLevel : QRCode.CorrectLevel.M
+            });
+        }
+    });
+
+    function compartirCarnetWhatsApp() {
+        const tel = "{{ telefono }}";
+        if (!tel) {
+            alert("No hay teléfono registrado para este ciudadano.");
+            return;
+        }
+        let numClean = tel.replace(/[^0-9]/g, '');
+        if (!numClean.startsWith('58')) {
+            if (numClean.startsWith('0')) numClean = '58' + numClean.substring(1);
+            else numClean = '58' + numClean;
+        }
+        const urlCarnet = window.location.href;
+        const msg = `🏛️ *ALCALDÍA DE VALERA - CARNET SOCIAL DIGITAL*\n\nEstimado(a) *{{ nombre_apellido }}* (C.I. {{ cedula }}):\nAdjuntamos su Carnet Oficial de Identificación Social emitido por la Alcaldía del Municipio Valera.\n\n📌 Puede presentarlo desde su teléfono o impreso en cualquier operativo parroquial o entrega de beneficios.\n\n📲 *Acceda a su Carnet Digital:* ${urlCarnet}\n\n_Gobierno Municipal de Valera trabajando por su bienestar._`;
+        window.open(`https://wa.me/${numClean}?text=${encodeURIComponent(msg)}`, '_blank');
+    }
+</script>
+{% endblock %}

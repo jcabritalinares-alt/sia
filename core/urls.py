@@ -36,6 +36,7 @@ urlpatterns = [
     path('dashboard/', inv_views.dashboard, name='dashboard'),
     path('api/estadisticas-entregas-dashboard/', inv_views.api_estadisticas_entregas_dashboard, name='api_estadisticas_entregas_dashboard'),
     path('entregar/', entregas_views.registrar_entrega, name='asignar_beneficio'),
+    path('entregas/jornada/', entregas_views.jornada_operativo_view, name='jornada_operativo'),
     path('historial/', entregas_views.historial_entregas, name='historial'),
     path('historial/exportar-excel/', entregas_views.exportar_historial_excel, name='exportar_historial_excel'),
     path('reporte-mensual-pdf/', entregas_views.generar_reporte_mensual_pdf, name='generar_reporte_mensual_pdf'),
@@ -71,6 +72,7 @@ urlpatterns = [
     path('atencion-ciudadano/<int:pk>/imprimir/', core_views.imprimir_comprobante_solicitud, name='imprimir_comprobante_solicitud'),
     path('atencion-ciudadano/<int:solicitud_id>/constancia-pdf/', core_views.generar_constancia_solicitud_pdf, name='generar_constancia_solicitud_pdf'),
     path('ciudadano/<str:cedula>/ficha/', core_views.ficha_ciudadano_360, name='ficha_ciudadano_360'),
+    path('ciudadano/<str:cedula>/carnet/', core_views.carnet_ciudadano_view, name='carnet_ciudadano'),
 
     # Estadísticas Avanzadas e Inteligencia Social
     path('estadisticas/', core_views.panel_estadisticas_avanzadas, name='panel_estadisticas_avanzadas'),

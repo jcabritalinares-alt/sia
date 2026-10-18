@@ -138,6 +138,9 @@
                             {% if e.tiene_firma %}
                                 <span class="badge bg-primary bg-opacity-10 text-primary ms-1" title="Firma digital registrada"><i class="bi bi-pen-fill me-1"></i>Firmado</span>
                             {% endif %}
+                            {% if e.parroquia %}
+                                <span class="badge bg-light text-secondary border ms-1" title="Parroquia del Beneficiario"><i class="bi bi-geo-alt-fill text-danger me-1"></i>{{ e.parroquia }}</span>
+                            {% endif %}
                         </div>
                         {% if e.telefono %}
                             <div class="small text-secondary d-flex align-items-center gap-1 mt-0.5" style="font-size: 0.78rem;" title="Teléfono del beneficiario">
@@ -207,7 +210,14 @@
                                 <i class="bi bi-receipt"></i> <span class="small fw-bold">Ticket</span>
                             </button>
 
-                            <!-- 4. Enviar Evidencia por Telegram (Nombre y Teléfono) -->
+                            {% if e.telefono %}
+                            <!-- 4. Notificar Comprobante por WhatsApp (1-Clic) -->
+                            <button type="button" class="btn btn-outline-success btn-sm rounded-3 px-2 py-1 shadow-sm border-0 d-inline-flex align-items-center gap-1 text-success fw-bold" onclick="enviarWhatsAppComprobante('{{ e.telefono }}', '{{ e.nombre_beneficiario|escapejs }}', '{{ e.cedula|escapejs }}', '{{ e.descripcion_prod|escapejs }}', '{{ e.cantidad_dada }}', '{{ e.id }}', '{{ e.status|escapejs }}', '{{ e.fecha_legible|escapejs }}', '{{ e.parroquia|default:''|escapejs }}')" title="💬 Notificar Comprobante por WhatsApp al Beneficiario">
+                                <i class="bi bi-whatsapp"></i> <span class="small fw-bold">WhatsApp</span>
+                            </button>
+                            {% endif %}
+
+                            <!-- 5. Enviar Evidencia por Telegram (Nombre y Teléfono) -->
                             <button type="button" class="btn btn-outline-info btn-sm rounded-3 px-2 py-1 shadow-sm border-0 d-inline-flex align-items-center gap-1 text-info fw-bold" onclick="abrirModalTelegramEvidencia(this)" title="📱 Enviar evidencia fotográfica por Telegram (con Nombre y Teléfono)">
                                 <i class="bi bi-telegram fs-6"></i> <span class="small fw-bold">Telegram</span>
                             </button>
@@ -1665,6 +1675,22 @@
                 }
                 alert("Ocurrió un error al intentar enviar la evidencia por Telegram.");
             });
+    }
+
+    function enviarWhatsAppComprobante(telefono, nombre, cedula, producto, cantidad, id, status, fecha, parroquia) {
+        if (!telefono) {
+            alert("Este registro no posee número de teléfono registrado.");
+            return;
+        }
+        let numClean = telefono.replace(/[^0-9]/g, '');
+        if (!numClean.startsWith('58')) {
+            if (numClean.startsWith('0')) numClean = '58' + numClean.substring(1);
+            else numClean = '58' + numClean;
+        }
+        let parroquiaTxt = parroquia ? `\n📍 *Parroquia:* ${parroquia}` : '';
+        let msg = `🏛️ *ALCALDÍA DE VALERA - SIA WEB*\n*Comprobante Oficial de Entrega Social #${id}*\n\nEstimado(a) *${nombre}* (C.I. ${cedula}):\nSe ha procesado exitosamente la entrega de su beneficio social.\n\n📦 *Producto:* ${producto}\n🔢 *Cantidad:* ${cantidad} u.\n📅 *Fecha:* ${fecha}${parroquiaTxt}\n✅ *Estado:* ${status}\n\n_Alcaldía de Valera al servicio de nuestro pueblo._`;
+        let url = `https://wa.me/${numClean}?text=${encodeURIComponent(msg)}`;
+        window.open(url, '_blank');
     }
 </script>
 
