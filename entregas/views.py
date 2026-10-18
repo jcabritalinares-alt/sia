@@ -1524,6 +1524,7 @@ def jornada_operativo_view(request):
     hoy = timezone.now().date()
 
     if request.method == 'POST':
+        entrega_id_pendiente = request.POST.get('entrega_id_pendiente', '').strip()
         cedula = request.POST.get('cedula', '').strip().upper()
         if cedula.startswith('SIA:CEDULA:'):
             cedula = cedula.replace('SIA:CEDULA:', '').strip()
@@ -1542,81 +1543,164 @@ def jornada_operativo_view(request):
         except (ValueError, TypeError):
             cantidad_dada = 1
 
-        if not cedula or not nombre_beneficiario or not producto_id:
-            return JsonResponse({'success': False, 'error': 'Cédula, Nombre del Beneficiario y Producto son obligatorios.'}, status=400)
-
-        # Control de Duplicidad en la misma jornada / día
-        es_admin = request.user.is_superuser
-        entrega_hoy = BeneficioEntregado.objects.filter(cedula=cedula, fecha=hoy).first()
-        if entrega_hoy and not es_admin:
-            return JsonResponse({
-                'success': False,
-                'error': f'El ciudadano con C.I. {cedula} ya recibió {entrega_hoy.descripcion_prod} el día de hoy (#{entrega_hoy.id}).'
-            }, status=400)
+        if not cedula or not nombre_beneficiario:
+            return JsonResponse({'success': False, 'error': 'Cédula y Nombre del Beneficiario son obligatorios.'}, status=400)
 
         with transaction.atomic():
-            producto = SIA_producto.objects.select_for_update().filter(id=producto_id).first()
-            if not producto:
-                return JsonResponse({'success': False, 'error': 'El producto seleccionado no existe en el inventario.'}, status=404)
+            producto = None
+            entrega = None
 
-            if producto.cantidad < cantidad_dada:
-                return JsonResponse({
-                    'success': False,
-                    'error': f'Stock insuficiente para {producto.descripcion}. Solo quedan {producto.cantidad} unidades disponibles.'
-                }, status=400)
+            # CASO A: Actualizar beneficio previamente asignado (de Pendiente a Entregado)
+            if entrega_id_pendiente and entrega_id_pendiente.isdigit():
+                entrega = BeneficioEntregado.objects.select_for_update().filter(id=int(entrega_id_pendiente)).first()
+                if not entrega:
+                    return JsonResponse({'success': False, 'error': f'La asignación pendiente #{entrega_id_pendiente} no existe.'}, status=404)
 
-            # Descontar stock
-            producto.cantidad -= cantidad_dada
-            producto.save(update_fields=['cantidad'])
+                if entrega.status == 'Entregado':
+                    return JsonResponse({'success': False, 'error': f'Este beneficio ya fue confirmado y entregado con anterioridad.'}, status=400)
 
-            # Guardar o actualizar datos del beneficiario
-            Beneficiario.objects.update_or_create(
-                cedula=cedula,
-                defaults={
-                    'nombre_apellido': nombre_beneficiario,
-                    'direccion': direccion or f"Parroquia {parroquia}",
-                    'telefono': telefono,
-                    'parroquia': parroquia
-                }
-            )
+                # Resolver producto a descontar
+                if producto_id:
+                    producto = SIA_producto.objects.select_for_update().filter(id=producto_id).first()
+                if not producto and entrega.producto_id:
+                    producto = SIA_producto.objects.select_for_update().filter(id=entrega.producto_id).first()
+                if not producto and entrega.codigo_prod:
+                    producto = SIA_producto.objects.select_for_update().filter(codigo=entrega.codigo_prod).first()
 
-            # Crear registro de entrega inmediata
-            entrega = BeneficioEntregado.objects.create(
-                producto=producto,
-                cedula=cedula,
-                nombre_beneficiario=nombre_beneficiario,
-                codigo_prod=producto.codigo,
-                descripcion_prod=producto.descripcion,
-                cantidad_dada=cantidad_dada,
-                via=via,
-                parroquia=parroquia,
-                fecha=hoy,
-                fecha_entrega=hoy,
-                status='Entregado',
-                firma_beneficiario=firma_data if firma_data else None
-            )
+                if producto:
+                    if producto.cantidad < cantidad_dada:
+                        return JsonResponse({
+                            'success': False,
+                            'error': f'Stock insuficiente para {producto.descripcion}. Solo quedan {producto.cantidad} u. disponibles.'
+                        }, status=400)
+                    producto.cantidad -= cantidad_dada
+                    producto.save(update_fields=['cantidad'])
+                    entrega.producto = producto
+                    entrega.codigo_prod = producto.codigo
+                    entrega.descripcion_prod = producto.descripcion
 
-            RegistroAuditoria.objects.create(
-                usuario=request.user,
-                accion=f"Entrega en Jornada/Operativo #{entrega.id}: {cantidad_dada}x {producto.descripcion} a {nombre_beneficiario} (C.I.: {cedula}) en {parroquia}.",
-                modulo="Entregas",
-                timestamp=timezone.now()
-            )
+                entrega.status = 'Entregado'
+                entrega.fecha_entrega = hoy
+                entrega.cantidad_dada = cantidad_dada
+                if nombre_beneficiario:
+                    entrega.nombre_beneficiario = nombre_beneficiario
+                if parroquia:
+                    entrega.parroquia = parroquia
+                if via:
+                    entrega.via = via
+                if firma_data:
+                    entrega.firma_beneficiario = firma_data
+                entrega.save()
+
+                sincronizar_estado_solicitud(entrega, 'Entregado')
+
+                Beneficiario.objects.update_or_create(
+                    cedula=cedula,
+                    defaults={
+                        'nombre_apellido': nombre_beneficiario,
+                        'direccion': direccion or f"Parroquia {parroquia}",
+                        'telefono': telefono,
+                        'parroquia': parroquia
+                    }
+                )
+
+                RegistroAuditoria.objects.create(
+                    usuario=request.user,
+                    accion=f"Entrega confirmada en Jornada #{entrega.id}: Cambiado a Entregado ({cantidad_dada}x {entrega.descripcion_prod}) para {nombre_beneficiario} (C.I.: {cedula}) en {parroquia}.",
+                    modulo="Entregas",
+                    timestamp=timezone.now()
+                )
+
+            # CASO B: Registrar nueva entrega directa en la jornada
+            else:
+                if not producto_id:
+                    return JsonResponse({'success': False, 'error': 'Debe seleccionar un producto para registrar la entrega.'}, status=400)
+
+                # Control de Duplicidad en la misma jornada / día
+                es_admin = request.user.is_superuser
+                entrega_hoy = BeneficioEntregado.objects.filter(cedula=cedula, fecha=hoy, status='Entregado').first()
+                if entrega_hoy and not es_admin:
+                    return JsonResponse({
+                        'success': False,
+                        'error': f'El ciudadano con C.I. {cedula} ya recibió {entrega_hoy.descripcion_prod} el día de hoy (#{entrega_hoy.id}).'
+                    }, status=400)
+
+                producto = SIA_producto.objects.select_for_update().filter(id=producto_id).first()
+                if not producto:
+                    return JsonResponse({'success': False, 'error': 'El producto seleccionado no existe en el inventario.'}, status=404)
+
+                if producto.cantidad < cantidad_dada:
+                    return JsonResponse({
+                        'success': False,
+                        'error': f'Stock insuficiente para {producto.descripcion}. Solo quedan {producto.cantidad} unidades disponibles.'
+                    }, status=400)
+
+                # Descontar stock
+                producto.cantidad -= cantidad_dada
+                producto.save(update_fields=['cantidad'])
+
+                # Guardar o actualizar datos del beneficiario
+                Beneficiario.objects.update_or_create(
+                    cedula=cedula,
+                    defaults={
+                        'nombre_apellido': nombre_beneficiario,
+                        'direccion': direccion or f"Parroquia {parroquia}",
+                        'telefono': telefono,
+                        'parroquia': parroquia
+                    }
+                )
+
+                # Crear registro de entrega con status Entregado
+                entrega = BeneficioEntregado.objects.create(
+                    producto=producto,
+                    cedula=cedula,
+                    nombre_beneficiario=nombre_beneficiario,
+                    codigo_prod=producto.codigo,
+                    descripcion_prod=producto.descripcion,
+                    cantidad_dada=cantidad_dada,
+                    via=via,
+                    parroquia=parroquia,
+                    fecha=hoy,
+                    fecha_entrega=hoy,
+                    status='Entregado',
+                    firma_beneficiario=firma_data if firma_data else None
+                )
+
+                # Vincular y marcar entregada cualquier solicitud social pendiente
+                solicitud_abierta = SolicitudCiudadano.objects.filter(
+                    cedula=cedula,
+                    status__in=['Aprobada', 'En Proceso', 'Recibida']
+                ).order_by('-fecha_solicitud').first()
+                if solicitud_abierta:
+                    solicitud_abierta.entrega = entrega
+                    solicitud_abierta.status = 'Entregada'
+                    solicitud_abierta.fecha_entrega = hoy
+                    solicitud_abierta.save(update_fields=['entrega', 'status', 'fecha_entrega'])
+
+                RegistroAuditoria.objects.create(
+                    usuario=request.user,
+                    accion=f"Entrega en Jornada/Operativo #{entrega.id}: {cantidad_dada}x {producto.descripcion} a {nombre_beneficiario} (C.I.: {cedula}) en {parroquia}.",
+                    modulo="Entregas",
+                    timestamp=timezone.now()
+                )
 
         # Generar link de WhatsApp para el comprobante
         whatsapp_url = generar_link_whatsapp_comprobante(entrega)
 
         return JsonResponse({
             'success': True,
-            'mensaje': f'¡Entrega #{entrega.id} registrada con éxito!',
+            'mensaje': f'¡Entrega #{entrega.id} confirmada y registrada como ENTREGADO!',
             'entrega_id': entrega.id,
-            'nombre_beneficiario': nombre_beneficiario,
-            'cedula': cedula,
-            'producto': producto.descripcion,
-            'cantidad': cantidad_dada,
-            'stock_restante': producto.cantidad,
+            'nombre_beneficiario': entrega.nombre_beneficiario,
+            'cedula': entrega.cedula,
+            'producto': entrega.descripcion_prod,
+            'cantidad': entrega.cantidad_dada,
+            'parroquia': entrega.parroquia,
+            'status': 'Entregado',
+            'stock_restante': producto.cantidad if producto else None,
             'whatsapp_url': whatsapp_url,
-            'hora': timezone.now().strftime('%H:%M:%S')
+            'hora': timezone.now().strftime('%H:%M:%S'),
+            'era_pendiente': bool(entrega_id_pendiente)
         })
 
     # GET: Pantalla de Operativo

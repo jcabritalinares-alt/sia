@@ -210,7 +210,7 @@ def api_consultar_beneficiario_expediente(request):
             'telefono': beneficiario.telefono or '',
             'direccion': beneficiario.direccion or '',
             'centro_electoral': '',
-            'parroquia': '',
+            'parroquia': getattr(beneficiario, 'parroquia', '') or '',
             'municipio': '',
             'estado': ''
         }
@@ -222,7 +222,7 @@ def api_consultar_beneficiario_expediente(request):
             'telefono': beneficiario.telefono if beneficiario else '',
             'direccion': beneficiario.direccion if (beneficiario and beneficiario.direccion) else datos_cne.get('direccion_sugerida', ''),
             'centro_electoral': datos_cne.get('centro_electoral', ''),
-            'parroquia': datos_cne.get('parroquia', ''),
+            'parroquia': (beneficiario.parroquia if (beneficiario and getattr(beneficiario, 'parroquia', None)) else datos_cne.get('parroquia', '')) or '',
             'municipio': datos_cne.get('municipio', ''),
             'estado': datos_cne.get('estado', '')
         }
@@ -234,7 +234,7 @@ def api_consultar_beneficiario_expediente(request):
             'telefono': beneficiario.telefono or '',
             'direccion': beneficiario.direccion or '',
             'centro_electoral': '',
-            'parroquia': '',
+            'parroquia': getattr(beneficiario, 'parroquia', '') or '',
             'municipio': '',
             'estado': ''
         }
@@ -248,7 +248,7 @@ def api_consultar_beneficiario_expediente(request):
                 'telefono': '',
                 'direccion': '',
                 'centro_electoral': '',
-                'parroquia': '',
+                'parroquia': getattr(entrega_previa, 'parroquia', '') or '',
                 'municipio': '',
                 'estado': ''
             }
@@ -257,6 +257,7 @@ def api_consultar_beneficiario_expediente(request):
     if not ciudadano:
         return JsonResponse({
             'existe': False,
+            'encontrado': False,
             'cedula': cedula,
             'mensaje': 'No se encontraron datos de identidad para esta cédula.'
         })
@@ -264,7 +265,11 @@ def api_consultar_beneficiario_expediente(request):
     # Historial de beneficios
     qs_entregas = BeneficioEntregado.objects.filter(cedula=cedula).order_by('-fecha', '-id')
     entregas_list = []
+    beneficio_pendiente_obj = None
+
     for e in qs_entregas:
+        if not beneficio_pendiente_obj and e.status == 'Pendiente':
+            beneficio_pendiente_obj = e
         entregas_list.append({
             'id': e.id,
             'fecha_str': e.fecha.strftime('%d/%m/%Y') if e.fecha else 'N/A',
@@ -280,6 +285,19 @@ def api_consultar_beneficiario_expediente(request):
             'url_comprobante_pdf': reverse('generar_comprobante_pdf', args=[e.id]),
             'url_comprobante_publico': reverse('ver_comprobante_entrega_publico', args=[e.id])
         })
+
+    beneficio_pendiente_dict = None
+    if beneficio_pendiente_obj:
+        beneficio_pendiente_dict = {
+            'id': beneficio_pendiente_obj.id,
+            'producto_id': beneficio_pendiente_obj.producto_id,
+            'descripcion_prod': beneficio_pendiente_obj.descripcion_prod or 'Beneficio',
+            'codigo_prod': beneficio_pendiente_obj.codigo_prod or '',
+            'cantidad_dada': beneficio_pendiente_obj.cantidad_dada or 1,
+            'parroquia': beneficio_pendiente_obj.parroquia or '',
+            'via': beneficio_pendiente_obj.via or 'Asignado',
+            'fecha_asignacion': beneficio_pendiente_obj.fecha.strftime('%d/%m/%Y') if beneficio_pendiente_obj.fecha else 'Previa'
+        }
 
     total_articulos = qs_entregas.aggregate(Sum('cantidad_dada'))['cantidad_dada__sum'] or 0
 
@@ -298,8 +316,10 @@ def api_consultar_beneficiario_expediente(request):
 
     return JsonResponse({
         'existe': True,
+        'encontrado': True,
         'origen': origen,
         'ciudadano': ciudadano,
+        'beneficio_pendiente': beneficio_pendiente_dict,
         'tiene_beneficios': len(entregas_list) > 0,
         'total_entregas': len(entregas_list),
         'total_articulos': total_articulos,

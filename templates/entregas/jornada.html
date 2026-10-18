@@ -25,8 +25,7 @@
     .input-express-cedula {
         font-size: 1.5rem !important;
         font-weight: 800 !important;
-        letter-spacing: 0.05em;
-        text-align: center;
+        letter-spacing: 0.04em;
         border-radius: 14px !important;
         border: 2px solid #4f46e5 !important;
         box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.12);
@@ -44,7 +43,7 @@
         background: #fafafa;
         cursor: crosshair;
         width: 100%;
-        height: 120px;
+        height: 110px;
         touch-action: none;
     }
 
@@ -55,6 +54,53 @@
     @keyframes highlightFila {
         0% { background-color: #dcfce7; transform: scale(1.01); }
         100% { background-color: transparent; transform: scale(1); }
+    }
+
+    /* Estilos del Escáner de Cámara QR */
+    .qr-scanner-box {
+        position: relative;
+        width: 100%;
+        max-width: 380px;
+        height: 290px;
+        margin: 0 auto;
+        border-radius: 16px;
+        overflow: hidden;
+        background: #000;
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.35);
+    }
+
+    .qr-scanner-laser {
+        position: absolute;
+        top: 10%;
+        left: 5%;
+        width: 90%;
+        height: 3px;
+        background: linear-gradient(90deg, transparent, #22c55e, #10b981, transparent);
+        box-shadow: 0 0 12px #22c55e, 0 0 20px #10b981;
+        animation: qrLaserScan 2s infinite ease-in-out;
+        z-index: 10;
+        pointer-events: none;
+    }
+
+    @keyframes qrLaserScan {
+        0% { top: 12%; opacity: 0.8; }
+        50% { top: 88%; opacity: 1; }
+        100% { top: 12%; opacity: 0.8; }
+    }
+
+    .qr-scanner-corners {
+        position: absolute;
+        inset: 18px;
+        border: 2px dashed rgba(255, 255, 255, 0.45);
+        border-radius: 12px;
+        pointer-events: none;
+        z-index: 9;
+    }
+
+    .banner-pendiente-destacado {
+        background: linear-gradient(135deg, #fefce8 0%, #fef08a 100%);
+        border: 2px solid #eab308 !important;
+        box-shadow: 0 4px 15px rgba(234, 179, 8, 0.15);
     }
 </style>
 {% endblock %}
@@ -69,8 +115,8 @@
                 <div class="badge bg-warning text-dark px-3 py-1 rounded-pill fw-bold mb-2 shadow-xs">
                     <i class="bi bi-lightning-charge-fill me-1"></i> Modo Jornada / Operativo en Lote
                 </div>
-                <h2 class="fw-extrabold text-white mb-1">Registro Continuo de Entregas Masivas</h2>
-                <p class="text-white-50 small mb-0">Configura el producto y la parroquia una sola vez y registra entregas continuas en menos de 5 segundos</p>
+                <h2 class="fw-extrabold text-white mb-1">Registro y Confirmación de Entregas en Operativo</h2>
+                <p class="text-white-50 small mb-0">Escanea el Carnet QR o escribe la cédula para traer los datos del ciudadano, confirmar la entrega y actualizar el historial en vivo.</p>
             </div>
             <div class="d-flex flex-wrap gap-2">
                 <a href="{% url 'historial' %}" class="btn btn-outline-light d-inline-flex align-items-center gap-1.5 fw-semibold rounded-3">
@@ -79,51 +125,6 @@
                 <a href="{% url 'asignar_beneficio' %}" class="btn btn-light text-dark d-inline-flex align-items-center gap-1.5 fw-bold rounded-3">
                     <i class="bi bi-arrow-left"></i> Modo Estándar
                 </a>
-            </div>
-        </div>
-    </div>
-
-    <!-- Barra de Configuración del Operativo Actual -->
-    <div class="card border border-light rounded-4 shadow-sm p-3 mb-4 bg-light">
-        <div class="row g-3 align-items-end">
-            <div class="col-12 col-md-4">
-                <label class="form-label fw-bold text-dark small">
-                    <i class="bi bi-box-seam text-primary me-1"></i> 1. Producto del Operativo:
-                </label>
-                <select id="cfgProducto" class="form-select fw-bold border-primary shadow-xs" onchange="actualizarInfoProducto()">
-                    {% for p in productos %}
-                    <option value="{{ p.id }}" data-nombre="{{ p.descripcion }}" data-stock="{{ p.cantidad }}">
-                        {{ p.descripcion }} (Stock: {{ p.cantidad }} u.)
-                    </option>
-                    {% empty %}
-                    <option value="">No hay productos con stock disponible</option>
-                    {% endfor %}
-                </select>
-            </div>
-
-            <div class="col-6 col-md-2">
-                <label class="form-label fw-bold text-dark small">
-                    <i class="bi bi-123 text-success me-1"></i> Cantidad Fija:
-                </label>
-                <input type="number" id="cfgCantidad" class="form-control fw-bold text-center border-success" value="1" min="1">
-            </div>
-
-            <div class="col-6 col-md-3">
-                <label class="form-label fw-bold text-dark small">
-                    <i class="bi bi-geo-alt-fill text-danger me-1"></i> Parroquia:
-                </label>
-                <select id="cfgParroquia" class="form-select fw-semibold">
-                    {% for val, label in parroquias %}
-                    <option value="{{ val }}" {% if forloop.first %}selected{% endif %}>{{ label }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-
-            <div class="col-12 col-md-3">
-                <label class="form-label fw-bold text-dark small">
-                    <i class="bi bi-flag-fill text-warning me-1"></i> Nombre de la Jornada / Vía:
-                </label>
-                <input type="text" id="cfgVia" class="form-control fw-semibold" value="Jornada Parroquial Social" placeholder="Ej: Operativo Clap / Jornada Médica">
             </div>
         </div>
     </div>
@@ -161,90 +162,211 @@
         </div>
     </div>
 
-    <!-- Área de Trabajo Principal: Formulario Rápido + Feed en Vivo -->
+    <!-- Área de Trabajo Principal: Formulario Secuencial (Paso 1 -> Paso 2 -> Paso 3) + Historial en Vivo -->
     <div class="row g-4">
-        <!-- FORMULARIO DE INGRESO EXPRÉS -->
-        <div class="col-12 col-lg-5">
-            <div class="card border border-light rounded-4 shadow-sm p-4 h-100">
+
+        <!-- COLUMNA IZQUIERDA: FLUJO DE DESPACHO / ATENCIÓN -->
+        <div class="col-12 col-xl-6">
+
+            <!-- PASO 1: PEDIR CÉDULA O BOTÓN ESCANEAR QR CON CÁMARA -->
+            <div class="card border border-light rounded-4 shadow-sm p-4 mb-4 bg-white">
                 <div class="d-flex justify-content-between align-items-center border-bottom pb-2 mb-3">
-                    <h5 class="fw-bold text-dark mb-0 d-flex align-items-center gap-2">
-                        <i class="bi bi-person-plus-fill text-primary"></i> Ingreso Exprés
-                    </h5>
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="badge bg-primary text-white rounded-pill px-2.5 py-1 fw-bold">PASO 1</span>
+                        <h5 class="fw-bold text-dark mb-0">Identificación del Ciudadano</h5>
+                    </div>
                     <span class="badge bg-light text-secondary border font-monospace small" id="lblClockLive">--:--:--</span>
+                </div>
+
+                <label class="form-label fw-bold text-dark small mb-2 d-flex justify-content-between align-items-center">
+                    <span><i class="bi bi-person-vcard text-primary me-1"></i> Ingrese Número de Cédula o Escanee Carnet QR:</span>
+                    <span class="badge bg-light text-secondary border small fw-semibold" id="lblEstadoBusqueda">Listo para consultar</span>
+                </label>
+
+                <!-- Input Cédula + Botón de Escaneo con Cámara del Teléfono -->
+                <div class="row g-2 align-items-stretch mb-2">
+                    <div class="col-12 col-sm-7">
+                        <div class="input-group">
+                            <span class="input-group-text bg-light text-muted border-end-0 fw-bold">V-</span>
+                            <input type="text" id="jornadaCedula" class="form-control border-start-0 fw-extrabold fs-4 font-monospace text-primary" placeholder="12345678" autofocus autocomplete="off">
+                            <button type="button" class="btn btn-outline-secondary" onclick="ejecutarBusquedaManual()" title="Consultar cédula">
+                                <i class="bi bi-search"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="col-12 col-sm-5">
+                        <button type="button" class="btn btn-primary w-100 h-100 py-2.5 fw-bold d-flex align-items-center justify-content-center gap-2 shadow-xs rounded-3" onclick="abrirEscanerCamaraQR()" id="btnAbrirEscanerCamara">
+                            <i class="bi bi-camera-fill fs-5"></i>
+                            <span>Escanear QR</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="form-text text-muted small mt-1">
+                    <i class="bi bi-info-circle me-1"></i> Pulsa <strong>Escanear QR</strong> para abrir la cámara de tu teléfono o escribe la cédula (búsqueda automática al escribir 4 dígitos o presionar Enter).
+                </div>
+            </div>
+
+            <!-- PASO 2: DATOS TRAÍDOS AUTOMÁTICAMENTE + PRODUCTO ASIGNADO Y CANTIDAD -->
+            <div class="card border border-light rounded-4 shadow-sm p-4 bg-white" id="cardPaso2">
+                <div class="d-flex justify-content-between align-items-center border-bottom pb-2 mb-3">
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="badge bg-success text-white rounded-pill px-2.5 py-1 fw-bold">PASO 2</span>
+                        <h5 class="fw-bold text-dark mb-0">Datos del Beneficiario y Asignación</h5>
+                    </div>
+                    <span class="badge bg-success-subtle text-success fw-bold px-2.5 py-1 rounded-pill d-none" id="badgeVerificado">
+                        <i class="bi bi-check-circle-fill me-1"></i> Verificado
+                    </span>
+                </div>
+
+                <!-- Banner: Beneficio Asignado Pendiente (Si fue hallado en el sistema) -->
+                <div id="bannerBeneficioPendiente" class="alert banner-pendiente-destacado rounded-3 p-3 mb-3 d-none">
+                    <div class="d-flex align-items-start gap-2.5">
+                        <i class="bi bi-bell-fill fs-3 text-warning mt-1"></i>
+                        <div class="flex-grow-1">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span class="badge bg-warning text-dark fw-bold text-uppercase px-2 py-1">Asignación Previa Pendiente</span>
+                                <span class="badge bg-white text-dark border small" id="lblFechaAsignacionPendiente">Fecha: --</span>
+                            </div>
+                            <h6 class="fw-extrabold text-dark mt-1.5 mb-1" id="lblProductoPendienteTitulo">Producto: --</h6>
+                            <p class="small text-dark mb-0 opacity-80" id="lblDetallePendiente">
+                                Este beneficiario tiene este producto asignado en estado <strong>Pendiente</strong>. Al presionar Confirmar, se descontará del inventario y cambiará a estatus <strong>ENTREGADO</strong>.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Banner: Nueva Entrega en Jornada (Sin asignación previa) -->
+                <div id="bannerBeneficioNuevo" class="alert alert-info border border-info-subtle rounded-3 py-2 px-3 mb-3 d-none">
+                    <div class="d-flex align-items-center gap-2 small">
+                        <i class="bi bi-check-circle-fill text-info fs-5"></i>
+                        <div>Ciudadano verificado. Se registrará la entrega y quedará guardada con estatus <strong>Entregado</strong> en el historial.</div>
+                    </div>
                 </div>
 
                 <form id="formJornadaExpres" autocomplete="off" onsubmit="event.preventDefault(); procesarEntregaJornada();">
                     {% csrf_token %}
+                    <!-- ID de entrega pendiente si existía -->
+                    <input type="hidden" id="entregaIdPendiente" name="entrega_id_pendiente" value="">
 
-                    <!-- Cédula o QR -->
-                    <div class="mb-3">
-                        <label class="form-label fw-bold text-dark small d-flex justify-content-between align-items-center">
-                            <span><i class="bi bi-qr-code-scan text-primary me-1"></i> Cédula o Carnet QR:</span>
-                            <span class="badge bg-success-subtle text-success small fw-semibold" id="lblEstadoBusqueda">Listo para escanear</span>
-                        </label>
-                        <input type="text" id="jornadaCedula" class="form-control input-express-cedula" placeholder="V-12345678" autofocus required>
-                        <div class="form-text text-muted small text-center mt-1">
-                            <i class="bi bi-keyboard me-1"></i> Escribe la cédula o apunta el lector al Carnet QR (Autobúsqueda activa).
-                        </div>
-                    </div>
-
-                    <!-- Nombre y Apellidos -->
-                    <div class="mb-3">
-                        <label class="form-label fw-semibold text-secondary small">Nombre Completo del Beneficiario *</label>
-                        <div class="input-group">
-                            <span class="input-group-text bg-light text-muted border-end-0"><i class="bi bi-person"></i></span>
-                            <input type="text" id="jornadaNombre" class="form-control border-start-0 fw-bold" placeholder="Nombres y Apellidos" required>
-                        </div>
-                    </div>
-
-                    <!-- Teléfono y Dirección -->
+                    <!-- Campos de Identidad y Contacto -->
                     <div class="row g-2 mb-3">
-                        <div class="col-12 col-sm-6">
-                            <label class="form-label fw-semibold text-secondary small">Teléfono (WhatsApp)</label>
+                        <div class="col-12 col-md-6">
+                            <label class="form-label fw-bold text-dark small">
+                                <i class="bi bi-person-fill text-primary me-1"></i> Nombres y Apellidos *
+                            </label>
+                            <input type="text" id="jornadaNombre" class="form-control fw-bold" placeholder="Nombres y Apellidos" required>
+                        </div>
+
+                        <div class="col-12 col-sm-6 col-md-6">
+                            <label class="form-label fw-bold text-dark small">
+                                <i class="bi bi-whatsapp text-success me-1"></i> Teléfono (WhatsApp)
+                            </label>
                             <input type="tel" id="jornadaTelefono" class="form-control font-monospace" placeholder="0412-1234567">
                         </div>
-                        <div class="col-12 col-sm-6">
-                            <label class="form-label fw-semibold text-secondary small">Sector / Comunidad</label>
-                            <input type="text" id="jornadaDireccion" class="form-control" placeholder="Ej: Sector 1, Calle 3">
+
+                        <div class="col-12 col-sm-6 col-md-6">
+                            <label class="form-label fw-bold text-dark small">
+                                <i class="bi bi-geo-alt-fill text-danger me-1"></i> Parroquia
+                            </label>
+                            <select id="cfgParroquia" class="form-select fw-semibold">
+                                {% for val, label in parroquias %}
+                                <option value="{{ val }}" {% if forloop.first %}selected{% endif %}>{{ label }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="col-12 col-md-6">
+                            <label class="form-label fw-bold text-dark small">
+                                <i class="bi bi-flag-fill text-warning me-1"></i> Nombre de la Jornada / Vía
+                            </label>
+                            <input type="text" id="cfgVia" class="form-control fw-semibold" value="Jornada Parroquial Social" placeholder="Ej: Operativo Clap / Jornada Médica">
+                        </div>
+
+                        <div class="col-12">
+                            <label class="form-label fw-bold text-dark small">
+                                <i class="bi bi-house-door-fill text-secondary me-1"></i> Dirección Registrada / Sector
+                            </label>
+                            <input type="text" id="jornadaDireccion" class="form-control" placeholder="Ej: Sector 1, Calle 3, Casa #10">
                         </div>
                     </div>
 
-                    <!-- Firma Digital Rápida (Opcional / Desplegable) -->
+                    <!-- Producto Asignado y Cantidad -->
+                    <div class="card bg-light border border-secondary-subtle rounded-3 p-3 mb-3">
+                        <div class="row g-2 align-items-center">
+                            <div class="col-12 col-md-7">
+                                <label class="form-label fw-bold text-dark small mb-1">
+                                    <i class="bi bi-box-seam-fill text-primary me-1"></i> Producto Asignado a Entregar:
+                                </label>
+                                <select id="cfgProducto" class="form-select fw-bold border-primary shadow-xs" onchange="actualizarInfoProducto()">
+                                    {% for p in productos %}
+                                    <option value="{{ p.id }}" data-nombre="{{ p.descripcion }}" data-stock="{{ p.cantidad }}">
+                                        {{ p.descripcion }} (Stock: {{ p.cantidad }} u.)
+                                    </option>
+                                    {% empty %}
+                                    <option value="">No hay productos con stock disponible</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+
+                            <div class="col-6 col-md-2">
+                                <label class="form-label fw-bold text-dark small mb-1">
+                                    <i class="bi bi-123 text-success me-1"></i> Cantidad:
+                                </label>
+                                <input type="number" id="cfgCantidad" class="form-control fw-bold text-center border-success" value="1" min="1">
+                            </div>
+
+                            <div class="col-6 col-md-3">
+                                <label class="form-label fw-bold text-dark small mb-1">
+                                    <i class="bi bi-boxes text-warning me-1"></i> Stock Disponible:
+                                </label>
+                                <div class="fw-extrabold fs-5 text-dark" id="lblStockDisponibleBadge">-- u.</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Firma Digital Opcional (Para pantalla táctil) -->
                     <div class="mb-3">
                         <div class="d-flex justify-content-between align-items-center mb-1">
-                            <label class="form-label fw-semibold text-secondary small mb-0">Firma Digital (Opcional)</label>
-                            <button type="button" class="btn btn-sm btn-link p-0 text-decoration-none small" onclick="limpiarFirmaJornada()">Limpiar firma</button>
+                            <label class="form-label fw-semibold text-secondary small mb-0">
+                                <i class="bi bi-pen me-1"></i> Firma Digital del Beneficiario (Opcional)
+                            </label>
+                            <button type="button" class="btn btn-sm btn-link p-0 text-decoration-none small text-danger" onclick="limpiarFirmaJornada()">
+                                <i class="bi bi-eraser"></i> Limpiar firma
+                            </button>
                         </div>
                         <canvas id="canvasFirmaJornada" class="signature-pad-jornada"></canvas>
                     </div>
 
-                    <!-- Botón Gigante de Entrega -->
-                    <button type="submit" id="btnConfirmarEntrega" class="btn btn-success w-100 py-3 fs-5 fw-extrabold d-flex align-items-center justify-content-center gap-2 shadow-sm">
-                        <i class="bi bi-check2-circle fs-4"></i> CONFIRMAR ENTREGA (ENTER)
+                    <!-- PASO 3: CONFIRMAR ENTREGA (CAMBIAR STATUS A ENTREGADO) -->
+                    <button type="submit" id="btnConfirmarEntrega" class="btn btn-success w-100 py-3 fs-5 fw-extrabold d-flex align-items-center justify-content-center gap-2 rounded-4 shadow">
+                        <i class="bi bi-check2-circle fs-3"></i>
+                        <span id="lblBtnConfirmar">CONFIRMAR ENTREGA (Cambiar a Entregado)</span>
                     </button>
                 </form>
             </div>
+
         </div>
 
-        <!-- FEED EN VIVO DE ENTREGAS REALIZADAS EN ESTA JORNADA -->
-        <div class="col-12 col-lg-7">
-            <div class="card border border-light rounded-4 shadow-sm p-4 h-100">
+        <!-- COLUMNA DERECHA: HISTORIAL Y FEED EN VIVO DE ENTREGAS -->
+        <div class="col-12 col-xl-6">
+            <div class="card border border-light rounded-4 shadow-sm p-4 h-100 bg-white">
                 <div class="d-flex justify-content-between align-items-center border-bottom pb-2 mb-3">
                     <h5 class="fw-bold text-dark mb-0 d-flex align-items-center gap-2">
-                        <i class="bi bi-clock-history text-success"></i> Entregas Registradas en este Operativo
+                        <i class="bi bi-clock-history text-success"></i> Entregas Confirmadas en esta Jornada
                     </h5>
                     <span class="badge bg-primary text-white rounded-pill px-3 py-1 font-monospace" id="lblContadorSesion">0 en esta sesión</span>
                 </div>
 
-                <div class="table-responsive rounded-3 border" style="max-height: 480px; overflow-y: auto;">
+                <div class="table-responsive rounded-3 border" style="max-height: 640px; overflow-y: auto;">
                     <table class="table table-hover align-middle mb-0" id="tablaFeedJornada">
                         <thead class="bg-light text-secondary small text-uppercase fw-bold sticky-top">
                             <tr>
-                                <th style="width: 70px;">Hora</th>
+                                <th style="width: 75px;">Hora</th>
                                 <th>Beneficiario</th>
-                                <th>Parroquia</th>
-                                <th class="text-center" style="width: 80px;">Cant.</th>
-                                <th class="text-end" style="width: 130px;">Acciones</th>
+                                <th>Producto Entregado</th>
+                                <th class="text-center" style="width: 90px;">Estatus</th>
+                                <th class="text-end" style="width: 135px;">Acciones</th>
                             </tr>
                         </thead>
                         <tbody id="tbodyFeedJornada">
@@ -256,15 +378,20 @@
                                     <div class="small text-muted font-monospace">C.I. {{ e.cedula }}</div>
                                 </td>
                                 <td>
-                                    <span class="badge bg-light text-secondary border small">{{ e.parroquia|default:"Valera" }}</span>
+                                    <div class="fw-semibold text-dark">{{ e.descripcion_prod }}</div>
+                                    <div class="small text-muted">{{ e.cantidad_dada }} u. &bull; {{ e.parroquia|default:"Valera" }}</div>
                                 </td>
-                                <td class="text-center fw-bold text-success">{{ e.cantidad_dada }} u.</td>
+                                <td class="text-center">
+                                    <span class="badge bg-success-subtle text-success border border-success-subtle fw-bold px-2 py-1 small">
+                                        <i class="bi bi-check2 me-0.5"></i> Entregado
+                                    </span>
+                                </td>
                                 <td class="text-end">
                                     <div class="d-inline-flex gap-1">
-                                        <a href="{% url 'generar_comprobante_pdf' e.id %}" target="_blank" class="btn btn-sm btn-outline-danger p-1" style="width: 28px; height: 28px;" title="Ver PDF">
+                                        <a href="{% url 'generar_comprobante_pdf' e.id %}" target="_blank" class="btn btn-sm btn-outline-danger p-1" style="width: 30px; height: 30px;" title="Ver Comprobante PDF">
                                             <i class="bi bi-file-earmark-pdf-fill"></i>
                                         </a>
-                                        <a href="{% url 'carnet_ciudadano' e.cedula %}" target="_blank" class="btn btn-sm btn-outline-dark p-1" style="width: 28px; height: 28px;" title="Ver Carnet QR">
+                                        <a href="{% url 'carnet_ciudadano' e.cedula %}" target="_blank" class="btn btn-sm btn-outline-dark p-1" style="width: 30px; height: 30px;" title="Ver Carnet Digital QR">
                                             <i class="bi bi-qr-code"></i>
                                         </a>
                                     </div>
@@ -272,13 +399,48 @@
                             </tr>
                             {% empty %}
                             <tr id="filaVaciaFeed">
-                                <td colspan="5" class="text-center text-muted py-4 fst-italic">
-                                    No hay entregas registradas aún en el operativo de hoy.
+                                <td colspan="5" class="text-center text-muted py-5 fst-italic">
+                                    <i class="bi bi-clipboard-data fs-2 text-muted d-block mb-2"></i>
+                                    No hay entregas confirmadas aún en el operativo de hoy.
                                 </td>
                             </tr>
                             {% endfor %}
                         </tbody>
                     </table>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- MODAL DE ESCANEO QR CON CÁMARA DEL TELÉFONO -->
+    <div class="modal fade" id="modalEscanerQRJornada" tabindex="-1" aria-labelledby="modalEscanerQRLabel" aria-hidden="true" data-bs-backdrop="static">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 rounded-4 shadow-lg overflow-hidden">
+                <div class="modal-header bg-dark text-white border-0 py-3">
+                    <h5 class="modal-title fw-bold d-flex align-items-center gap-2" id="modalEscanerQRLabel">
+                        <i class="bi bi-camera-fill text-warning"></i> Escaneo de Carnet QR
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Cerrar" onclick="detenerCamaraJornada()"></button>
+                </div>
+                <div class="modal-body p-3 text-center bg-black">
+                    <div class="qr-scanner-box">
+                        <div id="qr-reader-container" style="width: 100%; height: 100%;"></div>
+                        <div class="qr-scanner-laser"></div>
+                        <div class="qr-scanner-corners"></div>
+                    </div>
+                    <div class="text-white-50 small mt-3">
+                        <i class="bi bi-qr-code-scan me-1 text-warning"></i>
+                        Apunta la cámara de tu teléfono al <strong>Carnet Digital</strong> o código QR del ciudadano.
+                    </div>
+                </div>
+                <div class="modal-footer bg-dark border-0 d-flex justify-content-between">
+                    <button type="button" class="btn btn-outline-light btn-sm" id="btnCambiarCamara" onclick="cambiarCamaraJornada()" style="display: none;">
+                        <i class="bi bi-arrow-repeat me-1"></i> Cambiar Lente
+                    </button>
+                    <button type="button" class="btn btn-secondary px-4 rounded-3" data-bs-dismiss="modal" onclick="detenerCamaraJornada()">
+                        Cancelar
+                    </button>
                 </div>
             </div>
         </div>
@@ -288,6 +450,9 @@
 {% endblock %}
 
 {% block scripts %}
+<!-- Carga de Html5Qrcode para escaneo de alta velocidad con cámara web y móvil -->
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+
 <script>
     // --- RELOJ EN VIVO ---
     function updateClock() {
@@ -340,7 +505,25 @@
         }
     }
 
-    // --- AUDIO CHIME AL REGISTRAR ÉXITO (Web Audio API nativa sin archivos externos) ---
+    // --- EFECTOS DE SONIDO SINTETIZADOS CON WEB AUDIO API ---
+    function reproducirSonidoBeep() {
+        try {
+            const AudioContext = window.AudioContext || window.webkitAudioContext;
+            if (!AudioContext) return;
+            const ctxA = new AudioContext();
+            const osc = ctxA.createOscillator();
+            const gain = ctxA.createGain();
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(880, ctxA.currentTime); // A5
+            gain.gain.setValueAtTime(0.2, ctxA.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, ctxA.currentTime + 0.12);
+            osc.connect(gain);
+            gain.connect(ctxA.destination);
+            osc.start();
+            osc.stop(ctxA.currentTime + 0.12);
+        } catch (e) {}
+    }
+
     function reproducirSonidoExito() {
         try {
             const AudioContext = window.AudioContext || window.webkitAudioContext;
@@ -348,17 +531,13 @@
             const ctxAudio = new AudioContext();
             const osc = ctxAudio.createOscillator();
             const gain = ctxAudio.createGain();
-
             osc.type = 'sine';
             osc.frequency.setValueAtTime(587.33, ctxAudio.currentTime); // D5
             osc.frequency.exponentialRampToValueAtTime(880, ctxAudio.currentTime + 0.15); // A5
-
-            gain.gain.setValueAtTime(0.2, ctxAudio.currentTime);
+            gain.gain.setValueAtTime(0.25, ctxAudio.currentTime);
             gain.gain.exponentialRampToValueAtTime(0.001, ctxAudio.currentTime + 0.35);
-
             osc.connect(gain);
             gain.connect(ctxAudio.destination);
-
             osc.start();
             osc.stop(ctxAudio.currentTime + 0.35);
         } catch (e) {}
@@ -370,6 +549,7 @@
         const opt = select.options[select.selectedIndex];
         if (opt) {
             const stock = opt.getAttribute('data-stock') || '0';
+            document.getElementById('lblStockDisponibleBadge').textContent = `${stock} u.`;
             document.getElementById('kpiStockRestante').textContent = `${stock} u.`;
         }
     }
@@ -383,23 +563,73 @@
         clearTimeout(timerBusqueda);
         const raw = inputCedula.value.trim().toUpperCase();
         if (raw.length >= 4) {
-            timerBusqueda = setTimeout(() => buscarDatosCiudadano(raw), 300);
+            timerBusqueda = setTimeout(() => buscarDatosCiudadano(raw), 350);
         }
     });
 
+    inputCedula.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            ejecutarBusquedaManual();
+        }
+    });
+
+    function ejecutarBusquedaManual() {
+        clearTimeout(timerBusqueda);
+        const raw = inputCedula.value.trim().toUpperCase();
+        if (raw.length >= 3) {
+            buscarDatosCiudadano(raw);
+        } else {
+            alert("Por favor ingrese al menos 3 dígitos de la cédula.");
+        }
+    }
+
+    function procesarTextoEscaneado(decodedText) {
+        if (!decodedText) return;
+        let raw = decodedText.trim();
+
+        // 1. Si viene con el prefijo SIA:CEDULA:12345678
+        if (raw.startsWith('SIA:CEDULA:')) {
+            raw = raw.replace('SIA:CEDULA:', '').trim();
+        } 
+        // 2. Si viene como URL de carnet o ficha (ej: https://.../ciudadano/12345678/carnet/)
+        else if (raw.includes('/ciudadano/')) {
+            const match = raw.match(/\/ciudadano\/([^\/]+)/);
+            if (match && match[1]) {
+                raw = match[1];
+            }
+        }
+
+        // Limpiar para dejar solo números o formato V/E
+        const cedulaLimpia = raw.replace(/[^0-9VEve-]/g, '').trim();
+        inputCedula.value = cedulaLimpia;
+        buscarDatosCiudadano(cedulaLimpia);
+    }
+
     function buscarDatosCiudadano(cedulaRaw) {
         let clean = cedulaRaw.replace('SIA:CEDULA:', '').trim();
+        clean = clean.replace(/^[VvEe]-?/, ''); // números puros para api
+        
         const lbl = document.getElementById('lblEstadoBusqueda');
-        lbl.textContent = "Buscando...";
+        lbl.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Buscando datos...';
         lbl.className = "badge bg-warning-subtle text-warning small fw-semibold";
 
         fetch(`/api/beneficiarios/consultar/?cedula=${encodeURIComponent(clean)}`)
             .then(res => res.json())
             .then(data => {
-                if (data.encontrado && data.ciudadano) {
-                    document.getElementById('jornadaNombre').value = data.ciudadano.nombre || '';
+                const bannerPend = document.getElementById('bannerBeneficioPendiente');
+                const bannerNuevo = document.getElementById('bannerBeneficioNuevo');
+                const badgeVerif = document.getElementById('badgeVerificado');
+                const entregaIdPendInput = document.getElementById('entregaIdPendiente');
+                const btnConfirmar = document.getElementById('btnConfirmarEntrega');
+                const lblBtnConfirmar = document.getElementById('lblBtnConfirmar');
+
+                if (data.existe && data.ciudadano) {
+                    badgeVerif.classList.remove('d-none');
+                    document.getElementById('jornadaNombre').value = data.ciudadano.nombre_apellido || data.ciudadano.nombre || '';
                     if (data.ciudadano.telefono) document.getElementById('jornadaTelefono').value = data.ciudadano.telefono;
                     if (data.ciudadano.direccion) document.getElementById('jornadaDireccion').value = data.ciudadano.direccion;
+                    
                     if (data.ciudadano.parroquia) {
                         const selParroq = document.getElementById('cfgParroquia');
                         for (let i = 0; i < selParroq.options.length; i++) {
@@ -409,20 +639,159 @@
                             }
                         }
                     }
-                    lbl.textContent = "Ciudadano Verificado ✓";
-                    lbl.className = "badge bg-success-subtle text-success small fw-semibold";
+
+                    // --- REVISAR SI TIENE UN BENEFICIO ASIGNADO EN STATUS PENDIENTE ---
+                    if (data.beneficio_pendiente) {
+                        entregaIdPendInput.value = data.beneficio_pendiente.id;
+                        bannerPend.classList.remove('d-none');
+                        bannerNuevo.classList.add('d-none');
+                        
+                        document.getElementById('lblProductoPendienteTitulo').textContent = 
+                            `Producto Asignado: ${data.beneficio_pendiente.descripcion_prod} (${data.beneficio_pendiente.cantidad_dada} u.)`;
+                        document.getElementById('lblFechaAsignacionPendiente').textContent = 
+                            `Asignado: ${data.beneficio_pendiente.fecha_asignacion}`;
+
+                        // Auto-seleccionar el producto asignado en el select
+                        const selProd = document.getElementById('cfgProducto');
+                        let productoEncontrado = false;
+                        for (let i = 0; i < selProd.options.length; i++) {
+                            if (selProd.options[i].value == data.beneficio_pendiente.producto_id || 
+                                selProd.options[i].getAttribute('data-nombre') === data.beneficio_pendiente.descripcion_prod) {
+                                selProd.selectedIndex = i;
+                                productoEncontrado = true;
+                                break;
+                            }
+                        }
+
+                        // Colocar la cantidad asignada
+                        document.getElementById('cfgCantidad').value = data.beneficio_pendiente.cantidad_dada || 1;
+                        actualizarInfoProducto();
+
+                        lbl.innerHTML = '⭐ Beneficio Pendiente Detectado';
+                        lbl.className = "badge bg-warning text-dark small fw-semibold";
+                        lblBtnConfirmar.textContent = "CONFIRMAR ENTREGA (Cambiar a Entregado)";
+                    } else {
+                        // Ciudadano registrado pero sin entrega pendiente
+                        entregaIdPendInput.value = '';
+                        bannerPend.classList.add('d-none');
+                        bannerNuevo.classList.remove('d-none');
+                        lbl.innerHTML = '✓ Ciudadano Identificado (Nueva Entrega)';
+                        lbl.className = "badge bg-success-subtle text-success small fw-semibold";
+                        lblBtnConfirmar.textContent = "CONFIRMAR ENTREGA (Registrar como Entregado)";
+                    }
                 } else {
-                    lbl.textContent = "Nuevo en Sistema";
+                    // Ciudadano no encontrado en la base de datos previa
+                    badgeVerif.classList.add('d-none');
+                    bannerPend.classList.add('d-none');
+                    bannerNuevo.classList.remove('d-none');
+                    entregaIdPendInput.value = '';
+                    lbl.innerHTML = 'Nuevo Ciudadano (Completar Datos)';
                     lbl.className = "badge bg-info-subtle text-info small fw-semibold";
+                    lblBtnConfirmar.textContent = "CONFIRMAR ENTREGA (Registrar como Entregado)";
+                    document.getElementById('jornadaNombre').focus();
                 }
             })
             .catch(() => {
-                lbl.textContent = "Búsqueda local lista";
+                lbl.innerHTML = 'Búsqueda local lista';
                 lbl.className = "badge bg-light text-secondary border small";
             });
     }
 
-    // --- PROCESAR ENTREGA EN LOTE (AJAX ULTRA RÁPIDO) ---
+    // --- LÓGICA DE ESCÁNER DE CÁMARA QR (Html5Qrcode) ---
+    let qrScannerJornada = null;
+    let camarasDisponibles = [];
+    let camaraActualIndex = 0;
+
+    function abrirEscanerCamaraQR() {
+        const modalEl = document.getElementById('modalEscanerQRJornada');
+        const modal = new bootstrap.Modal(modalEl);
+        modal.show();
+    }
+
+    function iniciarCamaraJornada() {
+        if (typeof Html5Qrcode === 'undefined') {
+            document.getElementById('qr-reader-container').innerHTML = 
+                '<div class="alert alert-warning m-3 text-center">Cargando módulo de cámara... Reintente en un instante.</div>';
+            return;
+        }
+
+        detenerCamaraJornada();
+
+        Html5Qrcode.getCameras().then(devices => {
+            if (devices && devices.length) {
+                camarasDisponibles = devices;
+                if (devices.length > 1) {
+                    document.getElementById('btnCambiarCamara').style.display = 'inline-block';
+                }
+                arrancarLectorCamara(devices[camaraActualIndex].id);
+            } else {
+                arrancarLectorCamara({ facingMode: "environment" });
+            }
+        }).catch(err => {
+            arrancarLectorCamara({ facingMode: "environment" });
+        });
+    }
+
+    function arrancarLectorCamara(camaraConfig) {
+        qrScannerJornada = new Html5Qrcode("qr-reader-container");
+        const qrConfig = { 
+            fps: 15, 
+            qrbox: { width: 230, height: 230 },
+            aspectRatio: 1.0
+        };
+
+        qrScannerJornada.start(
+            camaraConfig,
+            qrConfig,
+            (decodedText, decodedResult) => {
+                reproducirSonidoBeep();
+                procesarTextoEscaneado(decodedText);
+                const modalEl = document.getElementById('modalEscanerQRJornada');
+                const modal = bootstrap.Modal.getInstance(modalEl);
+                if (modal) modal.hide();
+                detenerCamaraJornada();
+            },
+            (errorMessage) => {
+                // Escaneando activamente
+            }
+        ).catch(err => {
+            console.warn("Error iniciando cámara:", err);
+            document.getElementById('qr-reader-container').innerHTML = `
+                <div class="p-4 text-center text-white">
+                    <i class="bi bi-camera-video-off fs-1 text-warning mb-2 d-block"></i>
+                    <h6 class="fw-bold">No se pudo acceder a la cámara</h6>
+                    <p class="small text-white-50 mb-3">Verifique los permisos de cámara en su navegador o ingrese la cédula manualmente.</p>
+                    <button type="button" class="btn btn-outline-light btn-sm" onclick="iniciarCamaraJornada()">
+                        <i class="bi bi-arrow-repeat me-1"></i> Reintentar
+                    </button>
+                </div>
+            `;
+        });
+    }
+
+    function cambiarCamaraJornada() {
+        if (camarasDisponibles.length > 1) {
+            camaraActualIndex = (camaraActualIndex + 1) % camarasDisponibles.length;
+            detenerCamaraJornada();
+            arrancarLectorCamara(camarasDisponibles[camaraActualIndex].id);
+        }
+    }
+
+    function detenerCamaraJornada() {
+        if (qrScannerJornada) {
+            qrScannerJornada.stop().then(() => {
+                qrScannerJornada.clear();
+                qrScannerJornada = null;
+            }).catch(() => {
+                qrScannerJornada = null;
+            });
+        }
+    }
+
+    document.getElementById('modalEscanerQRJornada')?.addEventListener('shown.bs.modal', iniciarCamaraJornada);
+    document.getElementById('modalEscanerQRJornada')?.addEventListener('hidden.bs.modal', detenerCamaraJornada);
+
+    // --- PROCESAR Y CONFIRMAR ENTREGA (CAMBIAR A ENTREGADO) ---
     let entregasEnSesionCount = 0;
 
     function procesarEntregaJornada() {
@@ -434,16 +803,18 @@
         const cantidad = document.getElementById('cfgCantidad').value;
         const parroquia = document.getElementById('cfgParroquia').value;
         const via = document.getElementById('cfgVia').value;
+        const entregaIdPendiente = document.getElementById('entregaIdPendiente').value;
         const csrf = document.querySelector('[name=csrfmiddlewaretoken]').value;
         const btn = document.getElementById('btnConfirmarEntrega');
+        const lblBtnConfirmar = document.getElementById('lblBtnConfirmar');
 
-        if (!cedula || !nombre || !productoId) {
-            alert("Cédula, Nombre del Beneficiario y Producto son requeridos.");
+        if (!cedula || !nombre) {
+            alert("Cédula y Nombre del Beneficiario son requeridos.");
             return;
         }
 
         btn.disabled = true;
-        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span> Registrando entrega...';
+        lblBtnConfirmar.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span> Confirmando entrega...';
 
         let firmaData = '';
         if (hasSignature && canvas) {
@@ -460,6 +831,7 @@
         formData.append('cantidad_dada', cantidad);
         formData.append('parroquia', parroquia);
         formData.append('via', via);
+        formData.append('entrega_id_pendiente', entregaIdPendiente);
         formData.append('firma_data', firmaData);
 
         fetch("{% url 'jornada_operativo' %}", {
@@ -470,33 +842,34 @@
         .then(res => res.json())
         .then(data => {
             btn.disabled = false;
-            btn.innerHTML = '<i class="bi bi-check2-circle fs-4"></i> CONFIRMAR ENTREGA (ENTER)';
+            lblBtnConfirmar.textContent = 'CONFIRMAR ENTREGA (Cambiar a Entregado)';
 
             if (!data.success) {
-                alert(`⚠️ Error: ${data.error || 'No se pudo registrar la entrega'}`);
+                alert(`⚠️ Error: ${data.error || 'No se pudo confirmar la entrega'}`);
                 return;
             }
 
-            // Éxito: audio chime y actualizar contadores
+            // Éxito: reproducir sonido y actualizar contadores
             reproducirSonidoExito();
             entregasEnSesionCount++;
             document.getElementById('lblContadorSesion').textContent = `${entregasEnSesionCount} en esta sesión`;
 
             // Actualizar stock visual
-            if (data.stock_restante !== undefined) {
+            if (data.stock_restante !== undefined && data.stock_restante !== null) {
                 document.getElementById('kpiStockRestante').textContent = `${data.stock_restante} u.`;
+                document.getElementById('lblStockDisponibleBadge').textContent = `${data.stock_restante} u.`;
                 const sel = document.getElementById('cfgProducto');
                 const opt = sel.options[sel.selectedIndex];
                 if (opt) opt.setAttribute('data-stock', data.stock_restante);
             }
 
-            // Actualizar KPIs
+            // Actualizar KPIs de totales
             const kpiBen = document.getElementById('kpiTotalBeneficiarios');
-            kpiBen.textContent = parseInt(kpiBen.textContent || 0) + 1;
+            if (kpiBen) kpiBen.textContent = parseInt(kpiBen.textContent || 0) + 1;
             const kpiUni = document.getElementById('kpiTotalUnidades');
-            kpiUni.textContent = parseInt(kpiUni.textContent || 0) + parseInt(cantidad);
+            if (kpiUni) kpiUni.textContent = parseInt(kpiUni.textContent || 0) + parseInt(data.cantidad || cantidad);
 
-            // Agregar fila arriba en el Feed de la Jornada
+            // Agregar fila en el primer lugar del Feed / Historial
             const filaVacia = document.getElementById('filaVaciaFeed');
             if (filaVacia) filaVacia.remove();
 
@@ -510,35 +883,53 @@
                     <div class="small text-muted font-monospace">C.I. ${data.cedula}</div>
                 </td>
                 <td>
-                    <span class="badge bg-light text-secondary border small">${parroquia}</span>
+                    <div class="fw-semibold text-dark">${data.producto}</div>
+                    <div class="small text-muted">${data.cantidad} u. &bull; ${data.parroquia || parroquia}</div>
                 </td>
-                <td class="text-center fw-bold text-success">${data.cantidad} u.</td>
+                <td class="text-center">
+                    <span class="badge bg-success-subtle text-success border border-success-subtle fw-bold px-2 py-1 small">
+                        <i class="bi bi-check2 me-0.5"></i> Entregado
+                    </span>
+                </td>
                 <td class="text-end">
                     <div class="d-inline-flex gap-1">
-                        <a href="/comprobante/${data.entrega_id}/pdf/" target="_blank" class="btn btn-sm btn-outline-danger p-1" style="width: 28px; height: 28px;" title="Ver PDF">
+                        <a href="/comprobante/${data.entrega_id}/pdf/" target="_blank" class="btn btn-sm btn-outline-danger p-1" style="width: 30px; height: 30px;" title="Ver PDF">
                             <i class="bi bi-file-earmark-pdf-fill"></i>
                         </a>
-                        <a href="/ciudadano/${data.cedula}/carnet/" target="_blank" class="btn btn-sm btn-outline-dark p-1" style="width: 28px; height: 28px;" title="Ver Carnet QR">
+                        <a href="/ciudadano/${data.cedula}/carnet/" target="_blank" class="btn btn-sm btn-outline-dark p-1" style="width: 30px; height: 30px;" title="Ver Carnet QR">
                             <i class="bi bi-qr-code"></i>
                         </a>
+                        ${data.whatsapp_url ? `
+                        <a href="${data.whatsapp_url}" target="_blank" class="btn btn-sm btn-outline-success p-1" style="width: 30px; height: 30px;" title="Notificar por WhatsApp">
+                            <i class="bi bi-whatsapp"></i>
+                        </a>
+                        ` : ''}
                     </div>
                 </td>
             `;
             tbody.insertBefore(tr, tbody.firstChild);
 
-            // Limpiar formulario y enfocar cédula para la siguiente persona
+            // Limpiar formulario y reiniciar para el siguiente beneficiario
             document.getElementById('jornadaCedula').value = '';
             document.getElementById('jornadaNombre').value = '';
             document.getElementById('jornadaTelefono').value = '';
             document.getElementById('jornadaDireccion').value = '';
+            document.getElementById('entregaIdPendiente').value = '';
+            document.getElementById('bannerBeneficioPendiente').classList.add('d-none');
+            document.getElementById('bannerBeneficioNuevo').classList.add('d-none');
+            document.getElementById('badgeVerificado').classList.add('d-none');
             limpiarFirmaJornada();
-            document.getElementById('lblEstadoBusqueda').textContent = "Listo para el siguiente";
-            document.getElementById('lblEstadoBusqueda').className = "badge bg-success-subtle text-success small fw-semibold";
+
+            const lblBusq = document.getElementById('lblEstadoBusqueda');
+            lblBusq.textContent = "Listo para el siguiente";
+            lblBusq.className = "badge bg-success-subtle text-success small fw-semibold";
+
+            // Enfocar de nuevo la cédula
             document.getElementById('jornadaCedula').focus();
         })
         .catch(err => {
             btn.disabled = false;
-            btn.innerHTML = '<i class="bi bi-check2-circle fs-4"></i> CONFIRMAR ENTREGA (ENTER)';
+            lblBtnConfirmar.textContent = 'CONFIRMAR ENTREGA (Cambiar a Entregado)';
             alert("Error de conexión al procesar la entrega. Verifique su red.");
         });
     }
