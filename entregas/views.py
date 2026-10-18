@@ -1525,9 +1525,10 @@ def jornada_operativo_view(request):
 
     if request.method == 'POST':
         entrega_id_pendiente = request.POST.get('entrega_id_pendiente', '').strip()
-        cedula = request.POST.get('cedula', '').strip().upper()
-        if cedula.startswith('SIA:CEDULA:'):
-            cedula = cedula.replace('SIA:CEDULA:', '').strip()
+        cedula_raw = request.POST.get('cedula', '').strip().upper()
+        if cedula_raw.startswith('SIA:CEDULA:'):
+            cedula_raw = cedula_raw.replace('SIA:CEDULA:', '').strip()
+        cedula = re.sub(r'\D', '', cedula_raw) or cedula_raw
         nombre_beneficiario = request.POST.get('nombre_beneficiario', '').strip()
         direccion = request.POST.get('direccion', '').strip()
         telefono = normalizar_telefono_venezolano(request.POST.get('telefono', '').strip())
@@ -1551,7 +1552,7 @@ def jornada_operativo_view(request):
             entrega = None
 
             # CASO A: Actualizar beneficio previamente asignado (de Pendiente a Entregado)
-            if entrega_id_pendiente and entrega_id_pendiente.isdigit():
+            if entrega_id_pendiente and str(entrega_id_pendiente).isdigit():
                 entrega = BeneficioEntregado.objects.select_for_update().filter(id=int(entrega_id_pendiente)).first()
                 if not entrega:
                     return JsonResponse({'success': False, 'error': f'La asignación pendiente #{entrega_id_pendiente} no existe.'}, status=404)
@@ -1620,7 +1621,11 @@ def jornada_operativo_view(request):
 
                 # Control de Duplicidad en la misma jornada / día
                 es_admin = request.user.is_superuser
-                entrega_hoy = BeneficioEntregado.objects.filter(cedula=cedula, fecha=hoy, status='Entregado').first()
+                entrega_hoy = BeneficioEntregado.objects.filter(
+                    Q(cedula=cedula) | Q(cedula=f"V-{cedula}") | Q(cedula=f"E-{cedula}"),
+                    Q(fecha=hoy) | Q(fecha_entrega=hoy),
+                    status='Entregado'
+                ).first()
                 if entrega_hoy and not es_admin:
                     return JsonResponse({
                         'success': False,

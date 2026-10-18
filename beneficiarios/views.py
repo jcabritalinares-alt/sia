@@ -190,7 +190,9 @@ def api_consultar_beneficiario_expediente(request):
     # 1. Búsqueda local
     beneficiario = None
     if not forzar_cne:
-        beneficiario = Beneficiario.objects.filter(cedula=cedula).first()
+        beneficiario = Beneficiario.objects.filter(
+            Q(cedula=cedula) | Q(cedula=f"V-{cedula}") | Q(cedula=f"E-{cedula}")
+        ).first()
 
     datos_cne = None
     if not beneficiario or not beneficiario.nombre_apellido or forzar_cne:
@@ -240,7 +242,9 @@ def api_consultar_beneficiario_expediente(request):
         }
         origen = 'local'
     else:
-        entrega_previa = BeneficioEntregado.objects.filter(cedula=cedula).first()
+        entrega_previa = BeneficioEntregado.objects.filter(
+            Q(cedula=cedula) | Q(cedula=f"V-{cedula}") | Q(cedula=f"E-{cedula}")
+        ).first()
         if entrega_previa and entrega_previa.nombre_beneficiario:
             ciudadano = {
                 'cedula': cedula,
@@ -263,7 +267,9 @@ def api_consultar_beneficiario_expediente(request):
         })
 
     # Historial de beneficios
-    qs_entregas = BeneficioEntregado.objects.filter(cedula=cedula).order_by('-fecha', '-id')
+    qs_entregas = BeneficioEntregado.objects.filter(
+        Q(cedula=cedula) | Q(cedula=f"V-{cedula}") | Q(cedula=f"E-{cedula}")
+    ).order_by('-fecha', '-id')
     entregas_list = []
     beneficio_pendiente_obj = None
 

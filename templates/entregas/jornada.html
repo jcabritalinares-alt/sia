@@ -278,7 +278,7 @@
                         <label class="form-label fw-bold text-dark small mb-1">
                             <i class="bi bi-person-fill text-primary me-1"></i> Nombres y Apellidos *
                         </label>
-                        <input type="text" id="jornadaNombre" class="form-control form-control-lg fw-bold rounded-3 py-2 fs-6" placeholder="Nombres y Apellidos del Beneficiario" required>
+                        <input type="text" id="jornadaNombre" class="form-control form-control-lg fw-bold rounded-3 py-2 fs-6" placeholder="Nombres y Apellidos del Beneficiario">
                     </div>
 
                     <!-- Teléfono y Parroquia -->
@@ -367,7 +367,7 @@
                     </div>
 
                     <!-- PASO 3: BOTÓN DE CONFIRMACIÓN GIGANTE (TOUCH READY) -->
-                    <button type="submit" id="btnConfirmarEntrega" class="btn btn-success btn-lg w-100 py-3.5 fs-4 fw-extrabold rounded-4 shadow d-flex align-items-center justify-content-center gap-2 text-uppercase">
+                    <button type="button" id="btnConfirmarEntrega" onclick="procesarEntregaJornada()" class="btn btn-success btn-lg w-100 py-3.5 fs-4 fw-extrabold rounded-4 shadow d-flex align-items-center justify-content-center gap-2 text-uppercase">
                         <i class="bi bi-check2-circle fs-3"></i>
                         <span id="lblBtnConfirmar">CONFIRMAR ENTREGA</span>
                     </button>
@@ -488,7 +488,7 @@
                     <h5 class="modal-title fw-bold d-flex align-items-center gap-2" id="modalEscanerQRLabel">
                         <i class="bi bi-camera-fill text-warning"></i> Escanear Código QR
                     </h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Cerrar" onclick="detenerCamaraJornada()"></button>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Cerrar" onclick="cerrarModalCamara()"></button>
                 </div>
                 <div class="modal-body p-3 text-center bg-black d-flex flex-column justify-content-center align-items-center">
                     <div class="qr-scanner-box">
@@ -506,7 +506,7 @@
                         <i class="bi bi-arrow-repeat fs-6"></i>
                         <span>Cambiar Cámara / Lente</span>
                     </button>
-                    <button type="button" class="btn btn-secondary px-4 rounded-3" data-bs-dismiss="modal" onclick="detenerCamaraJornada()">
+                    <button type="button" class="btn btn-secondary px-4 rounded-3" data-bs-dismiss="modal" onclick="cerrarModalCamara()">
                         Cancelar
                     </button>
                 </div>
@@ -716,7 +716,12 @@
         if (digitsOnly.length >= 3) {
             buscarDatosCiudadano(raw);
         } else {
-            alert("Por favor ingrese al menos 3 dígitos de la cédula del beneficiario.");
+            Swal.fire({
+                icon: 'warning',
+                title: 'Cédula incompleta',
+                text: 'Por favor ingrese al menos 3 dígitos de la cédula del beneficiario.',
+                confirmButtonColor: '#4f46e5'
+            });
         }
     }
 
@@ -737,7 +742,7 @@
 
     function procesarTextoEscaneado(decodedText) {
         if (!decodedText) return;
-        let raw = decodedText.trim();
+        let raw = String(decodedText).trim();
 
         try {
             if (raw.startsWith('{') && raw.endsWith('}')) {
@@ -760,10 +765,16 @@
             }
         }
 
-        const cedulaLimpia = raw.replace(/[^0-9VEve-]/g, '').trim();
-        inputCedula.value = cedulaLimpia;
+        const digitsOnly = raw.replace(/\D/g, '');
+        const cedulaLimpia = digitsOnly || raw.replace(/[^0-9VEve-]/g, '').trim();
+        if (inputCedula) {
+            inputCedula.value = cedulaLimpia;
+        }
+        cerrarModalCamara();
         buscarDatosCiudadano(cedulaLimpia);
     }
+
+    let buscandoCiudadanoEnProceso = false;
 
     function buscarDatosCiudadano(cedulaRaw) {
         let clean = cedulaRaw.replace('SIA:CEDULA:', '').trim();
@@ -772,15 +783,18 @@
         const digitsOnly = clean.replace(/\D/g, '');
         if (digitsOnly.length < 3) return;
 
+        buscandoCiudadanoEnProceso = true;
+
         const lbl = document.getElementById('lblEstadoBusqueda');
         if (lbl) {
             lbl.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Buscando...';
             lbl.className = "badge bg-warning-subtle text-warning small fw-semibold";
         }
 
-        fetch(`/api/beneficiarios/consultar/?cedula=${encodeURIComponent(clean)}`)
+        fetch(`/api/beneficiarios/consultar/?cedula=${encodeURIComponent(digitsOnly || clean)}`)
             .then(res => res.json())
             .then(data => {
+                buscandoCiudadanoEnProceso = false;
                 const bannerPend = document.getElementById('bannerBeneficioPendiente');
                 const bannerNuevo = document.getElementById('bannerBeneficioNuevo');
                 const badgeVerif = document.getElementById('badgeVerificado');
@@ -864,6 +878,7 @@
                 }
             })
             .catch(() => {
+                buscandoCiudadanoEnProceso = false;
                 if (lbl) {
                     lbl.innerHTML = 'Listo para escribir';
                     lbl.className = "badge bg-light text-secondary border small";
@@ -915,8 +930,6 @@
                     }
                 }
 
-                // En teléfonos móviles donde las etiquetas están vacías antes de dar permiso,
-                // la cámara trasera suele ser la última del listado de sensores
                 if (idxTrasera === -1) {
                     idxTrasera = devices.length > 1 ? (devices.length - 1) : 0;
                 }
@@ -954,10 +967,7 @@
                 (decodedText, decodedResult) => {
                     reproducirSonidoBeep();
                     procesarTextoEscaneado(decodedText);
-                    const modalEl = document.getElementById('modalEscanerQRJornada');
-                    const modal = bootstrap.Modal.getInstance(modalEl);
-                    if (modal) modal.hide();
-                    detenerCamaraJornada();
+                    cerrarModalCamara();
                 },
                 (errorMessage) => {}
             ).catch(err => {
@@ -969,10 +979,7 @@
                         (decodedText) => {
                             reproducirSonidoBeep();
                             procesarTextoEscaneado(decodedText);
-                            const modalEl = document.getElementById('modalEscanerQRJornada');
-                            const modal = bootstrap.Modal.getInstance(modalEl);
-                            if (modal) modal.hide();
-                            detenerCamaraJornada();
+                            cerrarModalCamara();
                         },
                         () => {}
                     ).catch(mostrarErrorCamara);
@@ -1038,8 +1045,25 @@
         }
     }
 
+    function cerrarModalCamara() {
+        detenerCamaraJornada();
+        const modalEl = document.getElementById('modalEscanerQRJornada');
+        if (modalEl) {
+            const modal = bootstrap.Modal.getInstance(modalEl);
+            if (modal) {
+                modal.hide();
+            }
+        }
+        setTimeout(() => {
+            document.querySelectorAll('.modal-backdrop').forEach(el => el.remove());
+            document.body.classList.remove('modal-open');
+            document.body.style.removeProperty('overflow');
+            document.body.style.removeProperty('padding-right');
+        }, 300);
+    }
+
     document.getElementById('modalEscanerQRJornada')?.addEventListener('shown.bs.modal', iniciarCamaraJornada);
-    document.getElementById('modalEscanerQRJornada')?.addEventListener('hidden.bs.modal', detenerCamaraJornada);
+    document.getElementById('modalEscanerQRJornada')?.addEventListener('hidden.bs.modal', cerrarModalCamara);
 
     // --- CONFIRMAR ENTREGA (ACTUALIZAR HISTORIAL EN VIVO) ---
     let entregasEnSesionCount = 0;
@@ -1069,22 +1093,50 @@
         const csrf = csrfTokenEl ? csrfTokenEl.value : '';
         const esPendiente = Boolean(entregaIdPendiente);
 
+        if (buscandoCiudadanoEnProceso) {
+            Swal.fire({
+                icon: 'info',
+                title: 'Buscando datos...',
+                text: 'Por favor espere un segundo mientras se verifica la información del ciudadano.',
+                timer: 1800,
+                showConfirmButton: false
+            });
+            return;
+        }
+
         if (!cedula) {
-            alert("⚠️ Ingrese o escanee el número de Cédula del Beneficiario.");
-            if (cedulaInput) cedulaInput.focus();
+            Swal.fire({
+                icon: 'warning',
+                title: 'Cédula Requerida',
+                text: 'Ingrese o escanee el número de Cédula del Beneficiario.',
+                confirmButtonColor: '#4f46e5'
+            }).then(() => {
+                if (cedulaInput) cedulaInput.focus();
+            });
             restaurarBotonConfirmar(esPendiente);
             return;
         }
 
         if (!nombre) {
-            alert("⚠️ Ingrese los Nombres y Apellidos del Beneficiario.");
-            if (nombreInput) nombreInput.focus();
+            Swal.fire({
+                icon: 'warning',
+                title: 'Nombre Requerido',
+                text: 'Ingrese los Nombres y Apellidos del Beneficiario.',
+                confirmButtonColor: '#4f46e5'
+            }).then(() => {
+                if (nombreInput) nombreInput.focus();
+            });
             restaurarBotonConfirmar(esPendiente);
             return;
         }
 
         if (!esPendiente && !productoId) {
-            alert("⚠️ Debe seleccionar un producto con stock disponible para la entrega.");
+            Swal.fire({
+                icon: 'warning',
+                title: 'Producto Requerido',
+                text: 'Debe seleccionar un producto con stock disponible para la entrega.',
+                confirmButtonColor: '#4f46e5'
+            });
             restaurarBotonConfirmar(esPendiente);
             return;
         }
@@ -1118,7 +1170,10 @@
         fetch("{% url 'jornada_operativo' %}", {
             method: 'POST',
             body: formData,
-            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+            headers: { 
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRFToken': csrf
+            }
         })
         .then(async (res) => {
             let data = null;
@@ -1131,7 +1186,12 @@
             if (!res.ok || !data || !data.success) {
                 const errMsg = (data && data.error) ? data.error : `Error al procesar la entrega (HTTP ${res.status})`;
                 restaurarBotonConfirmar(esPendiente);
-                alert(`⚠️ ${errMsg}`);
+                Swal.fire({
+                    icon: 'error',
+                    title: 'No se pudo procesar',
+                    text: errMsg,
+                    confirmButtonColor: '#ef4444'
+                });
                 return;
             }
 
@@ -1257,13 +1317,44 @@
                 lblBusq.className = "badge bg-success-subtle text-success small fw-semibold";
             }
 
-            // Reenfocar la cédula
-            if (cedulaInput) cedulaInput.focus();
+            // Alerta visual interactiva SweetAlert2 para el operador (especialmente en móvil donde el feed está en la otra pestaña)
+            Swal.fire({
+                icon: 'success',
+                title: '¡Entrega Confirmada!',
+                html: `
+                    <div class="text-start p-3 bg-light rounded-3 mb-2 border">
+                        <div class="mb-1"><strong>Beneficiario:</strong> ${data.nombre_beneficiario}</div>
+                        <div class="mb-1"><strong>Cédula:</strong> V-${data.cedula}</div>
+                        <div class="mb-1"><strong>Producto:</strong> <span class="badge bg-primary text-white">${data.producto}</span></div>
+                        <div class="mb-1"><strong>Cantidad:</strong> ${data.cantidad} u.</div>
+                        <div class="mb-1"><strong>Hora:</strong> ${data.hora || 'Ahora'}</div>
+                        <div class="mt-2 text-success fw-bold"><i class="bi bi-check2-circle me-1"></i> Estado: ENTREGADO</div>
+                    </div>
+                `,
+                showCancelButton: true,
+                confirmButtonText: '<i class="bi bi-plus-circle me-1"></i> Siguiente Entrega',
+                cancelButtonText: '<i class="bi bi-clock-history me-1"></i> Ver en Entregas Hoy',
+                confirmButtonColor: '#10b981',
+                cancelButtonColor: '#4f46e5',
+                allowOutsideClick: false
+            }).then((result) => {
+                if (result.dismiss === Swal.DismissReason.cancel) {
+                    const tabHistorialBtn = document.getElementById('tab-historial-btn');
+                    if (tabHistorialBtn) tabHistorialBtn.click();
+                } else {
+                    if (cedulaInput) cedulaInput.focus();
+                }
+            });
         })
         .catch(err => {
             console.error("Error en procesarEntregaJornada:", err);
             restaurarBotonConfirmar(esPendiente);
-            alert(`⚠️ Error al procesar entrega: ${err.message || 'Error de conexión con el servidor'}`);
+            Swal.fire({
+                icon: 'error',
+                title: 'Error al Procesar',
+                text: `${err.message || 'Error de conexión con el servidor'}`,
+                confirmButtonColor: '#ef4444'
+            });
         });
     }
 </script>

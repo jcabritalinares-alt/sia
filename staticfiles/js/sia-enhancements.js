@@ -310,11 +310,24 @@
         if (input.dataset.siaCedulaMaskAttached === 'true') return;
         input.dataset.siaCedulaMaskAttached = 'true';
 
+        function sanitizeCedula(raw) {
+            let val = raw.trim().toUpperCase();
+            // Soporte automático para escaneo de Carnet QR (SIA:CEDULA:V-12345678)
+            if (val.includes('SIA:CEDULA:')) {
+                val = val.replace('SIA:CEDULA:', '').trim();
+            }
+            return val.replace(/[^VvEeJjGg0-9\-]/g, '');
+        }
+
         input.addEventListener('input', function () {
-            let val = input.value.trim().toUpperCase();
-            // Si el usuario escribe caracteres no alfanuméricos ni guión, limpiarlos
-            val = val.replace(/[^VvEeJjGg0-9\-]/g, '');
-            input.value = val;
+            input.value = sanitizeCedula(input.value);
+        });
+
+        input.addEventListener('paste', function () {
+            setTimeout(() => {
+                input.value = sanitizeCedula(input.value);
+                input.dispatchEvent(new Event('change', { bubbles: true }));
+            }, 10);
         });
     }
 
