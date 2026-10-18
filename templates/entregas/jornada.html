@@ -68,14 +68,21 @@
 
     #qr-reader-container {
         width: 100% !important;
-        min-height: 280px;
+        min-height: 260px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
     }
 
-    #qr-reader-container video {
+    #qr-reader-container video,
+    #qr-reader-container canvas {
         width: 100% !important;
-        height: 100% !important;
-        object-fit: cover !important;
-        border-radius: 16px;
+        height: auto !important;
+        max-height: 60vh;
+        object-fit: contain !important;
+        border-radius: 12px;
+        display: block;
+        margin: 0 auto;
     }
 
     .qr-scanner-laser {
@@ -215,11 +222,29 @@
                     <span class="badge bg-light text-secondary border font-monospace small" id="lblClockLive">--:--:--</span>
                 </div>
 
-                <!-- Botón Gigante Táctil de Cámara para Móviles -->
-                <button type="button" class="btn btn-primary btn-lg w-100 py-3 rounded-3 fw-extrabold shadow-sm d-flex align-items-center justify-content-center gap-2 mb-2" onclick="abrirEscanerCamaraQR()" id="btnAbrirEscanerCamara">
-                    <i class="bi bi-camera-fill fs-3 text-warning"></i>
-                    <span class="fs-5">ESCANEAR CARNET QR</span>
-                </button>
+                <!-- Botones Táctiles de Escaneo para Móviles (En Vivo + Cámara Nativa) -->
+                <div class="row g-2 mb-2">
+                    <div class="col-12 col-sm-6">
+                        <button type="button" class="btn btn-primary btn-lg w-100 py-2.5 rounded-3 fw-extrabold shadow-sm d-flex align-items-center justify-content-center gap-2" onclick="abrirEscanerCamaraQR()" id="btnAbrirEscanerCamara">
+                            <i class="bi bi-camera-video-fill fs-3 text-warning"></i>
+                            <div class="text-start lh-sm">
+                                <span class="d-block fs-6 fw-extrabold">CÁMARA EN VIVO</span>
+                                <small class="d-block text-white-50" style="font-size: 0.72rem;">Escaneo continuo</small>
+                            </div>
+                        </button>
+                    </div>
+                    <div class="col-12 col-sm-6">
+                        <button type="button" class="btn btn-warning btn-lg w-100 py-2.5 rounded-3 fw-extrabold shadow-sm d-flex align-items-center justify-content-center gap-2 text-dark" onclick="tomarFotoDirectaQR()" id="btnTomarFotoDirecta">
+                            <i class="bi bi-camera-fill fs-3 text-dark"></i>
+                            <div class="text-start lh-sm">
+                                <span class="d-block fs-6 fw-extrabold">FOTO AL CARNET</span>
+                                <small class="d-block text-dark-50" style="font-size: 0.72rem;">Cámara nativa HD</small>
+                            </div>
+                        </button>
+                        <!-- Input nativo del móvil con autofocus y flash (funciona en HTTP y HTTPS) -->
+                        <input type="file" id="inputFotoDirectaQR" accept="image/*" capture="environment" class="d-none" onchange="escanearArchivoQR(this)">
+                    </div>
+                </div>
 
                 <div class="d-flex align-items-center my-2">
                     <hr class="flex-grow-1 my-0 text-muted opacity-25">
@@ -502,30 +527,34 @@
             <div class="modal-content border-0 rounded-4 shadow-lg overflow-hidden">
                 <div class="modal-header bg-dark text-white border-0 py-3">
                     <h5 class="modal-title fw-bold d-flex align-items-center gap-2" id="modalEscanerQRLabel">
-                        <i class="bi bi-camera-fill text-warning"></i> Escanear Código QR
+                        <i class="bi bi-camera-video-fill text-warning"></i> Escanear Código QR
                     </h5>
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Cerrar" onclick="cerrarModalCamara()"></button>
                 </div>
                 <div class="modal-body p-3 text-center bg-black d-flex flex-column justify-content-center align-items-center">
                     <div class="qr-scanner-box">
-                        <div id="qr-reader-container" style="width: 100%; min-height: 280px;"></div>
+                        <div id="qr-reader-container" style="width: 100%; min-height: 260px;"></div>
                         <div class="qr-scanner-laser"></div>
                         <div class="qr-scanner-corners"></div>
                     </div>
-                    <div class="text-white-50 small mt-3 px-2">
+                    <div class="text-white-50 small mt-3 px-2" id="qrScannerStatusHelp">
                         <i class="bi bi-qr-code-scan me-1 text-warning"></i>
                         Apunta la cámara de tu teléfono al <strong>Carnet Digital</strong> o código QR del ciudadano.
                     </div>
                 </div>
                 <div class="modal-footer bg-dark border-0 d-flex justify-content-between py-2.5 flex-wrap gap-2">
-                    <div class="d-flex gap-2">
+                    <div class="d-flex gap-2 flex-wrap">
                         <button type="button" class="btn btn-outline-warning btn-sm d-inline-flex align-items-center gap-1.5 fw-semibold" id="btnCambiarCamara" onclick="cambiarCamaraJornada()">
                             <i class="bi bi-arrow-repeat fs-6"></i>
                             <span>Cambiar Cámara</span>
                         </button>
-                        <label class="btn btn-outline-info btn-sm d-inline-flex align-items-center gap-1.5 fw-semibold mb-0" style="cursor: pointer;" title="Cargar foto del carnet si la cámara presenta restricciones">
+                        <button type="button" class="btn btn-warning btn-sm d-inline-flex align-items-center gap-1.5 fw-semibold text-dark" onclick="tomarFotoDirectaQR()">
+                            <i class="bi bi-camera-fill fs-6"></i>
+                            <span>Tomar Foto Carnet</span>
+                        </button>
+                        <label class="btn btn-outline-light btn-sm d-inline-flex align-items-center gap-1.5 fw-semibold mb-0" style="cursor: pointer;" title="Cargar imagen desde la galería">
                             <i class="bi bi-image fs-6"></i>
-                            <span>Cargar Foto</span>
+                            <span>Galería</span>
                             <input type="file" id="inputFotoQRModal" accept="image/*" class="d-none" onchange="escanearArchivoQR(this)">
                         </label>
                     </div>
@@ -541,8 +570,13 @@
 {% endblock %}
 
 {% block scripts %}
-<!-- Carga de Html5Qrcode para escaneo de cámara móvil con redundancia CDN -->
-<script src="https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<!-- Carga de Html5Qrcode: local prioritario con doble redundancia CDN -->
+<script src="{% static 'js/html5-qrcode.min.js' %}"></script>
+<script>
+    if (typeof Html5Qrcode === 'undefined') {
+        document.write('<script src="https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js"><\/script>');
+    }
+</script>
 <script>
     if (typeof Html5Qrcode === 'undefined') {
         document.write('<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"><\/script>');
@@ -809,12 +843,33 @@
     function procesarTextoEscaneado(decodedText) {
         if (!decodedText) return;
         const cedulaLimpia = limpiarYExtraerCedula(decodedText);
-        if (!cedulaLimpia) return;
+        if (!cedulaLimpia) {
+            Swal.fire({
+                icon: 'warning',
+                title: 'QR no reconocido',
+                text: 'El código QR escaneado no contiene un número o formato de cédula válido.',
+                confirmButtonColor: '#4f46e5'
+            });
+            return;
+        }
 
         if (inputCedula) {
             inputCedula.value = cedulaLimpia;
         }
         cerrarModalCamara();
+
+        const Toast = Swal.mixin({
+            toast: true,
+            position: 'top-end',
+            showConfirmButton: false,
+            timer: 2000,
+            timerProgressBar: true
+        });
+        Toast.fire({
+            icon: 'success',
+            title: `Cédula escaneada: V-${cedulaLimpia}`
+        });
+
         buscarDatosCiudadano(cedulaLimpia);
     }
 
@@ -932,7 +987,7 @@
     }
 
     // --- ESCÁNER DE CÁMARA QR (Html5Qrcode con Cámara Trasera por Defecto) ---
-    // --- ESCÁNER DE CÁMARA QR ROBUSTO (Html5Qrcode con Detección por Hardware BarcodeDetector) ---
+    // --- ESCÁNER DE CÁMARA QR ROBUSTO (Html5Qrcode con Cámara Trasera + Foto Nativa) ---
     let qrScannerJornada = null;
     let camarasDisponibles = [];
     let camaraActualIndex = 0;
@@ -940,10 +995,46 @@
     let camaraArrancando = false;
 
     function abrirEscanerCamaraQR() {
+        // En móviles, si no es HTTPS ni localhost, los navegadores bloquean el stream WebRTC en vivo
+        if (window.isSecureContext === false && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
+            Swal.fire({
+                icon: 'info',
+                title: 'Conexión Local Detectada',
+                html: 'Para video en vivo, los navegadores móviles requieren conexión segura (HTTPS).<br><br><strong>Se recomienda usar "Tomar Foto al Carnet"</strong>, que utiliza la cámara de alta resolución de su teléfono y funciona en cualquier red.',
+                showCancelButton: true,
+                confirmButtonText: '<i class="bi bi-camera-fill me-1"></i> Abrir Cámara de Fotos',
+                cancelButtonText: 'Intentar Video en Vivo',
+                confirmButtonColor: '#f59e0b',
+                cancelButtonColor: '#4f46e5'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    tomarFotoDirectaQR();
+                } else if (result.dismiss === Swal.DismissReason.cancel) {
+                    ejecutarAperturaModalYCamara();
+                }
+            });
+            return;
+        }
+
+        ejecutarAperturaModalYCamara();
+    }
+
+    function ejecutarAperturaModalYCamara() {
         const modalEl = document.getElementById('modalEscanerQRJornada');
         if (!modalEl) return;
         const modal = bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl);
         modal.show();
+        // Iniciar la cámara INMEDIATAMENTE en la pila de eventos del click del usuario
+        // para garantizar que iOS Safari y Android Chrome conserven el token de gesto del usuario
+        iniciarCamaraJornada();
+    }
+
+    function tomarFotoDirectaQR() {
+        const input = document.getElementById('inputFotoDirectaQR');
+        if (input) {
+            input.value = '';
+            input.click();
+        }
     }
 
     async function detenerCamaraJornada() {
@@ -984,6 +1075,7 @@
 
     async function iniciarCamaraJornada() {
         if (camaraArrancando) return;
+        if (qrScannerJornada && qrScannerJornada.isScanning) return;
         camaraArrancando = true;
 
         const container = document.getElementById('qr-reader-container');
@@ -1015,20 +1107,18 @@
             return;
         }
 
+        // Mostrar spinner mientras el dispositivo responde a la solicitud de video
+        container.innerHTML = `
+            <div class="p-4 text-center text-white d-flex flex-column align-items-center justify-content-center" style="min-height: 240px;">
+                <div class="spinner-border text-warning mb-3" style="width: 2.5rem; height: 2.5rem;" role="status"></div>
+                <div class="fw-bold fs-6">Iniciando cámara trasera...</div>
+                <small class="text-white-50 mt-1">Conceda los permisos de cámara en su navegador si se le solicita.</small>
+            </div>
+        `;
+
         await detenerCamaraJornada();
-        container.innerHTML = '';
 
-        // 2. Obtener lista de cámaras para alternar lentes
-        try {
-            const devices = await Html5Qrcode.getCameras();
-            if (devices && devices.length > 0) {
-                camarasDisponibles = devices;
-            }
-        } catch(e) {
-            console.warn("getCameras info:", e);
-        }
-
-        // 3. Arrancar con facingMode environment por defecto (cámara trasera principal con autofocus)
+        // Arrancar con facingMode environment por defecto (cámara trasera principal con autofocus)
         modoFacingActual = "environment";
         await arrancarLectorCamara({ facingMode: "environment" });
         camaraArrancando = false;
@@ -1048,16 +1138,9 @@
                 }
             });
 
+            // Configuración óptima para móviles: sin qrbox restrictivo para evitar excepciones de dimensión
             const qrConfig = {
-                fps: 15,
-                qrbox: function(viewfinderWidth, viewfinderHeight) {
-                    const min = Math.min(viewfinderWidth, viewfinderHeight);
-                    const size = Math.floor(min * 0.72);
-                    return {
-                        width: Math.max(180, Math.min(size, 260)),
-                        height: Math.max(180, Math.min(size, 260))
-                    };
-                }
+                fps: 15
             };
 
             await qrScannerJornada.start(
@@ -1072,18 +1155,33 @@
                 }
             );
 
+            // Una vez que la cámara arrancó con éxito, actualizar lista de cámaras disponibles para alternar lentes
+            try {
+                const devices = await Html5Qrcode.getCameras();
+                if (devices && devices.length > 0) {
+                    camarasDisponibles = devices;
+                }
+            } catch(e) {}
+
         } catch (err) {
             console.warn("Fallo al iniciar cámara con configuración primaria:", err);
-            // Si falló con facingMode environment, intentar con el primer dispositivo físico disponible
-            if (camaraConfig && camaraConfig.facingMode === "environment" && camarasDisponibles.length > 0) {
-                try {
+
+            // Intento de recuperación 1: Si falló con facingMode "environment", consultar cámaras físicas
+            try {
+                const devices = await Html5Qrcode.getCameras();
+                if (devices && devices.length > 0) {
+                    camarasDisponibles = devices;
+                    // Buscar cámara con palabra "back" o "traser"
+                    let camId = devices[0].id;
+                    const backCam = devices.find(d => (d.label || '').toLowerCase().includes('back') || (d.label || '').toLowerCase().includes('traser'));
+                    if (backCam) camId = backCam.id;
+
                     await detenerCamaraJornada();
                     qrScannerJornada = new Html5Qrcode("qr-reader-container", {
                         experimentalFeatures: { useBarCodeDetectorIfSupported: true }
                     });
-                    camaraActualIndex = 0;
                     await qrScannerJornada.start(
-                        camarasDisponibles[0].id,
+                        camId,
                         { fps: 15 },
                         (decodedText) => {
                             reproducirSonidoBeep();
@@ -1092,11 +1190,33 @@
                         () => {}
                     );
                     return;
-                } catch(err2) {
-                    mostrarErrorCamara(err2);
+                }
+            } catch(err2) {
+                console.warn("Recuperación por lista de dispositivos falló:", err2);
+            }
+
+            // Intento de recuperación 2: Probar con cámara frontal si la trasera no está disponible
+            if (camaraConfig && camaraConfig.facingMode === "environment") {
+                try {
+                    await detenerCamaraJornada();
+                    qrScannerJornada = new Html5Qrcode("qr-reader-container", {
+                        experimentalFeatures: { useBarCodeDetectorIfSupported: true }
+                    });
+                    await qrScannerJornada.start(
+                        { facingMode: "user" },
+                        { fps: 15 },
+                        (decodedText) => {
+                            reproducirSonidoBeep();
+                            procesarTextoEscaneado(decodedText);
+                        },
+                        () => {}
+                    );
                     return;
+                } catch(err3) {
+                    console.warn("Recuperación con facingMode user falló:", err3);
                 }
             }
+
             mostrarErrorCamara(err);
         }
     }
@@ -1104,20 +1224,30 @@
     function mostrarErrorCamara(err) {
         console.error("Error iniciando cámara:", err);
         const container = document.getElementById('qr-reader-container');
+        let mensaje = "Verifique los permisos de cámara en su navegador o utilice la opción de foto al carnet.";
+        if (err) {
+            const errStr = (err.message || String(err)).toLowerCase();
+            if (errStr.includes('notallowed') || errStr.includes('permission')) {
+                mensaje = "Permiso de cámara denegado. Permita el acceso a la cámara en los ajustes de su navegador.";
+            } else if (errStr.includes('notfound') || errStr.includes('devicesnotfound')) {
+                mensaje = "No se detectó ninguna cámara disponible en este dispositivo.";
+            } else if (errStr.includes('secure') || !window.isSecureContext) {
+                mensaje = "Los navegadores móviles requieren conexión segura (HTTPS) para transmitir video en vivo. Use 'Tomar Foto Carnet' para escanear con la cámara nativa.";
+            }
+        }
         if (container) {
             container.innerHTML = `
                 <div class="p-3 text-center text-white">
                     <i class="bi bi-camera-video-off fs-1 text-warning mb-2 d-block"></i>
-                    <h6 class="fw-bold">Acceso a cámara no disponible</h6>
-                    <p class="small text-white-50 mb-3">Verifique los permisos de cámara en su navegador o cargue una foto del carnet.</p>
+                    <h6 class="fw-bold">Acceso a cámara en vivo no disponible</h6>
+                    <p class="small text-white-50 mb-3">${mensaje}</p>
                     <div class="d-flex justify-content-center gap-2 flex-wrap">
-                        <button type="button" class="btn btn-outline-light btn-sm" onclick="iniciarCamaraJornada()">
-                            <i class="bi bi-arrow-repeat me-1"></i> Reintentar Cámara
+                        <button type="button" class="btn btn-warning btn-sm fw-bold text-dark px-3 py-2 shadow-sm" onclick="tomarFotoDirectaQR()">
+                            <i class="bi bi-camera-fill me-1"></i> Tomar Foto al Carnet
                         </button>
-                        <label class="btn btn-warning btn-sm fw-semibold text-dark mb-0" style="cursor: pointer;">
-                            <i class="bi bi-image me-1"></i> Subir Foto QR
-                            <input type="file" accept="image/*" class="d-none" onchange="escanearArchivoQR(this)">
-                        </label>
+                        <button type="button" class="btn btn-outline-light btn-sm px-3 py-2" onclick="iniciarCamaraJornada()">
+                            <i class="bi bi-arrow-repeat me-1"></i> Reintentar Video
+                        </button>
                     </div>
                 </div>
             `;
@@ -1134,22 +1264,113 @@
         }
     }
 
+    // Helper para redimensionar imágenes de alta resolución (48MP-108MP) de móviles modernos
+    function optimizarImagenParaQR(file, maxDim = 1280) {
+        return new Promise((resolve) => {
+            if (!file || !file.type.startsWith('image/')) {
+                return resolve(file);
+            }
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const img = new Image();
+                img.onload = function() {
+                    let w = img.width;
+                    let h = img.height;
+                    if (w <= maxDim && h <= maxDim) {
+                        return resolve(file);
+                    }
+                    if (w > h) {
+                        h = Math.round((h * maxDim) / w);
+                        w = maxDim;
+                    } else {
+                        w = Math.round((w * maxDim) / h);
+                        h = maxDim;
+                    }
+                    const canvas = document.createElement('canvas');
+                    canvas.width = w;
+                    canvas.height = h;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, w, h);
+                    canvas.toBlob(function(blob) {
+                        if (blob) {
+                            resolve(new File([blob], "qr_opt.jpg", { type: "image/jpeg" }));
+                        } else {
+                            resolve(file);
+                        }
+                    }, 'image/jpeg', 0.9);
+                };
+                img.onerror = () => resolve(file);
+                img.src = e.target.result;
+            };
+            reader.onerror = () => resolve(file);
+            reader.readAsDataURL(file);
+        });
+    }
+
     async function escanearArchivoQR(input) {
         if (!input.files || input.files.length === 0) return;
         const file = input.files[0];
+
+        Swal.fire({
+            title: 'Analizando Carnet...',
+            html: '<div class="py-2"><i class="bi bi-qr-code-scan text-primary fs-1 mb-2 d-block"></i><span>Decodificando código QR del ciudadano...</span></div>',
+            allowOutsideClick: false,
+            allowEscapeKey: false,
+            didOpen: () => {
+                Swal.showLoading();
+            }
+        });
+
         try {
             await detenerCamaraJornada();
-            const scanner = new Html5Qrcode("qr-reader-container");
-            const decodedText = await scanner.scanFile(file, true);
-            reproducirSonidoBeep();
-            procesarTextoEscaneado(decodedText);
+
+            let tempScanContainer = document.getElementById('qr-scanner-file-temp');
+            if (!tempScanContainer) {
+                tempScanContainer = document.createElement('div');
+                tempScanContainer.id = 'qr-scanner-file-temp';
+                tempScanContainer.style.display = 'none';
+                document.body.appendChild(tempScanContainer);
+            }
+
+            let scanner = new Html5Qrcode("qr-scanner-file-temp");
+            let decodedText = null;
+
+            // Intento 1: Escaneo directo
+            try {
+                decodedText = await scanner.scanFile(file, false);
+            } catch (errDirect) {
+                console.warn("Escaneo directo falló, intentando con imagen optimizada...", errDirect);
+            }
+
+            // Intento 2: Con imagen reescalada (evita bloqueos de memoria en fotos gigantes de móviles)
+            if (!decodedText) {
+                try {
+                    const optimizedFile = await optimizarImagenParaQR(file, 1280);
+                    decodedText = await scanner.scanFile(optimizedFile, false);
+                } catch (errOpt) {
+                    console.warn("Escaneo con imagen optimizada falló:", errOpt);
+                }
+            }
+
             await scanner.clear();
+
+            if (decodedText) {
+                Swal.close();
+                reproducirSonidoBeep();
+                cerrarModalCamara();
+                procesarTextoEscaneado(decodedText);
+            } else {
+                throw new Error("No se detectó un código QR válido en la imagen.");
+            }
+
         } catch (err) {
+            console.error("Error al procesar foto QR:", err);
             Swal.fire({
-                icon: 'error',
+                icon: 'warning',
                 title: 'Código QR no detectado',
-                text: 'Asegúrese de que el código QR esté nítido, enfocado y bien iluminado en la imagen.',
-                confirmButtonColor: '#4f46e5'
+                html: 'No se pudo leer el código QR en la foto.<br><br><small class="text-muted">Consejo: Asegúrese de enfocar bien el carnet, con buena iluminación y sin reflejos sobre el código QR.</small>',
+                confirmButtonColor: '#4f46e5',
+                confirmButtonText: 'Entendido'
             });
         } finally {
             input.value = '';
