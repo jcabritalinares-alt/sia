@@ -218,17 +218,17 @@
                 <!-- Input Cédula con teclado numérico en móvil -->
                 <div class="input-group input-group-lg shadow-xs rounded-3 overflow-hidden border border-2 border-primary mb-2">
                     <span class="input-group-text bg-primary-subtle text-primary border-0 fw-bold px-3 fs-5">V-</span>
-                    <input type="tel" inputmode="numeric" id="jornadaCedula" class="form-control border-0 fw-extrabold font-monospace text-primary input-cedula-touch" placeholder="12345678" autofocus autocomplete="off">
-                    <button type="button" class="btn btn-primary px-3 fw-bold" onclick="ejecutarBusquedaManual()" title="Buscar">
+                    <input type="text" inputmode="numeric" pattern="[0-9]*" id="jornadaCedula" name="cedula" class="form-control border-0 fw-extrabold font-monospace text-primary input-cedula-touch" placeholder="12345678" autofocus autocomplete="off">
+                    <button type="button" class="btn btn-primary px-3 fw-bold" onclick="ejecutarBusquedaManual()" title="Buscar Cédula">
                         <i class="bi bi-search fs-5"></i>
                     </button>
                 </div>
 
                 <div class="d-flex justify-content-between align-items-center px-1">
                     <span id="lblEstadoBusqueda" class="badge bg-light text-secondary border small fw-semibold">
-                        Listo para escanear o escribir
+                        Ingrese o escanee el número de Cédula
                     </span>
-                    <small class="text-muted" style="font-size: 0.75rem;">Búsqueda automática al escribir</small>
+                    <small class="text-muted" style="font-size: 0.75rem;">Búsqueda por C.I. automática</small>
                 </div>
             </div>
 
@@ -668,11 +668,36 @@
     const inputCedula = document.getElementById('jornadaCedula');
     let timerBusqueda = null;
 
+    // Desvincular cualquier máscara de teléfono por seguridad
+    if (inputCedula) {
+        inputCedula.dataset.siaPhoneMaskAttached = 'true';
+        const residualMsg = inputCedula.parentElement.parentElement.querySelector('.sia-phone-feedback');
+        if (residualMsg) residualMsg.remove();
+    }
+
     inputCedula.addEventListener('input', function() {
+        // Asegurar que solo contenga números o prefijos de cédula válidos
+        let clean = inputCedula.value.trim().toUpperCase();
+        if (clean.includes('SIA:CEDULA:')) {
+            clean = clean.replace('SIA:CEDULA:', '').trim();
+        }
+        clean = clean.replace(/[^VvEeJjGg0-9\-]/g, '');
+        if (inputCedula.value !== clean) {
+            inputCedula.value = clean;
+        }
+
+        // Limpiar mensajes residuales de validación de teléfono
+        const errFeedback = inputCedula.parentElement.parentElement.querySelectorAll('.sia-phone-feedback');
+        errFeedback.forEach(el => el.remove());
+
         clearTimeout(timerBusqueda);
-        const raw = inputCedula.value.trim().toUpperCase();
-        if (raw.length >= 4) {
-            timerBusqueda = setTimeout(() => buscarDatosCiudadano(raw), 350);
+        const digitsOnly = clean.replace(/\D/g, '');
+        if (digitsOnly.length >= 4) {
+            timerBusqueda = setTimeout(() => buscarDatosCiudadano(clean), 350);
+        } else if (digitsOnly.length === 0) {
+            const lbl = document.getElementById('lblEstadoBusqueda');
+            lbl.textContent = "Ingrese o escanee el número de Cédula";
+            lbl.className = "badge bg-light text-secondary border small fw-semibold";
         }
     });
 
@@ -686,10 +711,11 @@
     function ejecutarBusquedaManual() {
         clearTimeout(timerBusqueda);
         const raw = inputCedula.value.trim().toUpperCase();
-        if (raw.length >= 3) {
+        const digitsOnly = raw.replace(/\D/g, '');
+        if (digitsOnly.length >= 3) {
             buscarDatosCiudadano(raw);
         } else {
-            alert("Por favor ingrese al menos 3 dígitos de la cédula.");
+            alert("Por favor ingrese al menos 3 dígitos de la cédula del beneficiario.");
         }
     }
 

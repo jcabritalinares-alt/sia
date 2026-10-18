@@ -256,6 +256,13 @@
     }
 
     function attachPhoneMask(input) {
+        if (!input) return;
+        // Jamás aplicar máscara de teléfono a inputs de cédula
+        const inputId = (input.id || '').toLowerCase();
+        const inputName = (input.name || '').toLowerCase();
+        if (inputId.includes('cedula') || inputName.includes('cedula')) {
+            return;
+        }
         if (input.dataset.siaPhoneMaskAttached === 'true') return;
         input.dataset.siaPhoneMaskAttached = 'true';
 
@@ -324,8 +331,8 @@
     }
 
     function initInputMasks() {
-        // Encontrar todos los inputs de teléfono
-        const phoneInputs = document.querySelectorAll('input[type="tel"], input[name*="telefono"], input[id*="telefono"]');
+        // Encontrar todos los inputs de teléfono (excluyendo cédula)
+        const phoneInputs = document.querySelectorAll('input[type="tel"]:not([id*="cedula"]):not([name*="cedula"]), input[name*="telefono"], input[id*="telefono"]');
         phoneInputs.forEach(attachPhoneMask);
 
         // Encontrar todos los inputs de cédula
