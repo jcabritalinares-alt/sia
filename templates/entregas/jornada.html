@@ -269,7 +269,7 @@
                     </div>
                 </div>
 
-                <form id="formJornadaExpres" autocomplete="off" onsubmit="event.preventDefault(); procesarEntregaJornada();">
+                <form id="formJornadaExpres" data-ajax="true" autocomplete="off" onsubmit="event.preventDefault(); procesarEntregaJornada();">
                     {% csrf_token %}
                     <input type="hidden" id="entregaIdPendiente" name="entrega_id_pendiente" value="">
 
@@ -502,8 +502,9 @@
                     </div>
                 </div>
                 <div class="modal-footer bg-dark border-0 d-flex justify-content-between py-2.5">
-                    <button type="button" class="btn btn-outline-light btn-sm" id="btnCambiarCamara" onclick="cambiarCamaraJornada()" style="display: none;">
-                        <i class="bi bi-arrow-repeat me-1"></i> Cambiar Cámara
+                    <button type="button" class="btn btn-outline-warning btn-sm d-inline-flex align-items-center gap-1.5 fw-semibold" id="btnCambiarCamara" onclick="cambiarCamaraJornada()">
+                        <i class="bi bi-arrow-repeat fs-6"></i>
+                        <span>Cambiar Cámara / Lente</span>
                     </button>
                     <button type="button" class="btn btn-secondary px-4 rounded-3" data-bs-dismiss="modal" onclick="detenerCamaraJornada()">
                         Cancelar
@@ -719,14 +720,41 @@
         }
     }
 
+    // --- HELPER PARA RESTAURAR BOTÓN DE CONFIRMACIÓN ---
+    function restaurarBotonConfirmar(esPendiente = false) {
+        const btn = document.getElementById('btnConfirmarEntrega');
+        if (!btn) return;
+        btn.disabled = false;
+        btn.classList.remove('sia-btn-submitting');
+        if (esPendiente) {
+            btn.className = "btn btn-warning btn-lg w-100 py-3.5 fs-4 fw-extrabold rounded-4 shadow d-flex align-items-center justify-content-center gap-2 text-uppercase";
+            btn.innerHTML = '<i class="bi bi-check-circle-fill fs-3 me-2"></i><span id="lblBtnConfirmar">CONFIRMAR ENTREGA (Cambiar a Entregado)</span>';
+        } else {
+            btn.className = "btn btn-success btn-lg w-100 py-3.5 fs-4 fw-extrabold rounded-4 shadow d-flex align-items-center justify-content-center gap-2 text-uppercase";
+            btn.innerHTML = '<i class="bi bi-check2-circle fs-3 me-2"></i><span id="lblBtnConfirmar">CONFIRMAR ENTREGA</span>';
+        }
+    }
+
     function procesarTextoEscaneado(decodedText) {
         if (!decodedText) return;
         let raw = decodedText.trim();
 
+        try {
+            if (raw.startsWith('{') && raw.endsWith('}')) {
+                const parsed = JSON.parse(raw);
+                if (parsed.cedula) raw = String(parsed.cedula);
+            }
+        } catch(e) {}
+
         if (raw.startsWith('SIA:CEDULA:')) {
             raw = raw.replace('SIA:CEDULA:', '').trim();
         } else if (raw.includes('/ciudadano/')) {
-            const match = raw.match(/\/ciudadano\/([^\/]+)/);
+            const match = raw.match(/\/ciudadano\/([^\/\?#]+)/);
+            if (match && match[1]) {
+                raw = match[1];
+            }
+        } else if (raw.includes('cedula=')) {
+            const match = raw.match(/cedula=([^&]+)/);
             if (match && match[1]) {
                 raw = match[1];
             }
@@ -741,9 +769,14 @@
         let clean = cedulaRaw.replace('SIA:CEDULA:', '').trim();
         clean = clean.replace(/^[VvEe]-?/, '');
         
+        const digitsOnly = clean.replace(/\D/g, '');
+        if (digitsOnly.length < 3) return;
+
         const lbl = document.getElementById('lblEstadoBusqueda');
-        lbl.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Buscando...';
-        lbl.className = "badge bg-warning-subtle text-warning small fw-semibold";
+        if (lbl) {
+            lbl.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Buscando...';
+            lbl.className = "badge bg-warning-subtle text-warning small fw-semibold";
+        }
 
         fetch(`/api/beneficiarios/consultar/?cedula=${encodeURIComponent(clean)}`)
             .then(res => res.json())
@@ -752,162 +785,256 @@
                 const bannerNuevo = document.getElementById('bannerBeneficioNuevo');
                 const badgeVerif = document.getElementById('badgeVerificado');
                 const entregaIdPendInput = document.getElementById('entregaIdPendiente');
-                const lblBtnConfirmar = document.getElementById('lblBtnConfirmar');
 
                 if (data.existe && data.ciudadano) {
-                    badgeVerif.classList.remove('d-none');
+                    if (badgeVerif) badgeVerif.classList.remove('d-none');
                     document.getElementById('jornadaNombre').value = data.ciudadano.nombre_apellido || data.ciudadano.nombre || '';
                     if (data.ciudadano.telefono) document.getElementById('jornadaTelefono').value = data.ciudadano.telefono;
                     if (data.ciudadano.direccion) document.getElementById('jornadaDireccion').value = data.ciudadano.direccion;
                     
                     if (data.ciudadano.parroquia) {
                         const selParroq = document.getElementById('cfgParroquia');
-                        for (let i = 0; i < selParroq.options.length; i++) {
-                            if (selParroq.options[i].value.toLowerCase() === data.ciudadano.parroquia.toLowerCase()) {
-                                selParroq.selectedIndex = i;
-                                break;
+                        if (selParroq) {
+                            for (let i = 0; i < selParroq.options.length; i++) {
+                                if (selParroq.options[i].value.toLowerCase() === data.ciudadano.parroquia.toLowerCase()) {
+                                    selParroq.selectedIndex = i;
+                                    break;
+                                }
                             }
                         }
                     }
 
                     // Si posee un beneficio asignado en status Pendiente
                     if (data.beneficio_pendiente) {
-                        entregaIdPendInput.value = data.beneficio_pendiente.id;
-                        bannerPend.classList.remove('d-none');
-                        bannerNuevo.classList.add('d-none');
+                        if (entregaIdPendInput) entregaIdPendInput.value = data.beneficio_pendiente.id;
+                        if (bannerPend) bannerPend.classList.remove('d-none');
+                        if (bannerNuevo) bannerNuevo.classList.add('d-none');
                         
-                        document.getElementById('lblProductoPendienteTitulo').textContent = 
-                            `Producto Asignado: ${data.beneficio_pendiente.descripcion_prod} (${data.beneficio_pendiente.cantidad_dada} u.)`;
-                        document.getElementById('lblFechaAsignacionPendiente').textContent = 
-                            `Asignado: ${data.beneficio_pendiente.fecha_asignacion}`;
+                        const lblProdTit = document.getElementById('lblProductoPendienteTitulo');
+                        if (lblProdTit) {
+                            lblProdTit.textContent = `Producto Asignado: ${data.beneficio_pendiente.descripcion_prod} (${data.beneficio_pendiente.cantidad_dada} u.)`;
+                        }
+                        const lblFechaPend = document.getElementById('lblFechaAsignacionPendiente');
+                        if (lblFechaPend) {
+                            lblFechaPend.textContent = `Asignado: ${data.beneficio_pendiente.fecha_asignacion}`;
+                        }
 
                         // Auto-seleccionar producto y cantidad asignada
                         const selProd = document.getElementById('cfgProducto');
-                        for (let i = 0; i < selProd.options.length; i++) {
-                            if (selProd.options[i].value == data.beneficio_pendiente.producto_id || 
-                                selProd.options[i].getAttribute('data-nombre') === data.beneficio_pendiente.descripcion_prod) {
-                                selProd.selectedIndex = i;
-                                break;
+                        if (selProd) {
+                            for (let i = 0; i < selProd.options.length; i++) {
+                                if (selProd.options[i].value == data.beneficio_pendiente.producto_id || 
+                                    selProd.options[i].getAttribute('data-nombre') === data.beneficio_pendiente.descripcion_prod) {
+                                    selProd.selectedIndex = i;
+                                    break;
+                                }
                             }
                         }
 
-                        document.getElementById('cfgCantidad').value = data.beneficio_pendiente.cantidad_dada || 1;
+                        const cantInput = document.getElementById('cfgCantidad');
+                        if (cantInput) cantInput.value = data.beneficio_pendiente.cantidad_dada || 1;
                         actualizarInfoProducto();
 
-                        lbl.innerHTML = '⭐ Beneficio Pendiente Encontrado';
-                        lbl.className = "badge bg-warning text-dark small fw-semibold";
-                        lblBtnConfirmar.textContent = "CONFIRMAR ENTREGA (Cambiar a Entregado)";
+                        if (lbl) {
+                            lbl.innerHTML = '⭐ Asignación Pendiente Encontrada';
+                            lbl.className = "badge bg-warning text-dark small fw-semibold";
+                        }
+                        restaurarBotonConfirmar(true);
                     } else {
-                        entregaIdPendInput.value = '';
-                        bannerPend.classList.add('d-none');
-                        bannerNuevo.classList.remove('d-none');
-                        lbl.innerHTML = '✓ Ciudadano Identificado';
-                        lbl.className = "badge bg-success-subtle text-success small fw-semibold";
-                        lblBtnConfirmar.textContent = "CONFIRMAR ENTREGA";
+                        if (entregaIdPendInput) entregaIdPendInput.value = '';
+                        if (bannerPend) bannerPend.classList.add('d-none');
+                        if (bannerNuevo) bannerNuevo.classList.remove('d-none');
+                        if (lbl) {
+                            lbl.innerHTML = '✓ Ciudadano Identificado';
+                            lbl.className = "badge bg-success-subtle text-success small fw-semibold";
+                        }
+                        restaurarBotonConfirmar(false);
                     }
                 } else {
-                    badgeVerif.classList.add('d-none');
-                    bannerPend.classList.add('d-none');
-                    bannerNuevo.classList.remove('d-none');
-                    entregaIdPendInput.value = '';
-                    lbl.innerHTML = 'Nuevo Ciudadano (Completar)';
-                    lbl.className = "badge bg-info-subtle text-info small fw-semibold";
-                    lblBtnConfirmar.textContent = "CONFIRMAR ENTREGA";
+                    if (badgeVerif) badgeVerif.classList.add('d-none');
+                    if (bannerPend) bannerPend.classList.add('d-none');
+                    if (bannerNuevo) bannerNuevo.classList.remove('d-none');
+                    if (entregaIdPendInput) entregaIdPendInput.value = '';
+                    if (lbl) {
+                        lbl.innerHTML = 'Nuevo Ciudadano (Completar)';
+                        lbl.className = "badge bg-info-subtle text-info small fw-semibold";
+                    }
+                    restaurarBotonConfirmar(false);
                     document.getElementById('jornadaNombre').focus();
                 }
             })
             .catch(() => {
-                lbl.innerHTML = 'Listo para escribir';
-                lbl.className = "badge bg-light text-secondary border small";
+                if (lbl) {
+                    lbl.innerHTML = 'Listo para escribir';
+                    lbl.className = "badge bg-light text-secondary border small";
+                }
+                restaurarBotonConfirmar(false);
             });
     }
 
-    // --- ESCÁNER DE CÁMARA QR (Html5Qrcode) ---
+    // --- ESCÁNER DE CÁMARA QR (Html5Qrcode con Cámara Trasera por Defecto) ---
     let qrScannerJornada = null;
     let camarasDisponibles = [];
     let camaraActualIndex = 0;
+    let modoFacingActual = "environment"; // Prioridad: Cámara trasera
 
     function abrirEscanerCamaraQR() {
         const modalEl = document.getElementById('modalEscanerQRJornada');
-        const modal = new bootstrap.Modal(modalEl);
+        if (!modalEl) return;
+        const modal = bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl);
         modal.show();
     }
 
-    function iniciarCamaraJornada() {
+    async function iniciarCamaraJornada() {
         if (typeof Html5Qrcode === 'undefined') {
             document.getElementById('qr-reader-container').innerHTML = 
-                '<div class="alert alert-warning m-3 text-center">Cargando cámara... Reintente en un segundo.</div>';
+                '<div class="alert alert-warning m-3 text-center">Cargando escáner... Reintente en un momento.</div>';
             return;
         }
 
         detenerCamaraJornada();
+        modoFacingActual = "environment";
 
-        Html5Qrcode.getCameras().then(devices => {
-            if (devices && devices.length) {
+        try {
+            const devices = await Html5Qrcode.getCameras();
+            if (devices && devices.length > 0) {
                 camarasDisponibles = devices;
-                if (devices.length > 1) {
-                    document.getElementById('btnCambiarCamara').style.display = 'inline-block';
+
+                // Buscar de forma proactiva la cámara trasera según su etiqueta
+                let idxTrasera = -1;
+                for (let i = 0; i < devices.length; i++) {
+                    const lbl = (devices[i].label || '').toLowerCase();
+                    if (lbl.includes('back') || 
+                        lbl.includes('rear') || 
+                        lbl.includes('trasera') || 
+                        lbl.includes('posterior') || 
+                        lbl.includes('environment') || 
+                        lbl.includes('externa')) {
+                        idxTrasera = i;
+                        break;
+                    }
                 }
-                arrancarLectorCamara(devices[camaraActualIndex].id);
+
+                // En teléfonos móviles donde las etiquetas están vacías antes de dar permiso,
+                // la cámara trasera suele ser la última del listado de sensores
+                if (idxTrasera === -1) {
+                    idxTrasera = devices.length > 1 ? (devices.length - 1) : 0;
+                }
+
+                camaraActualIndex = idxTrasera;
+
+                if (devices[idxTrasera].label && devices[idxTrasera].label.trim().length > 0) {
+                    arrancarLectorCamara(devices[idxTrasera].id);
+                } else {
+                    arrancarLectorCamara({ facingMode: "environment" });
+                }
             } else {
                 arrancarLectorCamara({ facingMode: "environment" });
             }
-        }).catch(err => {
+        } catch (err) {
+            console.warn("getCameras() no disponible, usando facingMode environment directo:", err);
             arrancarLectorCamara({ facingMode: "environment" });
-        });
+        }
     }
 
     function arrancarLectorCamara(camaraConfig) {
-        qrScannerJornada = new Html5Qrcode("qr-reader-container");
-        const qrConfig = { 
-            fps: 15, 
-            qrbox: { width: 230, height: 230 },
-            aspectRatio: 1.0
-        };
+        detenerCamaraJornada();
 
-        qrScannerJornada.start(
-            camaraConfig,
-            qrConfig,
-            (decodedText, decodedResult) => {
-                reproducirSonidoBeep();
-                procesarTextoEscaneado(decodedText);
-                const modalEl = document.getElementById('modalEscanerQRJornada');
-                const modal = bootstrap.Modal.getInstance(modalEl);
-                if (modal) modal.hide();
-                detenerCamaraJornada();
-            },
-            (errorMessage) => {}
-        ).catch(err => {
-            console.warn("Error iniciando cámara:", err);
-            document.getElementById('qr-reader-container').innerHTML = `
+        try {
+            qrScannerJornada = new Html5Qrcode("qr-reader-container");
+            const qrConfig = { 
+                fps: 15, 
+                qrbox: { width: 230, height: 230 },
+                aspectRatio: 1.0
+            };
+
+            qrScannerJornada.start(
+                camaraConfig,
+                qrConfig,
+                (decodedText, decodedResult) => {
+                    reproducirSonidoBeep();
+                    procesarTextoEscaneado(decodedText);
+                    const modalEl = document.getElementById('modalEscanerQRJornada');
+                    const modal = bootstrap.Modal.getInstance(modalEl);
+                    if (modal) modal.hide();
+                    detenerCamaraJornada();
+                },
+                (errorMessage) => {}
+            ).catch(err => {
+                console.warn("Fallo con config específica de cámara, reintentando con facingMode environment:", err);
+                if (typeof camaraConfig === 'string') {
+                    qrScannerJornada.start(
+                        { facingMode: "environment" },
+                        qrConfig,
+                        (decodedText) => {
+                            reproducirSonidoBeep();
+                            procesarTextoEscaneado(decodedText);
+                            const modalEl = document.getElementById('modalEscanerQRJornada');
+                            const modal = bootstrap.Modal.getInstance(modalEl);
+                            if (modal) modal.hide();
+                            detenerCamaraJornada();
+                        },
+                        () => {}
+                    ).catch(mostrarErrorCamara);
+                } else {
+                    mostrarErrorCamara(err);
+                }
+            });
+        } catch (e) {
+            mostrarErrorCamara(e);
+        }
+    }
+
+    function mostrarErrorCamara(err) {
+        console.error("Error iniciando cámara:", err);
+        const container = document.getElementById('qr-reader-container');
+        if (container) {
+            container.innerHTML = `
                 <div class="p-3 text-center text-white">
                     <i class="bi bi-camera-video-off fs-1 text-warning mb-2 d-block"></i>
-                    <h6 class="fw-bold">No se pudo acceder a la cámara</h6>
-                    <p class="small text-white-50 mb-3">Conceda permisos de cámara en su navegador o escriba la cédula manualmente.</p>
+                    <h6 class="fw-bold">Acceso a cámara no disponible</h6>
+                    <p class="small text-white-50 mb-3">Conceda permisos de cámara en su navegador o ingrese la cédula manualmente.</p>
                     <button type="button" class="btn btn-outline-light btn-sm" onclick="iniciarCamaraJornada()">
                         <i class="bi bi-arrow-repeat me-1"></i> Reintentar
                     </button>
                 </div>
             `;
-        });
+        }
     }
 
     function cambiarCamaraJornada() {
         if (camarasDisponibles.length > 1) {
             camaraActualIndex = (camaraActualIndex + 1) % camarasDisponibles.length;
             detenerCamaraJornada();
-            arrancarLectorCamara(camarasDisponibles[camaraActualIndex].id);
+            setTimeout(() => {
+                arrancarLectorCamara(camarasDisponibles[camaraActualIndex].id);
+            }, 200);
+        } else {
+            modoFacingActual = (modoFacingActual === "environment") ? "user" : "environment";
+            detenerCamaraJornada();
+            setTimeout(() => {
+                arrancarLectorCamara({ facingMode: modoFacingActual });
+            }, 200);
         }
     }
 
     function detenerCamaraJornada() {
         if (qrScannerJornada) {
-            qrScannerJornada.stop().then(() => {
-                qrScannerJornada.clear();
+            try {
+                if (qrScannerJornada.isScanning) {
+                    qrScannerJornada.stop().then(() => {
+                        qrScannerJornada.clear();
+                        qrScannerJornada = null;
+                    }).catch(() => {
+                        qrScannerJornada = null;
+                    });
+                } else {
+                    qrScannerJornada.clear();
+                    qrScannerJornada = null;
+                }
+            } catch (e) {
                 qrScannerJornada = null;
-            }).catch(() => {
-                qrScannerJornada = null;
-            });
+            }
         }
     }
 
@@ -918,30 +1045,61 @@
     let entregasEnSesionCount = 0;
 
     function procesarEntregaJornada() {
-        const cedula = document.getElementById('jornadaCedula').value.trim();
-        const nombre = document.getElementById('jornadaNombre').value.trim();
-        const telefono = document.getElementById('jornadaTelefono').value.trim();
-        const direccion = document.getElementById('jornadaDireccion').value.trim();
-        const productoId = document.getElementById('cfgProducto').value;
-        const cantidad = document.getElementById('cfgCantidad').value;
-        const parroquia = document.getElementById('cfgParroquia').value;
-        const via = document.getElementById('cfgVia').value;
-        const entregaIdPendiente = document.getElementById('entregaIdPendiente').value;
-        const csrf = document.querySelector('[name=csrfmiddlewaretoken]').value;
+        const cedulaInput = document.getElementById('jornadaCedula');
+        const nombreInput = document.getElementById('jornadaNombre');
+        const telefonoInput = document.getElementById('jornadaTelefono');
+        const direccionInput = document.getElementById('jornadaDireccion');
+        const prodSelect = document.getElementById('cfgProducto');
+        const cantInput = document.getElementById('cfgCantidad');
+        const parroqSelect = document.getElementById('cfgParroquia');
+        const viaInput = document.getElementById('cfgVia');
+        const pendInput = document.getElementById('entregaIdPendiente');
+        const csrfTokenEl = document.querySelector('[name=csrfmiddlewaretoken]');
         const btn = document.getElementById('btnConfirmarEntrega');
-        const lblBtnConfirmar = document.getElementById('lblBtnConfirmar');
 
-        if (!cedula || !nombre) {
-            alert("Cédula y Nombre del Beneficiario son requeridos.");
+        const cedula = cedulaInput ? cedulaInput.value.trim() : '';
+        const nombre = nombreInput ? nombreInput.value.trim() : '';
+        const telefono = telefonoInput ? telefonoInput.value.trim() : '';
+        const direccion = direccionInput ? direccionInput.value.trim() : '';
+        const productoId = prodSelect ? prodSelect.value : '';
+        const cantidad = cantInput ? cantInput.value : '1';
+        const parroquia = parroqSelect ? parroqSelect.value : 'Juan Ignacio Montilla';
+        const via = viaInput ? viaInput.value : 'Jornada / Operativo Social';
+        const entregaIdPendiente = pendInput ? pendInput.value.trim() : '';
+        const csrf = csrfTokenEl ? csrfTokenEl.value : '';
+        const esPendiente = Boolean(entregaIdPendiente);
+
+        if (!cedula) {
+            alert("⚠️ Ingrese o escanee el número de Cédula del Beneficiario.");
+            if (cedulaInput) cedulaInput.focus();
+            restaurarBotonConfirmar(esPendiente);
             return;
         }
 
-        btn.disabled = true;
-        lblBtnConfirmar.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span> Confirmando...';
+        if (!nombre) {
+            alert("⚠️ Ingrese los Nombres y Apellidos del Beneficiario.");
+            if (nombreInput) nombreInput.focus();
+            restaurarBotonConfirmar(esPendiente);
+            return;
+        }
+
+        if (!esPendiente && !productoId) {
+            alert("⚠️ Debe seleccionar un producto con stock disponible para la entrega.");
+            restaurarBotonConfirmar(esPendiente);
+            return;
+        }
+
+        // Deshabilitar botón visualmente durante el envío AJAX
+        if (btn) {
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span><span>Procesando Entrega...</span>';
+        }
 
         let firmaData = '';
         if (hasSignature && canvas) {
-            firmaData = canvas.toDataURL('image/png');
+            try {
+                firmaData = canvas.toDataURL('image/png');
+            } catch(e) {}
         }
 
         const formData = new FormData();
@@ -962,28 +1120,39 @@
             body: formData,
             headers: { 'X-Requested-With': 'XMLHttpRequest' }
         })
-        .then(res => res.json())
-        .then(data => {
-            btn.disabled = false;
-            lblBtnConfirmar.textContent = 'CONFIRMAR ENTREGA';
+        .then(async (res) => {
+            let data = null;
+            try {
+                data = await res.json();
+            } catch(jsonErr) {
+                throw new Error(`El servidor respondió con código ${res.status}.`);
+            }
 
-            if (!data.success) {
-                alert(`⚠️ Error: ${data.error || 'No se pudo confirmar la entrega'}`);
+            if (!res.ok || !data || !data.success) {
+                const errMsg = (data && data.error) ? data.error : `Error al procesar la entrega (HTTP ${res.status})`;
+                restaurarBotonConfirmar(esPendiente);
+                alert(`⚠️ ${errMsg}`);
                 return;
             }
 
-            // Éxito: audio chime y actualización de contadores
+            // ÉXITO
+            restaurarBotonConfirmar(false);
             reproducirSonidoExito();
             entregasEnSesionCount++;
-            document.getElementById('lblContadorSesion').textContent = `${entregasEnSesionCount} en esta sesión`;
+            
+            const sesionLbl = document.getElementById('lblContadorSesion');
+            if (sesionLbl) sesionLbl.textContent = `${entregasEnSesionCount} en esta sesión`;
 
             // Actualizar stock visual
             if (data.stock_restante !== undefined && data.stock_restante !== null) {
-                document.getElementById('kpiStockRestante').textContent = `${data.stock_restante} u.`;
-                document.getElementById('lblStockDisponibleBadge').textContent = `${data.stock_restante} u.`;
-                const sel = document.getElementById('cfgProducto');
-                const opt = sel.options[sel.selectedIndex];
-                if (opt) opt.setAttribute('data-stock', data.stock_restante);
+                const kpiStock = document.getElementById('kpiStockRestante');
+                if (kpiStock) kpiStock.textContent = `${data.stock_restante} u.`;
+                const badgeStock = document.getElementById('lblStockDisponibleBadge');
+                if (badgeStock) badgeStock.textContent = `${data.stock_restante} u.`;
+                if (prodSelect && prodSelect.selectedIndex >= 0) {
+                    const opt = prodSelect.options[prodSelect.selectedIndex];
+                    if (opt) opt.setAttribute('data-stock', data.stock_restante);
+                }
             }
 
             // Actualizar KPIs de totales
@@ -1069,27 +1238,32 @@
             }
 
             // Limpiar formulario y reiniciar para el siguiente
-            document.getElementById('jornadaCedula').value = '';
-            document.getElementById('jornadaNombre').value = '';
-            document.getElementById('jornadaTelefono').value = '';
-            document.getElementById('jornadaDireccion').value = '';
-            document.getElementById('entregaIdPendiente').value = '';
-            document.getElementById('bannerBeneficioPendiente').classList.add('d-none');
-            document.getElementById('bannerBeneficioNuevo').classList.add('d-none');
-            document.getElementById('badgeVerificado').classList.add('d-none');
+            if (cedulaInput) cedulaInput.value = '';
+            if (nombreInput) nombreInput.value = '';
+            if (telefonoInput) telefonoInput.value = '';
+            if (direccionInput) direccionInput.value = '';
+            if (pendInput) pendInput.value = '';
+            const bPend = document.getElementById('bannerBeneficioPendiente');
+            if (bPend) bPend.classList.add('d-none');
+            const bNuevo = document.getElementById('bannerBeneficioNuevo');
+            if (bNuevo) bNuevo.classList.add('d-none');
+            const bVerif = document.getElementById('badgeVerificado');
+            if (bVerif) bVerif.classList.add('d-none');
             limpiarFirmaJornada();
 
             const lblBusq = document.getElementById('lblEstadoBusqueda');
-            lblBusq.textContent = "Listo para el siguiente";
-            lblBusq.className = "badge bg-success-subtle text-success small fw-semibold";
+            if (lblBusq) {
+                lblBusq.textContent = "Listo para la siguiente entrega";
+                lblBusq.className = "badge bg-success-subtle text-success small fw-semibold";
+            }
 
             // Reenfocar la cédula
-            document.getElementById('jornadaCedula').focus();
+            if (cedulaInput) cedulaInput.focus();
         })
         .catch(err => {
-            btn.disabled = false;
-            lblBtnConfirmar.textContent = 'CONFIRMAR ENTREGA';
-            alert("Error de conexión al procesar la entrega. Verifique su red.");
+            console.error("Error en procesarEntregaJornada:", err);
+            restaurarBotonConfirmar(esPendiente);
+            alert(`⚠️ Error al procesar entrega: ${err.message || 'Error de conexión con el servidor'}`);
         });
     }
 </script>

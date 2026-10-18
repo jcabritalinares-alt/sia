@@ -1580,7 +1580,9 @@ def jornada_operativo_view(request):
                     entrega.descripcion_prod = producto.descripcion
 
                 entrega.status = 'Entregado'
+                entrega.fecha = hoy
                 entrega.fecha_entrega = hoy
+                entrega.timestamp = timezone.now()
                 entrega.cantidad_dada = cantidad_dada
                 if nombre_beneficiario:
                     entrega.nombre_beneficiario = nombre_beneficiario
@@ -1662,6 +1664,7 @@ def jornada_operativo_view(request):
                     parroquia=parroquia,
                     fecha=hoy,
                     fecha_entrega=hoy,
+                    timestamp=timezone.now(),
                     status='Entregado',
                     firma_beneficiario=firma_data if firma_data else None
                 )
@@ -1705,9 +1708,9 @@ def jornada_operativo_view(request):
 
     # GET: Pantalla de Operativo
     productos = SIA_producto.objects.filter(cantidad__gt=0).order_by('descripcion')
-    entregas_hoy = BeneficioEntregado.objects.filter(fecha=hoy, status='Entregado').order_by('-id')[:25]
-    total_hoy = BeneficioEntregado.objects.filter(fecha=hoy, status='Entregado').count()
-    total_unidades_hoy = BeneficioEntregado.objects.filter(fecha=hoy, status='Entregado').aggregate(tot=Sum('cantidad_dada'))['tot'] or 0
+    entregas_hoy = BeneficioEntregado.objects.filter(Q(fecha=hoy) | Q(fecha_entrega=hoy), status='Entregado').order_by('-id')[:25]
+    total_hoy = BeneficioEntregado.objects.filter(Q(fecha=hoy) | Q(fecha_entrega=hoy), status='Entregado').count()
+    total_unidades_hoy = BeneficioEntregado.objects.filter(Q(fecha=hoy) | Q(fecha_entrega=hoy), status='Entregado').aggregate(tot=Sum('cantidad_dada'))['tot'] or 0
 
     return render(request, 'entregas/jornada.html', {
         'productos': productos,

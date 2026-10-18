@@ -164,8 +164,9 @@
             const form = e.target;
             if (!form || form.tagName !== 'FORM') return;
 
-            // Evitar interceptar formularios de descarga o con target="_blank"
+            // Evitar interceptar formularios de descarga, con target="_blank" o manejados por AJAX
             if (form.getAttribute('target') === '_blank') return;
+            if (form.dataset.ajax === 'true' || form.getAttribute('data-ajax') === 'true' || form.id === 'formJornadaExpres') return;
 
             // Si ya está enviándose, prevenir clics subsiguientes
             if (form.dataset.siaSubmitting === 'true') {
