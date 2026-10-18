@@ -58,12 +58,24 @@
         position: relative;
         width: 100%;
         max-width: 360px;
-        height: 280px;
+        min-height: 280px;
         margin: 0 auto;
         border-radius: 16px;
         overflow: hidden;
         background: #000;
         box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4);
+    }
+
+    #qr-reader-container {
+        width: 100% !important;
+        min-height: 280px;
+    }
+
+    #qr-reader-container video {
+        width: 100% !important;
+        height: 100% !important;
+        object-fit: cover !important;
+        border-radius: 16px;
     }
 
     .qr-scanner-laser {
@@ -496,7 +508,7 @@
                 </div>
                 <div class="modal-body p-3 text-center bg-black d-flex flex-column justify-content-center align-items-center">
                     <div class="qr-scanner-box">
-                        <div id="qr-reader-container" style="width: 100%; height: 100%;"></div>
+                        <div id="qr-reader-container" style="width: 100%; min-height: 280px;"></div>
                         <div class="qr-scanner-laser"></div>
                         <div class="qr-scanner-corners"></div>
                     </div>
@@ -505,13 +517,20 @@
                         Apunta la cámara de tu teléfono al <strong>Carnet Digital</strong> o código QR del ciudadano.
                     </div>
                 </div>
-                <div class="modal-footer bg-dark border-0 d-flex justify-content-between py-2.5">
-                    <button type="button" class="btn btn-outline-warning btn-sm d-inline-flex align-items-center gap-1.5 fw-semibold" id="btnCambiarCamara" onclick="cambiarCamaraJornada()">
-                        <i class="bi bi-arrow-repeat fs-6"></i>
-                        <span>Cambiar Cámara / Lente</span>
-                    </button>
+                <div class="modal-footer bg-dark border-0 d-flex justify-content-between py-2.5 flex-wrap gap-2">
+                    <div class="d-flex gap-2">
+                        <button type="button" class="btn btn-outline-warning btn-sm d-inline-flex align-items-center gap-1.5 fw-semibold" id="btnCambiarCamara" onclick="cambiarCamaraJornada()">
+                            <i class="bi bi-arrow-repeat fs-6"></i>
+                            <span>Cambiar Cámara</span>
+                        </button>
+                        <label class="btn btn-outline-info btn-sm d-inline-flex align-items-center gap-1.5 fw-semibold mb-0" style="cursor: pointer;" title="Cargar foto del carnet si la cámara presenta restricciones">
+                            <i class="bi bi-image fs-6"></i>
+                            <span>Cargar Foto</span>
+                            <input type="file" id="inputFotoQRModal" accept="image/*" class="d-none" onchange="escanearArchivoQR(this)">
+                        </label>
+                    </div>
                     <button type="button" class="btn btn-secondary px-4 rounded-3" data-bs-dismiss="modal" onclick="cerrarModalCamara()">
-                        Cancelar
+                        Cerrar
                     </button>
                 </div>
             </div>
@@ -522,8 +541,13 @@
 {% endblock %}
 
 {% block scripts %}
-<!-- Carga de Html5Qrcode para escaneo de cámara móvil -->
-<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<!-- Carga de Html5Qrcode para escaneo de cámara móvil con redundancia CDN -->
+<script src="https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<script>
+    if (typeof Html5Qrcode === 'undefined') {
+        document.write('<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"><\/script>');
+    }
+</script>
 
 <script>
     // --- GESTIÓN DE PESTAÑAS EN MÓVIL ---
@@ -669,6 +693,29 @@
     }
     actualizarInfoProducto();
 
+    // --- HELPER UNIVERSAL PARA EXTRAER CÉDULA DE CUALQUIER FORMATO QR ---
+    function limpiarYExtraerCedula(valor) {
+        if (!valor) return '';
+        let str = String(valor).trim().toUpperCase();
+        if (str.startsWith('{') && str.endsWith('}')) {
+            try {
+                const parsed = JSON.parse(str);
+                if (parsed.cedula) str = String(parsed.cedula).trim().toUpperCase();
+            } catch(e) {}
+        }
+        if (str.includes('SIA:CEDULA:')) {
+            str = str.replace(/.*SIA:CEDULA:/, '').trim();
+        } else if (str.includes('/CIUDADANO/')) {
+            const m = str.match(/\/CIUDADANO\/([^\/\?#]+)/);
+            if (m && m[1]) str = m[1];
+        } else if (str.includes('CEDULA=')) {
+            const m = str.match(/CEDULA=([^&]+)/);
+            if (m && m[1]) str = m[1];
+        }
+        const digitos = str.replace(/\D/g, '');
+        return digitos || str.replace(/[^0-9VEve-]/g, '').trim();
+    }
+
     // --- BÚSQUEDA Y EXTRACCIÓN DE DATOS POR CÉDULA / QR ---
     const inputCedula = document.getElementById('jornadaCedula');
     let timerBusqueda = null;
@@ -678,47 +725,62 @@
         inputCedula.dataset.siaPhoneMaskAttached = 'true';
         const residualMsg = inputCedula.parentElement.parentElement.querySelector('.sia-phone-feedback');
         if (residualMsg) residualMsg.remove();
+
+        inputCedula.addEventListener('input', function() {
+            let val = inputCedula.value.trim().toUpperCase();
+            // Si el valor contiene prefijo SIA o formato URL de escaneo completo (pistola QR o pegado), procesarlo
+            if (val.includes('SIA:CEDULA:') || val.includes('/CIUDADANO/') || val.includes('CEDULA=')) {
+                val = limpiarYExtraerCedula(val);
+                inputCedula.value = val;
+            } else if (!val.startsWith('S') && !val.startsWith('{')) {
+                // Limpieza mientras el usuario escribe la cédula manualmente
+                val = val.replace(/[^VvEeJjGg0-9\-]/g, '');
+                if (inputCedula.value !== val) {
+                    inputCedula.value = val;
+                }
+            }
+
+            // Limpiar mensajes residuales de validación de teléfono
+            const errFeedback = inputCedula.parentElement.parentElement.querySelectorAll('.sia-phone-feedback');
+            errFeedback.forEach(el => el.remove());
+
+            clearTimeout(timerBusqueda);
+            const digitsOnly = val.replace(/\D/g, '');
+            if (digitsOnly.length >= 4) {
+                timerBusqueda = setTimeout(() => buscarDatosCiudadano(val), 350);
+            } else if (digitsOnly.length === 0) {
+                const lbl = document.getElementById('lblEstadoBusqueda');
+                if (lbl) {
+                    lbl.textContent = "Ingrese o escanee el número de Cédula";
+                    lbl.className = "badge bg-light text-secondary border small fw-semibold";
+                }
+            }
+        });
+
+        inputCedula.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                ejecutarBusquedaManual();
+            }
+        });
+
+        inputCedula.addEventListener('paste', function(e) {
+            setTimeout(() => {
+                const cedulaLimpia = limpiarYExtraerCedula(inputCedula.value);
+                inputCedula.value = cedulaLimpia;
+                if (cedulaLimpia.length >= 3) {
+                    buscarDatosCiudadano(cedulaLimpia);
+                }
+            }, 60);
+        });
     }
-
-    inputCedula.addEventListener('input', function() {
-        // Asegurar que solo contenga números o prefijos de cédula válidos
-        let clean = inputCedula.value.trim().toUpperCase();
-        if (clean.includes('SIA:CEDULA:')) {
-            clean = clean.replace('SIA:CEDULA:', '').trim();
-        }
-        clean = clean.replace(/[^VvEeJjGg0-9\-]/g, '');
-        if (inputCedula.value !== clean) {
-            inputCedula.value = clean;
-        }
-
-        // Limpiar mensajes residuales de validación de teléfono
-        const errFeedback = inputCedula.parentElement.parentElement.querySelectorAll('.sia-phone-feedback');
-        errFeedback.forEach(el => el.remove());
-
-        clearTimeout(timerBusqueda);
-        const digitsOnly = clean.replace(/\D/g, '');
-        if (digitsOnly.length >= 4) {
-            timerBusqueda = setTimeout(() => buscarDatosCiudadano(clean), 350);
-        } else if (digitsOnly.length === 0) {
-            const lbl = document.getElementById('lblEstadoBusqueda');
-            lbl.textContent = "Ingrese o escanee el número de Cédula";
-            lbl.className = "badge bg-light text-secondary border small fw-semibold";
-        }
-    });
-
-    inputCedula.addEventListener('keydown', function(e) {
-        if (e.key === 'Enter') {
-            e.preventDefault();
-            ejecutarBusquedaManual();
-        }
-    });
 
     function ejecutarBusquedaManual() {
         clearTimeout(timerBusqueda);
-        const raw = inputCedula.value.trim().toUpperCase();
-        const digitsOnly = raw.replace(/\D/g, '');
-        if (digitsOnly.length >= 3) {
-            buscarDatosCiudadano(raw);
+        const cedulaLimpia = limpiarYExtraerCedula(inputCedula.value);
+        inputCedula.value = cedulaLimpia;
+        if (cedulaLimpia.length >= 3) {
+            buscarDatosCiudadano(cedulaLimpia);
         } else {
             Swal.fire({
                 icon: 'warning',
@@ -746,31 +808,9 @@
 
     function procesarTextoEscaneado(decodedText) {
         if (!decodedText) return;
-        let raw = String(decodedText).trim();
+        const cedulaLimpia = limpiarYExtraerCedula(decodedText);
+        if (!cedulaLimpia) return;
 
-        try {
-            if (raw.startsWith('{') && raw.endsWith('}')) {
-                const parsed = JSON.parse(raw);
-                if (parsed.cedula) raw = String(parsed.cedula);
-            }
-        } catch(e) {}
-
-        if (raw.startsWith('SIA:CEDULA:')) {
-            raw = raw.replace('SIA:CEDULA:', '').trim();
-        } else if (raw.includes('/ciudadano/')) {
-            const match = raw.match(/\/ciudadano\/([^\/\?#]+)/);
-            if (match && match[1]) {
-                raw = match[1];
-            }
-        } else if (raw.includes('cedula=')) {
-            const match = raw.match(/cedula=([^&]+)/);
-            if (match && match[1]) {
-                raw = match[1];
-            }
-        }
-
-        const digitsOnly = raw.replace(/\D/g, '');
-        const cedulaLimpia = digitsOnly || raw.replace(/[^0-9VEve-]/g, '').trim();
         if (inputCedula) {
             inputCedula.value = cedulaLimpia;
         }
@@ -892,10 +932,12 @@
     }
 
     // --- ESCÁNER DE CÁMARA QR (Html5Qrcode con Cámara Trasera por Defecto) ---
+    // --- ESCÁNER DE CÁMARA QR ROBUSTO (Html5Qrcode con Detección por Hardware BarcodeDetector) ---
     let qrScannerJornada = null;
     let camarasDisponibles = [];
     let camaraActualIndex = 0;
-    let modoFacingActual = "environment"; // Prioridad: Cámara trasera
+    let modoFacingActual = "environment"; // Prioridad: Cámara trasera nativa
+    let camaraArrancando = false;
 
     function abrirEscanerCamaraQR() {
         const modalEl = document.getElementById('modalEscanerQRJornada');
@@ -904,153 +946,27 @@
         modal.show();
     }
 
-    async function iniciarCamaraJornada() {
-        if (typeof Html5Qrcode === 'undefined') {
-            document.getElementById('qr-reader-container').innerHTML = 
-                '<div class="alert alert-warning m-3 text-center">Cargando escáner... Reintente en un momento.</div>';
-            return;
-        }
-
-        detenerCamaraJornada();
-        modoFacingActual = "environment";
-
-        try {
-            const devices = await Html5Qrcode.getCameras();
-            if (devices && devices.length > 0) {
-                camarasDisponibles = devices;
-
-                // Buscar de forma proactiva la cámara trasera según su etiqueta
-                let idxTrasera = -1;
-                for (let i = 0; i < devices.length; i++) {
-                    const lbl = (devices[i].label || '').toLowerCase();
-                    if (lbl.includes('back') || 
-                        lbl.includes('rear') || 
-                        lbl.includes('trasera') || 
-                        lbl.includes('posterior') || 
-                        lbl.includes('environment') || 
-                        lbl.includes('externa')) {
-                        idxTrasera = i;
-                        break;
-                    }
-                }
-
-                if (idxTrasera === -1) {
-                    idxTrasera = devices.length > 1 ? (devices.length - 1) : 0;
-                }
-
-                camaraActualIndex = idxTrasera;
-
-                if (devices[idxTrasera].label && devices[idxTrasera].label.trim().length > 0) {
-                    arrancarLectorCamara(devices[idxTrasera].id);
-                } else {
-                    arrancarLectorCamara({ facingMode: "environment" });
-                }
-            } else {
-                arrancarLectorCamara({ facingMode: "environment" });
-            }
-        } catch (err) {
-            console.warn("getCameras() no disponible, usando facingMode environment directo:", err);
-            arrancarLectorCamara({ facingMode: "environment" });
-        }
-    }
-
-    function arrancarLectorCamara(camaraConfig) {
-        detenerCamaraJornada();
-
-        try {
-            qrScannerJornada = new Html5Qrcode("qr-reader-container");
-            const qrConfig = { 
-                fps: 15, 
-                qrbox: { width: 230, height: 230 },
-                aspectRatio: 1.0
-            };
-
-            qrScannerJornada.start(
-                camaraConfig,
-                qrConfig,
-                (decodedText, decodedResult) => {
-                    reproducirSonidoBeep();
-                    procesarTextoEscaneado(decodedText);
-                    cerrarModalCamara();
-                },
-                (errorMessage) => {}
-            ).catch(err => {
-                console.warn("Fallo con config específica de cámara, reintentando con facingMode environment:", err);
-                if (typeof camaraConfig === 'string') {
-                    qrScannerJornada.start(
-                        { facingMode: "environment" },
-                        qrConfig,
-                        (decodedText) => {
-                            reproducirSonidoBeep();
-                            procesarTextoEscaneado(decodedText);
-                            cerrarModalCamara();
-                        },
-                        () => {}
-                    ).catch(mostrarErrorCamara);
-                } else {
-                    mostrarErrorCamara(err);
-                }
-            });
-        } catch (e) {
-            mostrarErrorCamara(e);
-        }
-    }
-
-    function mostrarErrorCamara(err) {
-        console.error("Error iniciando cámara:", err);
-        const container = document.getElementById('qr-reader-container');
-        if (container) {
-            container.innerHTML = `
-                <div class="p-3 text-center text-white">
-                    <i class="bi bi-camera-video-off fs-1 text-warning mb-2 d-block"></i>
-                    <h6 class="fw-bold">Acceso a cámara no disponible</h6>
-                    <p class="small text-white-50 mb-3">Conceda permisos de cámara en su navegador o ingrese la cédula manualmente.</p>
-                    <button type="button" class="btn btn-outline-light btn-sm" onclick="iniciarCamaraJornada()">
-                        <i class="bi bi-arrow-repeat me-1"></i> Reintentar
-                    </button>
-                </div>
-            `;
-        }
-    }
-
-    function cambiarCamaraJornada() {
-        if (camarasDisponibles.length > 1) {
-            camaraActualIndex = (camaraActualIndex + 1) % camarasDisponibles.length;
-            detenerCamaraJornada();
-            setTimeout(() => {
-                arrancarLectorCamara(camarasDisponibles[camaraActualIndex].id);
-            }, 200);
-        } else {
-            modoFacingActual = (modoFacingActual === "environment") ? "user" : "environment";
-            detenerCamaraJornada();
-            setTimeout(() => {
-                arrancarLectorCamara({ facingMode: modoFacingActual });
-            }, 200);
-        }
-    }
-
-    function detenerCamaraJornada() {
+    async function detenerCamaraJornada() {
         if (qrScannerJornada) {
             try {
                 if (qrScannerJornada.isScanning) {
-                    qrScannerJornada.stop().then(() => {
-                        qrScannerJornada.clear();
-                        qrScannerJornada = null;
-                    }).catch(() => {
-                        qrScannerJornada = null;
-                    });
-                } else {
-                    qrScannerJornada.clear();
-                    qrScannerJornada = null;
+                    await qrScannerJornada.stop();
                 }
+                qrScannerJornada.clear();
             } catch (e) {
+                console.warn("detenerCamaraJornada info:", e);
+            } finally {
                 qrScannerJornada = null;
             }
         }
+        const container = document.getElementById('qr-reader-container');
+        if (container) {
+            container.innerHTML = '';
+        }
     }
 
-    function cerrarModalCamara() {
-        detenerCamaraJornada();
+    async function cerrarModalCamara() {
+        await detenerCamaraJornada();
         const modalEl = document.getElementById('modalEscanerQRJornada');
         if (modalEl) {
             const modal = bootstrap.Modal.getInstance(modalEl);
@@ -1064,6 +980,180 @@
             document.body.style.removeProperty('overflow');
             document.body.style.removeProperty('padding-right');
         }, 300);
+    }
+
+    async function iniciarCamaraJornada() {
+        if (camaraArrancando) return;
+        camaraArrancando = true;
+
+        const container = document.getElementById('qr-reader-container');
+        if (!container) {
+            camaraArrancando = false;
+            return;
+        }
+
+        // 1. Validar que la librería Html5Qrcode esté cargada
+        if (typeof Html5Qrcode === 'undefined') {
+            container.innerHTML = `
+                <div class="p-4 text-center text-white">
+                    <div class="spinner-border text-warning mb-2" role="status"></div>
+                    <div class="fw-bold">Cargando lector QR...</div>
+                    <small class="text-white-50">Por favor espere un momento o pulse reintentar.</small>
+                </div>
+            `;
+            const script = document.createElement('script');
+            script.src = "https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js";
+            script.onload = () => {
+                camaraArrancando = false;
+                iniciarCamaraJornada();
+            };
+            script.onerror = () => {
+                camaraArrancando = false;
+                mostrarErrorCamara("No se pudo cargar la librería del lector QR.");
+            };
+            document.head.appendChild(script);
+            return;
+        }
+
+        await detenerCamaraJornada();
+        container.innerHTML = '';
+
+        // 2. Obtener lista de cámaras para alternar lentes
+        try {
+            const devices = await Html5Qrcode.getCameras();
+            if (devices && devices.length > 0) {
+                camarasDisponibles = devices;
+            }
+        } catch(e) {
+            console.warn("getCameras info:", e);
+        }
+
+        // 3. Arrancar con facingMode environment por defecto (cámara trasera principal con autofocus)
+        modoFacingActual = "environment";
+        await arrancarLectorCamara({ facingMode: "environment" });
+        camaraArrancando = false;
+    }
+
+    async function arrancarLectorCamara(camaraConfig) {
+        await detenerCamaraJornada();
+
+        const container = document.getElementById('qr-reader-container');
+        if (!container) return;
+        container.innerHTML = '';
+
+        try {
+            qrScannerJornada = new Html5Qrcode("qr-reader-container", {
+                experimentalFeatures: {
+                    useBarCodeDetectorIfSupported: true
+                }
+            });
+
+            const qrConfig = {
+                fps: 15,
+                qrbox: function(viewfinderWidth, viewfinderHeight) {
+                    const min = Math.min(viewfinderWidth, viewfinderHeight);
+                    const size = Math.floor(min * 0.72);
+                    return {
+                        width: Math.max(180, Math.min(size, 260)),
+                        height: Math.max(180, Math.min(size, 260))
+                    };
+                }
+            };
+
+            await qrScannerJornada.start(
+                camaraConfig,
+                qrConfig,
+                (decodedText, decodedResult) => {
+                    reproducirSonidoBeep();
+                    procesarTextoEscaneado(decodedText);
+                },
+                (errorMessage) => {
+                    // Escaneo continuo activo
+                }
+            );
+
+        } catch (err) {
+            console.warn("Fallo al iniciar cámara con configuración primaria:", err);
+            // Si falló con facingMode environment, intentar con el primer dispositivo físico disponible
+            if (camaraConfig && camaraConfig.facingMode === "environment" && camarasDisponibles.length > 0) {
+                try {
+                    await detenerCamaraJornada();
+                    qrScannerJornada = new Html5Qrcode("qr-reader-container", {
+                        experimentalFeatures: { useBarCodeDetectorIfSupported: true }
+                    });
+                    camaraActualIndex = 0;
+                    await qrScannerJornada.start(
+                        camarasDisponibles[0].id,
+                        { fps: 15 },
+                        (decodedText) => {
+                            reproducirSonidoBeep();
+                            procesarTextoEscaneado(decodedText);
+                        },
+                        () => {}
+                    );
+                    return;
+                } catch(err2) {
+                    mostrarErrorCamara(err2);
+                    return;
+                }
+            }
+            mostrarErrorCamara(err);
+        }
+    }
+
+    function mostrarErrorCamara(err) {
+        console.error("Error iniciando cámara:", err);
+        const container = document.getElementById('qr-reader-container');
+        if (container) {
+            container.innerHTML = `
+                <div class="p-3 text-center text-white">
+                    <i class="bi bi-camera-video-off fs-1 text-warning mb-2 d-block"></i>
+                    <h6 class="fw-bold">Acceso a cámara no disponible</h6>
+                    <p class="small text-white-50 mb-3">Verifique los permisos de cámara en su navegador o cargue una foto del carnet.</p>
+                    <div class="d-flex justify-content-center gap-2 flex-wrap">
+                        <button type="button" class="btn btn-outline-light btn-sm" onclick="iniciarCamaraJornada()">
+                            <i class="bi bi-arrow-repeat me-1"></i> Reintentar Cámara
+                        </button>
+                        <label class="btn btn-warning btn-sm fw-semibold text-dark mb-0" style="cursor: pointer;">
+                            <i class="bi bi-image me-1"></i> Subir Foto QR
+                            <input type="file" accept="image/*" class="d-none" onchange="escanearArchivoQR(this)">
+                        </label>
+                    </div>
+                </div>
+            `;
+        }
+    }
+
+    async function cambiarCamaraJornada() {
+        if (camarasDisponibles.length > 1) {
+            camaraActualIndex = (camaraActualIndex + 1) % camarasDisponibles.length;
+            await arrancarLectorCamara(camarasDisponibles[camaraActualIndex].id);
+        } else {
+            modoFacingActual = (modoFacingActual === "environment") ? "user" : "environment";
+            await arrancarLectorCamara({ facingMode: modoFacingActual });
+        }
+    }
+
+    async function escanearArchivoQR(input) {
+        if (!input.files || input.files.length === 0) return;
+        const file = input.files[0];
+        try {
+            await detenerCamaraJornada();
+            const scanner = new Html5Qrcode("qr-reader-container");
+            const decodedText = await scanner.scanFile(file, true);
+            reproducirSonidoBeep();
+            procesarTextoEscaneado(decodedText);
+            await scanner.clear();
+        } catch (err) {
+            Swal.fire({
+                icon: 'error',
+                title: 'Código QR no detectado',
+                text: 'Asegúrese de que el código QR esté nítido, enfocado y bien iluminado en la imagen.',
+                confirmButtonColor: '#4f46e5'
+            });
+        } finally {
+            input.value = '';
+        }
     }
 
     document.getElementById('modalEscanerQRJornada')?.addEventListener('shown.bs.modal', iniciarCamaraJornada);
