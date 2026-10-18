@@ -12,9 +12,10 @@
     'use strict';
 
     // =========================================================================
-    // 1. INDICADOR DE CONECTIVIDAD EN TIEMPO REAL (Offline / Online)
+    // 1. INDICADOR DE CONECTIVIDAD EN TIEMPO REAL (Offline / Online + Heartbeat)
     // =========================================================================
     function initConnectivityMonitor() {
+        // 1.1 Contenedor Toast de Emergencia Flotante
         let toast = document.getElementById('sia-connectivity-toast');
         if (!toast) {
             toast = document.createElement('div');
@@ -29,29 +30,130 @@
         const iconEl = toast.querySelector('.toast-icon');
         const contentEl = toast.querySelector('.toast-content');
         let hideTimer = null;
+        let isCurrentlyOnline = navigator.onLine;
 
-        function updateStatus(online) {
+        // 1.2 Obtener o crear badges de conectividad
+        function getBadges() {
+            let badges = Array.from(document.querySelectorAll('.badge-connectivity'));
+            if (badges.length === 0) {
+                // Crear badge flotante discreto si la página no tiene uno en su HTML
+                const floatingBadge = document.createElement('div');
+                floatingBadge.className = 'badge-connectivity d-inline-flex align-items-center gap-2 px-3 py-1.5 rounded-pill shadow-sm';
+                floatingBadge.id = 'sia-floating-connectivity';
+                floatingBadge.style.cssText = 'position: fixed; bottom: 18px; left: 18px; z-index: 9999; backdrop-filter: blur(8px);';
+                floatingBadge.innerHTML = `
+                    <span class="status-dot"></span>
+                    <span class="status-text fw-semibold small">Verificando conexión...</span>
+                `;
+                document.body.appendChild(floatingBadge);
+                badges.push(floatingBadge);
+            }
+            return badges;
+        }
+
+        function updateBadges(online, latencyMs = null, customMsg = null) {
+            isCurrentlyOnline = online;
+            const badges = getBadges();
+
+            badges.forEach(badge => {
+                badge.classList.remove('checking');
+                const dot = badge.querySelector('.status-dot');
+                const text = badge.querySelector('.status-text');
+
+                if (online) {
+                    badge.classList.remove('offline');
+                    badge.title = latencyMs ? `Conectado a la base de datos (Latencia: ${latencyMs}ms). Clic para volver a probar.` : 'Conectado a internet. Clic para verificar.';
+                    if (text) {
+                        text.textContent = customMsg || (latencyMs ? `En línea (${latencyMs}ms)` : 'En línea');
+                    }
+                } else {
+                    badge.classList.add('offline');
+                    badge.title = 'Sin conexión al servidor. Clic para reintentar.';
+                    if (text) {
+                        text.textContent = customMsg || 'Sin conexión';
+                    }
+                }
+            });
+        }
+
+        function showToast(online, customMsg = null) {
             clearTimeout(hideTimer);
             if (!online) {
                 toast.className = 'offline show';
                 iconEl.className = 'bi bi-wifi-off fs-4';
-                contentEl.innerHTML = '<strong>Sin conexión a internet.</strong> Los cambios en este formulario se preservarán localmente.';
+                contentEl.innerHTML = customMsg || '<strong>Sin conexión a internet.</strong> Los formularios que estés llenando se protegerán localmente.';
             } else {
                 toast.className = 'online show';
                 iconEl.className = 'bi bi-wifi fs-4';
-                contentEl.innerHTML = '<strong>Conexión restablecida.</strong> El sistema está en línea.';
+                contentEl.innerHTML = customMsg || '<strong>Conexión restablecida.</strong> El sistema está sincronizado y en línea.';
                 hideTimer = setTimeout(() => {
                     toast.classList.remove('show');
                 }, 3500);
             }
         }
 
-        window.addEventListener('offline', () => updateStatus(false));
-        window.addEventListener('online', () => updateStatus(true));
+        // 1.3 Ping activo hacia /healthz/ para verificar conexión REAL
+        async function checkConnectionActive(isManualClick = false) {
+            const badges = getBadges();
+            if (isManualClick) {
+                badges.forEach(b => {
+                    b.classList.add('checking');
+                    const txt = b.querySelector('.status-text');
+                    if (txt) txt.textContent = 'Probando...';
+                });
+            }
 
-        if (!navigator.onLine) {
-            updateStatus(false);
+            const startTime = performance.now();
+            try {
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 6000);
+
+                const resp = await fetch('/healthz/', {
+                    method: 'GET',
+                    cache: 'no-store',
+                    signal: controller.signal
+                });
+                clearTimeout(timeoutId);
+
+                const latency = Math.round(performance.now() - startTime);
+
+                if (resp.ok) {
+                    const wasOffline = !isCurrentlyOnline;
+                    updateBadges(true, latency);
+                    if (wasOffline || isManualClick) {
+                        showToast(true, `<strong>Conexión excelente.</strong> Servidor y base de datos respondiendo (${latency} ms).`);
+                    }
+                } else {
+                    throw new Error(`HTTP ${resp.status}`);
+                }
+            } catch (err) {
+                updateBadges(false);
+                showToast(false, '<strong>No se puede contactar al servidor.</strong> Revisa tu conexión o espera un instante.');
+            }
         }
+
+        // 1.4 Eventos del navegador
+        window.addEventListener('offline', () => {
+            updateBadges(false);
+            showToast(false);
+        });
+
+        window.addEventListener('online', () => {
+            checkConnectionActive();
+        });
+
+        // 1.5 Click interactivo en cualquier badge de conectividad para probar bajo demanda
+        document.addEventListener('click', function (e) {
+            const badge = e.target.closest('.badge-connectivity');
+            if (badge) {
+                e.preventDefault();
+                checkConnectionActive(true);
+            }
+        });
+
+        // Verificación inicial inmediata y heartbeat cada 25 segundos
+        checkConnectionActive();
+        setInterval(checkConnectionActive, 25000);
     }
 
     // =========================================================================

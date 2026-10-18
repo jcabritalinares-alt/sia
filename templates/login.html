@@ -23,6 +23,14 @@
             {% endfor %}
         {% endif %}
 
+        <!-- Indicador de Conectividad en Pantalla de Login -->
+        <div class="text-center mb-3">
+            <span class="badge-connectivity d-inline-flex align-items-center gap-2 px-3 py-1.5 rounded-pill shadow-sm" id="sia-login-connectivity" role="button" title="Haz clic para comprobar la conexión con el servidor">
+                <span class="status-dot"></span>
+                <span class="status-text fw-semibold small">Verificando conexión...</span>
+            </span>
+        </div>
+
         <div class="card border-0 shadow-lg rounded-4 p-4" style="background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px);">
             <div class="card-body p-2">
                 <div class="text-center mb-4">

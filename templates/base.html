@@ -39,7 +39,7 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
     <!-- SIA UI Enhancements: Conectividad, Borradores, Mascaras y Doble Envio -->
-    <link rel="stylesheet" href="{% static 'css/sia-enhancements.css' %}?v=2.1">
+    <link rel="stylesheet" href="{% static 'css/sia-enhancements.css' %}?v=2.2">
     <!-- HTML5 QR Code Scanner Library (diferido para no bloquear renderizado inicial) -->
     <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js" defer></script>
     
@@ -1405,6 +1405,12 @@
 
             <!-- Lado Derecho: Buscador, Notificaciones, Atajos, Tema, Usuario, Botón Menú Slider -->
             <div class="d-flex align-items-center gap-1.5 gap-md-2">
+                <!-- Indicador de Conectividad en Tiempo Real (En línea / Sin internet) -->
+                <div class="badge-connectivity d-inline-flex align-items-center gap-1.5 px-2.5 py-1 rounded-pill me-1" id="sia-topbar-connectivity" role="button" title="Estado de la conexión (Haz clic para verificar ahora)">
+                    <span class="status-dot"></span>
+                    <span class="status-text fw-semibold small d-none d-sm-inline" style="font-size: 0.82rem;">Verificando...</span>
+                </div>
+
                 <!-- Buscador Universal Ctrl + K -->
                 <button class="btn btn-outline-secondary btn-sm rounded-pill px-2.5 py-1 text-muted d-none d-md-inline-flex align-items-center gap-1.5 border-opacity-50" data-bs-toggle="modal" data-bs-target="#modalBusquedaGlobal" title="Buscar en todo el sistema (Ctrl + K)">
                     <i class="bi bi-search text-primary"></i>
@@ -2811,7 +2817,7 @@
 </script>
 
 <!-- Script de Mejoras SIA: Conectividad, Validacion 0422, Doble Envio y Autoguardado -->
-<script src="{% static 'js/sia-enhancements.js' %}?v=2.1" defer></script>
+<script src="{% static 'js/sia-enhancements.js' %}?v=2.2" defer></script>
 
 {% block scripts %}{% endblock %}
 
