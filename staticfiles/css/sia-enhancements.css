@@ -1,0 +1,125 @@
+/* ==========================================================================
+   SIA WEB - Mejoras de UX, Rendimiento y Robustez (Fase 1, 2 y 3)
+   ========================================================================== */
+
+/* 1. Toast Flotante de Conectividad (Offline / Online) */
+#sia-connectivity-toast {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    z-index: 10050;
+    min-width: 300px;
+    max-width: 420px;
+    padding: 14px 18px;
+    border-radius: 14px;
+    font-size: 0.92rem;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    box-shadow: 0 15px 35px rgba(0, 0, 0, 0.2);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+    transform: translateY(120%);
+    opacity: 0;
+    pointer-events: none;
+}
+
+#sia-connectivity-toast.show {
+    transform: translateY(0);
+    opacity: 1;
+    pointer-events: auto;
+}
+
+#sia-connectivity-toast.offline {
+    background: rgba(220, 38, 38, 0.95);
+    color: #ffffff;
+    border: 1px solid rgba(254, 202, 202, 0.4);
+}
+
+#sia-connectivity-toast.online {
+    background: rgba(16, 185, 129, 0.95);
+    color: #ffffff;
+    border: 1px solid rgba(167, 243, 208, 0.4);
+}
+
+/* 2. Banner de Recuperación de Borradores */
+.sia-draft-alert {
+    background: linear-gradient(135deg, rgba(79, 70, 229, 0.08) 0%, rgba(6, 182, 212, 0.08) 100%);
+    border: 1.5px dashed var(--primary, #4f46e5);
+    border-radius: 14px;
+    padding: 14px 18px;
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+    animation: siaFadeSlideDown 0.3s ease;
+}
+
+@keyframes siaFadeSlideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-8px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.sia-draft-alert .draft-text {
+    font-size: 0.92rem;
+    font-weight: 600;
+    color: var(--text-main, #0f172a);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.sia-draft-alert .draft-actions {
+    display: flex;
+    gap: 8px;
+}
+
+/* 3. Estados de Carga y Prevención de Doble Envío */
+.sia-btn-submitting {
+    opacity: 0.75 !important;
+    pointer-events: none !important;
+    cursor: not-allowed !important;
+    position: relative;
+}
+
+/* 4. Feedback Visual de Validación de Teléfono y Cédula */
+.sia-phone-feedback {
+    font-size: 0.8rem;
+    font-weight: 500;
+    margin-top: 4px;
+    display: none;
+    transition: opacity 0.2s ease;
+}
+
+.sia-phone-feedback.show {
+    display: block;
+}
+
+.sia-phone-feedback.valid {
+    color: #10b981;
+}
+
+.sia-phone-feedback.invalid {
+    color: #ef4444;
+}
+
+/* 5. Badge indicador de Soft-Delete para Auditoría */
+.badge-soft-deleted {
+    background-color: rgba(239, 68, 68, 0.12);
+    color: #dc2626;
+    border: 1px solid rgba(239, 68, 68, 0.25);
+    font-weight: 600;
+    font-size: 0.75rem;
+    padding: 4px 8px;
+    border-radius: 6px;
+}

@@ -34,7 +34,7 @@ logger = logging.getLogger(__name__)
 from beneficiarios.models import Beneficiario
 from entregas.models import BeneficioEntregado
 from core.models import AsignacionEspecial, DetalleAsignacionEspecial, RegistroAuditoria, SolicitudCiudadano
-from core.utils import obtener_url_inicio_usuario, generar_hash_firma_digital, consultar_cedula_sistemaspnp
+from core.utils import obtener_url_inicio_usuario, generar_hash_firma_digital, consultar_cedula_sistemaspnp, normalizar_telefono_venezolano
 
 import time
 import uuid
@@ -250,7 +250,7 @@ def registrar_entrega(request):
         cedula = request.POST.get('cedula', '').strip()
         nombre_beneficiario = request.POST.get('nombre_beneficiario', '').strip()
         direccion = request.POST.get('direccion', '').strip()
-        telefono = request.POST.get('telefono', '').strip()
+        telefono = normalizar_telefono_venezolano(request.POST.get('telefono', '').strip())
         codigo_prod = request.POST.get('codigo_prod', '').strip()
         firma_data = request.POST.get('firma_data', '')
         huella_data = request.POST.get('huella_data', '').strip()
@@ -1030,7 +1030,10 @@ def eliminar_entrega(request, entrega_id):
             timestamp=timezone.now()
         )
 
-        entrega.delete()
+        entrega.is_deleted = True
+        entrega.deleted_at = timezone.now()
+        entrega.deleted_by = request.user
+        entrega.save()
   
     return redirect('historial')
 
@@ -1051,7 +1054,7 @@ def editar_beneficiario_entrega(request, entrega_id):
 
         cedula_raw = request.POST.get('cedula', '').strip()
         nombre = request.POST.get('nombre_beneficiario', '').strip()
-        telefono = request.POST.get('telefono', '').strip()
+        telefono = normalizar_telefono_venezolano(request.POST.get('telefono', '').strip())
         direccion = request.POST.get('direccion', '').strip()
 
         # Limpieza básica de cédula

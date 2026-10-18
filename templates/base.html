@@ -38,6 +38,8 @@
     <!-- Bootstrap 5.3 & Icons -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
+    <!-- SIA UI Enhancements: Conectividad, Borradores, Mascaras y Doble Envio -->
+    <link rel="stylesheet" href="{% static 'css/sia-enhancements.css' %}">
     <!-- HTML5 QR Code Scanner Library (diferido para no bloquear renderizado inicial) -->
     <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js" defer></script>
     
@@ -2807,6 +2809,9 @@
         });
     };
 </script>
+
+<!-- Script de Mejoras SIA: Conectividad, Validacion 0422, Doble Envio y Autoguardado -->
+<script src="{% static 'js/sia-enhancements.js' %}" defer></script>
 
 {% block scripts %}{% endblock %}
 

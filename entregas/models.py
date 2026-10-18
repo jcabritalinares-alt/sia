@@ -1,4 +1,9 @@
 from django.db import models
+from django.contrib.auth.models import User
+
+class ActiveBeneficioManager(models.Manager):
+    def get_queryset(self):
+        return super().get_queryset().filter(is_deleted=False)
 
 class BeneficioEntregado(models.Model):
     firebase_id = models.CharField(max_length=100, unique=True, blank=True, null=True)
@@ -22,6 +27,13 @@ class BeneficioEntregado(models.Model):
     firma_beneficiario = models.TextField(blank=True, null=True)
     huella_dactilar = models.TextField(blank=True, null=True)
 
+    # Campos de Soft-Delete para trazabilidad y auditoría
+    is_deleted = models.BooleanField(default=False, db_index=True, verbose_name="Eliminado (Lógico)")
+    deleted_at = models.DateTimeField(null=True, blank=True, verbose_name="Fecha de Eliminación")
+    deleted_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='entregas_eliminadas', verbose_name="Eliminado por")
+
+    objects = ActiveBeneficioManager()
+    all_objects = models.Manager()
+
     def __str__(self):
         return f"{self.nombre_beneficiario} - {self.descripcion_prod} ({self.status})"
-

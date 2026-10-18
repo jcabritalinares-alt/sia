@@ -28,6 +28,10 @@ class DetalleAsignacionEspecial(models.Model):
     descripcion_prod = models.CharField(max_length=255)
     cantidad = models.PositiveIntegerField()
 
+class ActiveSolicitudCiudadanoManager(models.Manager):
+    def get_queryset(self):
+        return super().get_queryset().filter(is_deleted=False)
+
 class SolicitudCiudadano(models.Model):
     TIPO_CHOICES = [
         ('Ayuda Médica', 'Ayuda Médica'),
@@ -68,6 +72,14 @@ class SolicitudCiudadano(models.Model):
     url_evidencia_1 = models.URLField(max_length=500, blank=True, null=True, verbose_name="Evidencia 1")
     url_evidencia_2 = models.URLField(max_length=500, blank=True, null=True, verbose_name="Evidencia 2")
     url_evidencia_3 = models.URLField(max_length=500, blank=True, null=True, verbose_name="Evidencia 3")
+
+    # Campos de Soft-Delete para trazabilidad y auditoría
+    is_deleted = models.BooleanField(default=False, db_index=True, verbose_name="Eliminado (Lógico)")
+    deleted_at = models.DateTimeField(null=True, blank=True, verbose_name="Fecha de Eliminación")
+    deleted_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='solicitudes_eliminadas', verbose_name="Eliminado por")
+
+    objects = ActiveSolicitudCiudadanoManager()
+    all_objects = models.Manager()
 
     class Meta:
         verbose_name = 'Solicitud de Atención al Ciudadano'

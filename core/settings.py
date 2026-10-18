@@ -26,7 +26,22 @@ SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-*$5(16tr#li*6csl_ar#k&#q9f
 
 DEBUG = os.getenv('DEBUG', 'False').lower() == 'true'
 
-ALLOWED_HOSTS = ['*']
+# En producción, restringir hosts; en desarrollo permitir pruebas y accesos locales
+_env_allowed_hosts = os.getenv('ALLOWED_HOSTS')
+if _env_allowed_hosts:
+    ALLOWED_HOSTS = [h.strip() for h in _env_allowed_hosts.split(',') if h.strip()]
+elif not DEBUG:
+    ALLOWED_HOSTS = [
+        'siaweb.onrender.com',
+        '.onrender.com',
+        'localhost',
+        '127.0.0.1',
+        '10.0.2.2',
+        '.loca.lt',
+        '.trycloudflare.com',
+    ]
+else:
+    ALLOWED_HOSTS = ['*']
 
 # Configuración de confianza para dominios externos y túneles (Cloudflare, red local, Render, etc.)
 CSRF_TRUSTED_ORIGINS = [
@@ -74,7 +89,13 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
-    'whitenoise.middleware.WhiteNoiseMiddleware',
+]
+try:
+    import whitenoise
+    MIDDLEWARE.append('whitenoise.middleware.WhiteNoiseMiddleware')
+except ImportError:
+    pass
+MIDDLEWARE += [
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -186,13 +207,19 @@ MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 MEDIA_ROOT.mkdir(exist_ok=True)
 
-# Almacenamiento optimizado de archivos estáticos con WhiteNoise
+# Almacenamiento optimizado de archivos estáticos
+try:
+    import whitenoise
+    _staticfiles_backend = "whitenoise.storage.CompressedStaticFilesStorage"
+except ImportError:
+    _staticfiles_backend = "django.contrib.staticfiles.storage.StaticFilesStorage"
+
 STORAGES = {
     "default": {
         "BACKEND": "django.core.files.storage.FileSystemStorage",
     },
     "staticfiles": {
-        "BACKEND": "whitenoise.storage.CompressedStaticFilesStorage",
+        "BACKEND": _staticfiles_backend,
     },
 }
 

@@ -10,6 +10,7 @@ from core import views_informes
 
 urlpatterns = [
     path('admin/', admin.site.urls),
+    path('healthz/', core_views.health_check_view, name='health_check'),
     path('', core_views.login_view, name='home'),
     path('login/', core_views.login_view, name='login'),
     path('logout/', core_views.logout_view, name='logout'),

@@ -450,4 +450,51 @@ def subir_archivo_evidencia_seguro(archivo_file, request=None):
         logger.error(f"Error en almacenamiento local de evidencia: {local_err}")
         return None
 
+PREFIJOS_MOVILES_VE = ('0412', '0414', '0424', '0416', '0426', '0422')
+
+def normalizar_telefono_venezolano(telefono_raw):
+    """
+    Limpia y estandariza un número de teléfono venezolano en formato '04XX-XXXXXXX' o '02XX-XXXXXXX'.
+    Soporta los prefijos móviles oficiales: 0412, 0414, 0424, 0416, 0426 y 0422 (Movilnet 5G).
+    """
+    if not telefono_raw:
+        return ""
+    import re
+    # Extraer solo dígitos
+    digitos = re.sub(r'\D', '', str(telefono_raw))
+    if not digitos:
+        return ""
+    
+    # Manejar prefijo internacional +58
+    if digitos.startswith('58') and len(digitos) > 10:
+        digitos = '0' + digitos[2:]
+        
+    digitos = digitos[:11]
+    if len(digitos) == 11:
+        return f"{digitos[:4]}-{digitos[4:]}"
+    return digitos
+
+def validar_telefono_venezolano(telefono_raw):
+    """
+    Valida si el número de teléfono cumple con los prefijos permitidos en Venezuela.
+    Retorna (es_valido, telefono_formateado_o_error).
+    """
+    if not telefono_raw:
+        return True, ""
+    
+    telefono_formateado = normalizar_telefono_venezolano(telefono_raw)
+    digitos = telefono_formateado.replace('-', '')
+    
+    if len(digitos) != 11:
+        return False, "El número de teléfono debe contener 11 dígitos (ej: 0412-1234567 o 0422-1234567)."
+        
+    prefijo = digitos[:4]
+    if prefijo.startswith('04'):
+        if prefijo not in PREFIJOS_MOVILES_VE:
+            return False, f"Prefijo móvil '{prefijo}' inválido. Prefijos admitidos: 0412, 0414, 0424, 0416, 0426, 0422."
+    elif not prefijo.startswith('02'):
+        return False, f"Prefijo '{prefijo}' no corresponde a una línea nacional venezolana."
+        
+    return True, telefono_formateado
+
 

@@ -29,7 +29,7 @@ from core.models import RegistroAuditoria, SolicitudCiudadano, PerfilUsuario
 from beneficiarios.models import Beneficiario
 from entregas.models import BeneficioEntregado
 from SIA.models import SIA_producto
-from core.utils import obtener_url_inicio_usuario, parse_date_safe, enviar_notificacion_solicitud_email, generar_hash_firma_digital, subir_archivo_evidencia_seguro
+from core.utils import obtener_url_inicio_usuario, parse_date_safe, enviar_notificacion_solicitud_email, generar_hash_firma_digital, subir_archivo_evidencia_seguro, normalizar_telefono_venezolano
 
 def obtener_ip_cliente(request):
     """Extrae la dirección IP real del cliente, incluso tras proxies y túneles (Cloudflare, etc.)."""
@@ -812,7 +812,7 @@ def registrar_solicitud_ciudadano(request):
     if request.method == 'POST':
         cedula = request.POST.get('cedula', '').strip()
         nombre_apellido = request.POST.get('nombre_apellido', '').strip()
-        telefono = request.POST.get('telefono', '').strip()
+        telefono = normalizar_telefono_venezolano(request.POST.get('telefono', '').strip())
         direccion = request.POST.get('direccion', '').strip()
         tipo_solicitud = request.POST.get('tipo_solicitud', '').strip()
         descripcion_solicitud = request.POST.get('descripcion_solicitud', '').strip()
@@ -1028,8 +1028,11 @@ def eliminar_solicitud_ciudadano(request, pk):
             modulo="Atención al Ciudadano",
             timestamp=timezone.now()
         )
-        solicitud.delete()
-        messages.success(request, "Solicitud eliminada exitosamente.")
+        solicitud.is_deleted = True
+        solicitud.deleted_at = timezone.now()
+        solicitud.deleted_by = request.user
+        solicitud.save()
+        messages.success(request, "Solicitud eliminada exitosamente (preservada en auditoría).")
     return redirect('lista_solicitudes_ciudadano')
 
 def obtener_ip_red_local():
@@ -1580,6 +1583,27 @@ def api_estadisticas_filtradas(request):
 def api_clear_welcome_splash(request):
     request.session.pop('show_welcome_splash', None)
     return JsonResponse({'status': 'ok'})
+
+def health_check_view(request):
+    """
+    Endpoint ultraligero de monitoreo de salud del sistema y conexión a la base de datos.
+    Permite a Render y a servicios como UptimeRobot verificar operatividad sin sobrecarga.
+    """
+    try:
+        from django.db import connection
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT 1")
+        return JsonResponse({
+            "status": "healthy",
+            "service": "SIA Web",
+            "database": "connected"
+        }, status=200)
+    except Exception as e:
+        return JsonResponse({
+            "status": "unhealthy",
+            "service": "SIA Web",
+            "error": str(e)
+        }, status=503)
 
 
 
