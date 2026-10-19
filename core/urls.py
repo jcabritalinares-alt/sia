@@ -26,6 +26,7 @@ urlpatterns = [
     path('inventario/plantilla-excel/', inv_views.descargar_plantilla_excel_view, name='descargar_plantilla_excel'),
     path('inventario/etiquetas/<int:producto_id>/', inv_views.imprimir_etiquetas_producto, name='imprimir_etiquetas_producto'),
     path('inventario/ficha/<int:producto_id>/', inv_views.ficha_producto_view, name='ficha_producto'),
+    path('inventario/editar/<str:producto_id>/', inv_views.editar_producto, name='editar_producto'),
     path('verificar-producto/', inv_views.verificar_producto, name='verificar_producto'),
     path('obtener-inventario/', inv_views.obtener_todo_inventario, name='obtener_todo_inventario'),
     path('reporte-pdf/', inv_views.generar_reporte_inventario_independiente, name='reporte_pdf'),

@@ -106,13 +106,16 @@
                             <div class="col-12 col-md-6">
                                 <label class="form-label fw-semibold text-secondary small">¿Cómo viene este nuevo lote?</label>
                                 <select name="tipo_ingreso" id="existenteTipoIngreso" class="form-select border-primary" onchange="cambiarPresentacionExistente()">
-                                    <option value="unidad">👤 Unidades Sueltas</option>
-                                    <option value="caja">📦 Caja / Paquete / Bulto</option>
+                                    <option value="unidad">🔹 Unidades Sueltas</option>
+                                    <option value="caja">📦 Caja</option>
+                                    <option value="bulto">🎒 Bulto</option>
+                                    <option value="paquete">📑 Paquete</option>
                                 </select>
                             </div>
                             <div class="col-12 col-md-6" id="seccionCajasExistente" style="display: none;">
-                                <label class="form-label fw-semibold text-secondary small">Unidades por Caja / Paquete</label>
+                                <label id="lblUnidadesPorEmpaqueExistente" class="form-label fw-semibold text-secondary small">Unidades por Caja (Desglose)</label>
                                 <input type="number" name="unidades_por_caja" id="existenteUnidadesCaja" class="form-control fw-bold" value="1" min="1">
+                                <small class="text-muted d-block mt-1">Ingresa cuántas unidades individuales contiene cada empaque.</small>
                             </div>
                         </div>
 
@@ -191,10 +194,14 @@
                             <div class="input-group">
                                 <span class="input-group-text bg-light text-muted border-end-0"><i class="bi bi-geo-alt"></i></span>
                                 <select name="almacen" class="form-select border-start-0" required>
-                                    <option value="Principal">Almacén Principal</option>
-                                    <option value="Almacén 1">Almacén 1</option>
-                                    <option value="Almacén 2">Almacén 2</option>
-                                    <option value="Galpon">Galpón</option>
+                                    {% for alm in almacenes %}
+                                        <option value="{{ alm }}" {% if alm == 'Principal' %}selected{% endif %}>{{ alm }}</option>
+                                    {% empty %}
+                                        <option value="Principal" selected>Almacén Principal</option>
+                                        <option value="Almacén 1">Almacén 1</option>
+                                        <option value="Almacén 2">Almacén 2</option>
+                                        <option value="Galpón">Galpón</option>
+                                    {% endfor %}
                                 </select>
                             </div>
                         </div>
@@ -204,8 +211,10 @@
                             <div class="input-group">
                                 <span class="input-group-text bg-light text-muted border-end-0"><i class="bi bi-box"></i></span>
                                 <select name="tipo_ingreso" id="tipoIngresoNuevo" class="form-select border-start-0" onchange="cambiarPresentacionNuevo()" required>
-                                    <option value="unidad">Unidades Sueltas</option>
-                                    <option value="caja">Caja / Paquete / Bulto</option>
+                                    <option value="unidad">🔹 Unidades Sueltas</option>
+                                    <option value="caja">📦 Caja</option>
+                                    <option value="bulto">🎒 Bulto</option>
+                                    <option value="paquete">📑 Paquete</option>
                                 </select>
                             </div>
                         </div>
@@ -214,13 +223,40 @@
                     <div class="row g-3 mb-3">
                         <div class="col-12 col-md-6">
                             <label id="labelCantidadNuevo" class="form-label fw-semibold text-secondary small">Cantidad Inicial de Unidades</label>
-                            <input type="number" name="cantidad" class="form-control fw-bold" min="1" placeholder="Ej: 10" required>
+                            <input type="number" name="cantidad" id="cantidad_nuevo" class="form-control fw-bold" min="1" placeholder="Ej: 10" oninput="calcularDesgloseNuevo()" required>
                         </div>
 
                         <div class="col-12 col-md-6" id="seccionUnidadesPorCajaNuevo" style="display: none;">
-                            <label class="form-label fw-semibold text-secondary small">Unidades por Caja / Paquete</label>
-                            <input type="number" name="unidades_por_caja" id="unidades_por_caja_nuevo" class="form-control fw-bold" value="1" min="1">
-                            <small class="text-muted d-block mt-1">El sistema calculará automáticamente: Cantidad de Cajas × Unidades.</small>
+                            <label id="labelUnidadesPorCajaNuevo" class="form-label fw-semibold text-secondary small">Unidades por Caja (Desglose)</label>
+                            <input type="number" name="unidades_por_caja" id="unidades_por_caja_nuevo" class="form-control fw-bold" value="1" min="1" oninput="calcularDesgloseNuevo()">
+                            <small class="text-muted d-block mt-1">Ingresa cuántas unidades individuales contiene cada empaque.</small>
+                        </div>
+                    </div>
+
+                    <!-- Caja visual de cálculo en tiempo real del desglose -->
+                    <div id="boxCalculoDesgloseNuevo" class="alert alert-info border-0 rounded-3 py-2 px-3 mb-3 d-flex align-items-center gap-2" style="display: none !important;">
+                        <i class="bi bi-calculator-fill fs-5 text-primary"></i>
+                        <div>
+                            <span class="small fw-bold text-dark d-block">Desglose calculado:</span>
+                            <span id="textoDesgloseCalculadoNuevo" class="small fw-semibold text-primary"></span>
+                        </div>
+                    </div>
+
+                    <div class="row g-3 mb-4">
+                        <div class="col-12 col-md-6">
+                            <label class="form-label fw-semibold text-secondary small d-flex align-items-center gap-1">
+                                <i class="bi bi-bell-fill text-warning"></i> Stock Mínimo de Alerta
+                            </label>
+                            <input type="number" name="stock_minimo" class="form-control" value="5" min="1" placeholder="Ej: 5">
+                            <small class="text-muted d-block mt-1">El sistema emitirá alerta en la campana cuando el stock sea menor o igual a este valor.</small>
+                        </div>
+
+                        <div class="col-12 col-md-6">
+                            <label class="form-label fw-semibold text-secondary small d-flex align-items-center gap-1">
+                                <i class="bi bi-calendar-event text-primary"></i> Fecha de Vencimiento / Caducidad
+                            </label>
+                            <input type="date" name="fecha_vencimiento" class="form-control">
+                            <small class="text-muted d-block mt-1">Opcional. Ideal para medicamentos, fórmulas y alimentos con fecha límite.</small>
                         </div>
                     </div>
 
@@ -313,12 +349,25 @@
 
     function cambiarPresentacionExistente() {
         const tipo = $('#existenteTipoIngreso').val();
+        const lblCant = $('#lblCantIngreso');
+        const lblEmpaque = $('#lblUnidadesPorEmpaqueExistente');
+        const seccionCajas = $('#seccionCajasExistente');
+
         if (tipo === 'caja') {
-            $('#seccionCajasExistente').slideDown();
-            $('#lblCantIngreso').text('Cantidad de Cajas:');
+            seccionCajas.slideDown();
+            lblCant.text('Cantidad de Cajas a Sumar:');
+            lblEmpaque.text('Unidades por Caja (Desglose):');
+        } else if (tipo === 'bulto') {
+            seccionCajas.slideDown();
+            lblCant.text('Cantidad de Bultos a Sumar:');
+            lblEmpaque.text('Unidades por Bulto (Desglose):');
+        } else if (tipo === 'paquete') {
+            seccionCajas.slideDown();
+            lblCant.text('Cantidad de Paquetes a Sumar:');
+            lblEmpaque.text('Unidades por Paquete (Desglose):');
         } else {
-            $('#seccionCajasExistente').slideUp();
-            $('#lblCantIngreso').text('Cantidad de Unidades:');
+            seccionCajas.slideUp();
+            lblCant.text('Cantidad de Unidades a Sumar:');
             $('#existenteUnidadesCaja').val(1);
         }
         calcularSumaExistente();
@@ -327,13 +376,19 @@
     function calcularSumaExistente() {
         const cant = parseInt($('#inputCantIngreso').val() || 0);
         const tipo = $('#existenteTipoIngreso').val();
-        const unidadesPorCaja = tipo === 'caja' ? parseInt($('#existenteUnidadesCaja').val() || 1) : 1;
+        const esEmpaque = ['caja', 'bulto', 'paquete'].includes(tipo);
+        const unidadesPorEmpaque = esEmpaque ? parseInt($('#existenteUnidadesCaja').val() || 1) : 1;
 
-        const unidadesNetasASumar = cant * unidadesPorCaja;
+        const unidadesNetasASumar = cant * unidadesPorEmpaque;
         const total = stockExistenteSeleccionado + unidadesNetasASumar;
 
-        if (tipo === 'caja' && unidadesPorCaja > 1) {
-            $('#lblSubtotalIngreso').text('(' + cant + ' cajas × ' + unidadesPorCaja + ' u. = + ' + unidadesNetasASumar + ' u.)').show();
+        let nombrePlural = 'unidades';
+        if (tipo === 'caja') nombrePlural = cant === 1 ? 'caja' : 'cajas';
+        else if (tipo === 'bulto') nombrePlural = cant === 1 ? 'bulto' : 'bultos';
+        else if (tipo === 'paquete') nombrePlural = cant === 1 ? 'paquete' : 'paquetes';
+
+        if (esEmpaque && unidadesPorEmpaque > 1) {
+            $('#lblSubtotalIngreso').text('(' + cant + ' ' + nombrePlural + ' × ' + unidadesPorEmpaque + ' u. = + ' + unidadesNetasASumar + ' u.)').show();
         } else {
             $('#lblSubtotalIngreso').hide();
         }
@@ -355,17 +410,56 @@
         const tipo = document.getElementById('tipoIngresoNuevo').value;
         const seccionCajas = document.getElementById('seccionUnidadesPorCajaNuevo');
         const labelCantidad = document.getElementById('labelCantidadNuevo');
+        const labelUnidadesPorCaja = document.getElementById('labelUnidadesPorCajaNuevo');
         const inputUnidadesCaja = document.getElementById('unidades_por_caja_nuevo');
 
         if (tipo === 'caja') {
             seccionCajas.style.display = 'block';
             labelCantidad.innerText = 'Cantidad de Cajas';
+            if (labelUnidadesPorCaja) labelUnidadesPorCaja.innerText = 'Unidades por Caja (Desglose)';
+            inputUnidadesCaja.required = true;
+        } else if (tipo === 'bulto') {
+            seccionCajas.style.display = 'block';
+            labelCantidad.innerText = 'Cantidad de Bultos';
+            if (labelUnidadesPorCaja) labelUnidadesPorCaja.innerText = 'Unidades por Bulto (Desglose)';
+            inputUnidadesCaja.required = true;
+        } else if (tipo === 'paquete') {
+            seccionCajas.style.display = 'block';
+            labelCantidad.innerText = 'Cantidad de Paquetes';
+            if (labelUnidadesPorCaja) labelUnidadesPorCaja.innerText = 'Unidades por Paquete (Desglose)';
             inputUnidadesCaja.required = true;
         } else {
             seccionCajas.style.display = 'none';
             labelCantidad.innerText = 'Cantidad Inicial de Unidades';
             inputUnidadesCaja.required = false;
             inputUnidadesCaja.value = '1';
+        }
+        calcularDesgloseNuevo();
+    }
+
+    function calcularDesgloseNuevo() {
+        const tipo = document.getElementById('tipoIngresoNuevo').value;
+        const inputCant = document.getElementById('cantidad_nuevo');
+        const inputEmpaque = document.getElementById('unidades_por_caja_nuevo');
+        const box = document.getElementById('boxCalculoDesgloseNuevo');
+        const text = document.getElementById('textoDesgloseCalculadoNuevo');
+
+        if (!box || !text || !inputCant || !inputEmpaque) return;
+
+        const cant = parseInt(inputCant.value || 0);
+        const empaque = parseInt(inputEmpaque.value || 1);
+
+        if (['caja', 'bulto', 'paquete'].includes(tipo)) {
+            const total = cant * (empaque > 0 ? empaque : 1);
+            let nombre = tipo;
+            if (tipo === 'caja') nombre = cant === 1 ? 'Caja' : 'Cajas';
+            else if (tipo === 'bulto') nombre = cant === 1 ? 'Bulto' : 'Bultos';
+            else if (tipo === 'paquete') nombre = cant === 1 ? 'Paquete' : 'Paquetes';
+
+            box.style.setProperty('display', 'flex', 'important');
+            text.innerHTML = `<strong>${cant} ${nombre}</strong> × <strong>${empaque} unidades</strong> = <span class="badge bg-primary text-white fs-6 ms-1">${total} Unidades en Total</span> a ingresar en el inventario.`;
+        } else {
+            box.style.setProperty('display', 'none', 'important');
         }
     }
 </script>

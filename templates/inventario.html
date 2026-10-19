@@ -92,12 +92,22 @@
                     <td class="text-center">
                         {% if p.tipo_presentacion == 'caja' %}
                             <span class="badge bg-warning text-dark px-3 py-1.5 fw-bold shadow-sm">
-                                📦 Caja / Paquete
+                                <i class="bi bi-box-seam me-1"></i> Caja
+                            </span>
+                            <div class="small text-muted fw-semibold mt-1">({{ p.unidades_por_empaque }} u. c/u)</div>
+                        {% elif p.tipo_presentacion == 'bulto' %}
+                            <span class="badge bg-info text-dark px-3 py-1.5 fw-bold shadow-sm">
+                                <i class="bi bi-layers-fill me-1"></i> Bulto
+                            </span>
+                            <div class="small text-muted fw-semibold mt-1">({{ p.unidades_por_empaque }} u. c/u)</div>
+                        {% elif p.tipo_presentacion == 'paquete' %}
+                            <span class="badge bg-primary text-white px-3 py-1.5 fw-bold shadow-sm">
+                                <i class="bi bi-collection-fill me-1"></i> Paquete
                             </span>
                             <div class="small text-muted fw-semibold mt-1">({{ p.unidades_por_empaque }} u. c/u)</div>
                         {% else %}
                             <span class="badge bg-secondary text-white px-3 py-1.5 fw-bold shadow-sm">
-                                👤 Unidad Suelta
+                                <i class="bi bi-dash-circle me-1"></i> Unidades Sueltas
                             </span>
                         {% endif %}
                     </td>
@@ -118,6 +128,14 @@
                             </span>
                         {% endif %}
 
+                        {% if p.unidades_por_empaque and p.unidades_por_empaque > 1 and p.tipo_presentacion != 'unidad' %}
+                            <div class="mt-1">
+                                <span class="badge bg-light text-dark border px-2 py-0.5" style="font-size: 0.72rem;" title="Desglose en empaques">
+                                    <i class="bi bi-diagram-3-fill text-primary me-1"></i>{{ p.cant_pres_texto }}
+                                </span>
+                            </div>
+                        {% endif %}
+
                         {% if p.fecha_vencimiento %}
                             {% if p.dias_para_vencer <= 0 %}
                                 <div class="mt-1"><span class="badge bg-danger text-white px-2 py-0.5" style="font-size: 0.7rem;"><i class="bi bi-x-circle-fill me-1"></i>Vencido ({{ p.fecha_vencimiento|date:'d/m/Y' }})</span></div>
@@ -130,16 +148,21 @@
                     </td>
 
                     <td class="no-print text-center">
+                    <td class="no-print text-center">
                         <div class="d-flex justify-content-center gap-1">
-                            <button class="btn btn-outline-success btn-sm rounded-circle p-2" onclick="abrirModalSumarStock('{{ p.codigo }}', '{{ p.descripcion }}', {{ p.cantidad }}, '{{ p.almacen }}')" title="➕ Sumar Stock Rápido" style="width: 36px; height: 36px; display: inline-flex; align-items: center; justify-content: center;">
+                            <button class="btn btn-outline-success btn-sm rounded-circle p-2" onclick="abrirModalSumarStock('{{ p.codigo }}', '{{ p.descripcion|escapejs }}', {{ p.cantidad }}, '{{ p.almacen|escapejs }}')" title="➕ Sumar Stock Rápido" style="width: 36px; height: 36px; display: inline-flex; align-items: center; justify-content: center;">
                                 <i class="bi bi-plus-lg fs-6 fw-bold"></i>
+                            </button>
+
+                            <button class="btn btn-outline-warning btn-sm rounded-circle p-2" onclick="abrirModalEditarProducto({{ p.id }}, '{{ p.codigo }}', '{{ p.descripcion|escapejs }}', '{{ p.almacen|escapejs }}', '{{ p.tipo_presentacion }}', {{ p.unidades_por_empaque|default:1 }}, {{ p.cantidad }}, {{ p.stock_minimo|default:5 }}, '{{ p.fecha_vencimiento|date:'Y-m-d'|default:'' }}')" title="✏️ Modificar Datos del Producto" style="width: 36px; height: 36px; display: inline-flex; align-items: center; justify-content: center;">
+                                <i class="bi bi-pencil-square fs-6"></i>
                             </button>
 
                             <a href="{% url 'ficha_producto' p.id %}" class="btn btn-outline-info btn-sm rounded-circle p-2" title="👁️ Ver Ficha Técnica de Producto" style="width: 36px; height: 36px; display: inline-flex; align-items: center; justify-content: center;">
                                 <i class="bi bi-eye-fill"></i>
                             </a>
 
-                            <button class="btn btn-outline-primary btn-sm rounded-circle p-2" onclick="generarEtiquetaQR('{{ p.codigo }}', '{{ p.descripcion }}', {{ p.id }})" title="Ver Código QR Digital" style="width: 36px; height: 36px; display: inline-flex; align-items: center; justify-content: center;">
+                            <button class="btn btn-outline-primary btn-sm rounded-circle p-2" onclick="generarEtiquetaQR('{{ p.codigo }}', '{{ p.descripcion|escapejs }}', {{ p.id }})" title="Ver Código QR Digital" style="width: 36px; height: 36px; display: inline-flex; align-items: center; justify-content: center;">
                                 <i class="bi bi-qr-code-scan"></i>
                             </button>
 
@@ -153,6 +176,7 @@
                                 </button>
                             {% endif %}
                         </div>
+                    </td>
                     </td>
                 </tr>
                 {% empty %}
@@ -188,8 +212,10 @@
                     <div class="mb-3">
                         <label class="form-label fw-semibold text-secondary small">¿Cómo viene el nuevo lote?</label>
                         <select name="tipo_ingreso" id="modalTipoIngreso" class="form-select border-primary" onchange="cambiarPresentacionModal()">
-                            <option value="unidad">👤 Unidades Sueltas</option>
-                            <option value="caja">📦 Caja / Paquete / Bulto</option>
+                            <option value="unidad">🔹 Unidades Sueltas</option>
+                            <option value="caja">📦 Caja</option>
+                            <option value="bulto">🎒 Bulto</option>
+                            <option value="paquete">📑 Paquete</option>
                         </select>
                     </div>
 
@@ -199,7 +225,7 @@
                             <input type="number" name="cantidad" id="cantASumar" class="form-control form-control-lg fw-bold text-center border-primary" min="1" value="1" required>
                         </div>
                         <div class="col-12" id="colUnidadesCaja" style="display: none;">
-                            <label class="form-label fw-semibold text-dark small">Unidades que trae cada caja:</label>
+                            <label id="lblUnidadesPorCajaModal" class="form-label fw-semibold text-dark small">Unidades por Caja (Desglose):</label>
                             <input type="number" name="unidades_por_caja" id="unidadesPorCajaModal" class="form-control fw-bold text-center" min="1" value="1">
                         </div>
                     </div>
@@ -236,6 +262,141 @@
                     <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancelar</button>
                     <button type="submit" class="btn btn-success px-4 fw-bold">
                         <i class="bi bi-check-circle-fill me-1"></i> Confirmar y Sumar Stock
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+<!-- Modal Flotante: Modificar Datos de Producto Registrado (Código Inmutable) -->
+<div class="modal fade" id="modalEditarProducto" tabindex="-1" aria-labelledby="modalEditarProductoLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
+            <div class="modal-header bg-warning bg-opacity-10 border-bottom py-3 px-4">
+                <h5 class="modal-title fw-bold text-dark d-flex align-items-center gap-2" id="modalEditarProductoLabel">
+                    <i class="bi bi-pencil-square text-warning fs-4"></i> Modificar Datos del Producto
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+            </div>
+            <form method="POST" id="formEditarProducto" action="" data-loading-title="Guardando Cambios..." data-loading-message="Actualizando los datos del producto en la base de datos...">
+                {% csrf_token %}
+                <div class="modal-body p-4">
+                    <!-- Código de Producto (Protegido / Inmutable) -->
+                    <div class="row g-3 mb-3">
+                        <div class="col-12 col-md-5">
+                            <label class="form-label fw-semibold text-secondary small d-flex align-items-center gap-1">
+                                <i class="bi bi-lock-fill text-danger"></i> Código de Producto (Inmutable)
+                            </label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-light text-muted border-end-0"><i class="bi bi-barcode"></i></span>
+                                <input type="text" id="editModalCodigo" class="form-control border-start-0 font-monospace fw-bold bg-light" readonly disabled title="El código de producto no se puede modificar">
+                                <span class="input-group-text bg-light text-danger border-start-0" title="Código Bloqueado"><i class="bi bi-shield-lock-fill"></i></span>
+                            </div>
+                            <small class="text-muted d-block mt-1" style="font-size: 0.75rem;">
+                                <i class="bi bi-info-circle text-primary me-1"></i>El código es único en el sistema y no puede ser alterado.
+                            </small>
+                        </div>
+
+                        <div class="col-12 col-md-7">
+                            <label class="form-label fw-semibold text-secondary small">Descripción / Nombre del Producto</label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-light text-muted border-end-0"><i class="bi bi-card-text"></i></span>
+                                <input type="text" name="descripcion" id="editModalDescripcion" class="form-control border-start-0 fw-semibold" required placeholder="Nombre descriptivo del artículo">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Almacén y Presentación -->
+                    <div class="row g-3 mb-3">
+                        <div class="col-12 col-md-6">
+                            <label class="form-label fw-semibold text-secondary small">Almacén de Ubicación</label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-light text-muted border-end-0"><i class="bi bi-geo-alt"></i></span>
+                                <select name="almacen" id="editModalAlmacen" class="form-select border-start-0" required>
+                                    {% for alm in almacenes %}
+                                        <option value="{{ alm }}">{{ alm }}</option>
+                                    {% empty %}
+                                        <option value="Principal">Almacén Principal</option>
+                                        <option value="Almacén 1">Almacén 1</option>
+                                        <option value="Almacén 2">Almacén 2</option>
+                                        <option value="Galpón">Galpón</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="col-12 col-md-6">
+                            <label class="form-label fw-semibold text-secondary small">Presentación del Producto</label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-light text-muted border-end-0"><i class="bi bi-box"></i></span>
+                                <select name="tipo_presentacion" id="editModalTipoPresentacion" class="form-select border-start-0" onchange="cambiarPresentacionEdicionModal()" required>
+                                    <option value="unidad">🔹 Unidades Sueltas</option>
+                                    <option value="caja">📦 Caja</option>
+                                    <option value="bulto">🎒 Bulto</option>
+                                    <option value="paquete">📑 Paquete</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Desglose y Cantidad Total en Stock -->
+                    <div class="row g-3 mb-3">
+                        <div class="col-12 col-md-6" id="seccionEditModalDesglose" style="display: none;">
+                            <label id="lblEditModalUnidadesEmpaque" class="form-label fw-semibold text-secondary small">Unidades por Caja (Desglose)</label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-light text-muted border-end-0"><i class="bi bi-boxes"></i></span>
+                                <input type="number" name="unidades_por_empaque" id="editModalUnidadesEmpaque" class="form-control border-start-0 fw-bold" min="1" value="1" oninput="calcularDesgloseEdicionModal()">
+                            </div>
+                            <small class="text-muted d-block mt-1">Cuántas unidades individuales contiene cada empaque.</small>
+                        </div>
+
+                        <div class="col-12 col-md-6" id="colEditModalCantidad">
+                            <label class="form-label fw-semibold text-secondary small">Stock Total Disponible (Unidades)</label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-light text-muted border-end-0"><i class="bi bi-123"></i></span>
+                                <input type="number" name="cantidad" id="editModalCantidad" class="form-control border-start-0 fw-extrabold text-primary fs-5" min="0" required oninput="calcularDesgloseEdicionModal()">
+                            </div>
+                            <small class="text-muted d-block mt-1">Existencias físicas totales en almacén (unidades netas).</small>
+                        </div>
+                    </div>
+
+                    <!-- Panel interactivo de previsualización del desglose -->
+                    <div id="boxEditModalDesgloseInfo" class="alert alert-light border rounded-3 p-3 mb-3" style="display: none;">
+                        <div class="d-flex align-items-center gap-2">
+                            <i class="bi bi-diagram-3-fill text-primary fs-5"></i>
+                            <div>
+                                <span class="small fw-bold text-dark d-block">Equivalencia y Desglose de Stock:</span>
+                                <span id="txtEditModalDesgloseCalculado" class="small fw-semibold text-primary"></span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Stock Mínimo y Fecha de Vencimiento -->
+                    <div class="row g-3">
+                        <div class="col-12 col-md-6">
+                            <label class="form-label fw-semibold text-secondary small d-flex align-items-center gap-1">
+                                <i class="bi bi-bell-fill text-warning"></i> Stock Mínimo de Alerta
+                            </label>
+                            <input type="number" name="stock_minimo" id="editModalStockMinimo" class="form-control" min="0" placeholder="Ej: 5">
+                            <small class="text-muted d-block mt-1">Emite alerta cuando el stock sea menor o igual a este valor.</small>
+                        </div>
+
+                        <div class="col-12 col-md-6">
+                            <label class="form-label fw-semibold text-secondary small d-flex align-items-center gap-1">
+                                <i class="bi bi-calendar-event text-primary"></i> Fecha de Vencimiento / Caducidad
+                            </label>
+                            <input type="date" name="fecha_vencimiento" id="editModalFechaVencimiento" class="form-control">
+                            <small class="text-muted d-block mt-1">Opcional. Fecha de caducidad del lote.</small>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="modal-footer bg-light border-top py-2.5 px-4 justify-content-between">
+                    <button type="button" class="btn btn-outline-secondary rounded-3 px-3" data-bs-dismiss="modal">
+                        <i class="bi bi-x-circle me-1"></i> Cancelar
+                    </button>
+                    <button type="submit" class="btn btn-warning fw-bold text-dark rounded-3 px-4 shadow-sm d-flex align-items-center gap-2">
+                        <i class="bi bi-check-circle-fill"></i> Guardar Cambios
                     </button>
                 </div>
             </form>
@@ -481,12 +642,25 @@
 
     function cambiarPresentacionModal() {
         const tipo = $('#modalTipoIngreso').val();
+        const lblCant = $('#lblCantIngresada');
+        const lblCaja = $('#lblUnidadesPorCajaModal');
+        const colCaja = $('#colUnidadesCaja');
+
         if (tipo === 'caja') {
-            $('#colUnidadesCaja').slideDown();
-            $('#lblCantIngresada').text('Cantidad de Cajas a Sumar:');
+            colCaja.slideDown();
+            lblCant.text('Cantidad de Cajas a Sumar:');
+            lblCaja.text('Unidades por Caja (Desglose):');
+        } else if (tipo === 'bulto') {
+            colCaja.slideDown();
+            lblCant.text('Cantidad de Bultos a Sumar:');
+            lblCaja.text('Unidades por Bulto (Desglose):');
+        } else if (tipo === 'paquete') {
+            colCaja.slideDown();
+            lblCant.text('Cantidad de Paquetes a Sumar:');
+            lblCaja.text('Unidades por Paquete (Desglose):');
         } else {
-            $('#colUnidadesCaja').slideUp();
-            $('#lblCantIngresada').text('Cantidad de Unidades a Sumar:');
+            colCaja.slideUp();
+            lblCant.text('Cantidad de Unidades a Sumar:');
             $('#unidadesPorCajaModal').val(1);
         }
         calcularSumaStockModal();
@@ -495,14 +669,87 @@
     function calcularSumaStockModal() {
         const cant = parseInt($('#cantASumar').val() || 0);
         const tipo = $('#modalTipoIngreso').val();
-        const unidadesPorCaja = tipo === 'caja' ? parseInt($('#unidadesPorCajaModal').val() || 1) : 1;
+        const esEmpaque = ['caja', 'bulto', 'paquete'].includes(tipo);
+        const unidadesPorEmpaque = esEmpaque ? parseInt($('#unidadesPorCajaModal').val() || 1) : 1;
 
-        const unidadesNetasASumar = cant * unidadesPorCaja;
+        const unidadesNetasASumar = cant * unidadesPorEmpaque;
         const resultante = stockActualModal + unidadesNetasASumar;
 
         $('#txtStockActual').text(stockActualModal + ' u.');
         $('#txtStockASumar').text('+ ' + unidadesNetasASumar + ' u.');
         $('#txtStockResultante').text(resultante + ' u.');
+    }
+
+    // --- MODAL DE EDICIÓN DE DATOS DE PRODUCTO (CÓDIGO INMUTABLE) ---
+    function abrirModalEditarProducto(id, codigo, descripcion, almacen, tipo_presentacion, unidades_por_empaque, cantidad, stock_minimo, fecha_vencimiento) {
+        $('#formEditarProducto').attr('action', '/inventario/editar/' + id + '/');
+        $('#editModalCodigo').val(codigo);
+        $('#editModalDescripcion').val(descripcion);
+        $('#editModalAlmacen').val(almacen || 'Principal');
+
+        const tipo = (tipo_presentacion || 'unidad').toLowerCase();
+        $('#editModalTipoPresentacion').val(tipo);
+        $('#editModalUnidadesEmpaque').val(unidades_por_empaque || 1);
+        $('#editModalCantidad').val(cantidad || 0);
+        $('#editModalStockMinimo').val(stock_minimo !== undefined ? stock_minimo : 5);
+        $('#editModalFechaVencimiento').val(fecha_vencimiento || '');
+
+        cambiarPresentacionEdicionModal();
+        const modal = new bootstrap.Modal(document.getElementById('modalEditarProducto'));
+        modal.show();
+    }
+
+    function cambiarPresentacionEdicionModal() {
+        const tipo = $('#editModalTipoPresentacion').val();
+        const seccionDesglose = $('#seccionEditModalDesglose');
+        const lblEmpaque = $('#lblEditModalUnidadesEmpaque');
+
+        if (tipo === 'caja') {
+            seccionDesglose.show();
+            lblEmpaque.text('Unidades por Caja (Desglose):');
+        } else if (tipo === 'bulto') {
+            seccionDesglose.show();
+            lblEmpaque.text('Unidades por Bulto (Desglose):');
+        } else if (tipo === 'paquete') {
+            seccionDesglose.show();
+            lblEmpaque.text('Unidades por Paquete (Desglose):');
+        } else {
+            seccionDesglose.hide();
+            $('#editModalUnidadesEmpaque').val(1);
+        }
+        calcularDesgloseEdicionModal();
+    }
+
+    function calcularDesgloseEdicionModal() {
+        const tipo = $('#editModalTipoPresentacion').val();
+        const cant = parseInt($('#editModalCantidad').val() || 0);
+        const empaque = parseInt($('#editModalUnidadesEmpaque').val() || 1);
+        const box = $('#boxEditModalDesgloseInfo');
+        const txt = $('#txtEditModalDesgloseCalculado');
+
+        if (['caja', 'bulto', 'paquete'].includes(tipo) && empaque > 1) {
+            const cajas = Math.floor(cant / empaque);
+            const resto = cant % empaque;
+
+            let nomSingular = 'Caja';
+            let nomPlural = 'Cajas';
+            if (tipo === 'bulto') { nomSingular = 'Bulto'; nomPlural = 'Bultos'; }
+            else if (tipo === 'paquete') { nomSingular = 'Paquete'; nomPlural = 'Paquetes'; }
+
+            let desgloseTexto = '';
+            if (cajas > 0 && resto === 0) {
+                desgloseTexto = `Total: ${cant} unidades = <strong>${cajas} ${cajas === 1 ? nomSingular : nomPlural} completas</strong> (${empaque} u. c/u).`;
+            } else if (cajas > 0 && resto > 0) {
+                desgloseTexto = `Total: ${cant} unidades = <strong>${cajas} ${cajas === 1 ? nomSingular : nomPlural}</strong> y <strong>${resto} unidades sueltas</strong> (${empaque} u. c/u).`;
+            } else {
+                desgloseTexto = `Total: ${cant} unidades sueltas (menos de 1 ${nomSingular} de ${empaque} u.).`;
+            }
+
+            txt.html(desgloseTexto);
+            box.slideDown();
+        } else {
+            box.slideUp();
+        }
     }
 
     $('#cantASumar, #unidadesPorCajaModal').on('input keyup change', calcularSumaStockModal);

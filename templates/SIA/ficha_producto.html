@@ -20,6 +20,9 @@
         </div>
         <div class="d-flex flex-wrap gap-2">
             {% if user.is_authenticated %}
+            <a href="{% url 'editar_producto' producto.id %}" class="btn btn-warning fw-bold text-dark d-inline-flex align-items-center gap-2 rounded-3 shadow-sm px-3 py-2">
+                <i class="bi bi-pencil-square"></i> Modificar Datos
+            </a>
             <a href="{% url 'imprimir_etiquetas_producto' producto.id %}" target="_blank" class="btn btn-outline-secondary fw-semibold d-inline-flex align-items-center gap-2 rounded-3">
                 <i class="bi bi-tag-fill text-warning"></i> Imprimir Etiquetas
             </a>
@@ -74,21 +77,62 @@
 
                 <div class="row g-3">
                     <div class="col-12 col-sm-6">
-                        <div class="p-3 bg-light rounded-3 border">
-                            <div class="small text-muted fw-semibold uppercase mb-1">📍 Ubicación en Depósito</div>
+                        <div class="p-3 bg-light rounded-3 border h-100">
+                            <div class="small text-muted fw-semibold text-uppercase mb-1"><i class="bi bi-geo-alt-fill text-primary me-1"></i> Ubicación en Depósito</div>
                             <div class="fw-bold text-dark fs-6">
-                                <i class="bi bi-geo-alt-fill text-primary me-1"></i> {{ producto.almacen|default:"Almacén General" }}
+                                {{ producto.almacen|default:"Almacén Principal" }}
                             </div>
                         </div>
                     </div>
                     <div class="col-12 col-sm-6">
-                        <div class="p-3 bg-light rounded-3 border">
-                            <div class="small text-muted fw-semibold uppercase mb-1">📦 Presentación y Empaque</div>
+                        <div class="p-3 bg-light rounded-3 border h-100">
+                            <div class="small text-muted fw-semibold text-uppercase mb-1"><i class="bi bi-box-seam text-primary me-1"></i> Presentación y Empaque</div>
                             <div class="fw-bold text-dark fs-6">
                                 {% if producto.tipo_presentacion == 'caja' %}
-                                    📦 Caja / Paquete ({{ producto.unidades_por_empaque }} u. por empaque)
+                                    <span class="badge bg-warning text-dark px-2 py-1"><i class="bi bi-box-seam me-1"></i> Caja</span> ({{ producto.unidades_por_empaque }} u. c/u)
+                                {% elif producto.tipo_presentacion == 'bulto' %}
+                                    <span class="badge bg-info text-dark px-2 py-1"><i class="bi bi-layers-fill me-1"></i> Bulto</span> ({{ producto.unidades_por_empaque }} u. c/u)
+                                {% elif producto.tipo_presentacion == 'paquete' %}
+                                    <span class="badge bg-primary text-white px-2 py-1"><i class="bi bi-collection-fill me-1"></i> Paquete</span> ({{ producto.unidades_por_empaque }} u. c/u)
                                 {% else %}
-                                    👤 Unidad Suelta Individual
+                                    <span class="badge bg-secondary text-white px-2 py-1"><i class="bi bi-dash-circle me-1"></i> Unidades Sueltas</span>
+                                {% endif %}
+                            </div>
+                            {% if producto.cant_pres_texto %}
+                            <div class="small text-primary fw-semibold mt-1">
+                                <i class="bi bi-pie-chart-fill me-1"></i> Desglose: {{ producto.cant_pres_texto }}
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="col-12 col-sm-6">
+                        <div class="p-3 bg-light rounded-3 border h-100">
+                            <div class="small text-muted fw-semibold text-uppercase mb-1"><i class="bi bi-bell-fill text-warning me-1"></i> Stock Mínimo de Alerta</div>
+                            <div class="fw-bold text-dark fs-6">
+                                {{ producto.stock_minimo|default:5 }} unidades
+                                {% if producto.es_stock_critico %}
+                                    <span class="badge bg-danger ms-2"><i class="bi bi-exclamation-triangle-fill me-1"></i> Stock Crítico</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-12 col-sm-6">
+                        <div class="p-3 bg-light rounded-3 border h-100">
+                            <div class="small text-muted fw-semibold text-uppercase mb-1"><i class="bi bi-calendar-event text-info me-1"></i> Fecha de Vencimiento</div>
+                            <div class="fw-bold text-dark fs-6">
+                                {% if producto.fecha_vencimiento %}
+                                    {{ producto.fecha_vencimiento|date:"d/m/Y" }}
+                                    {% if producto.dias_para_vencer is not None %}
+                                        {% if producto.dias_para_vencer < 0 %}
+                                            <span class="badge bg-danger ms-1">Vencido</span>
+                                        {% elif producto.dias_para_vencer <= 30 %}
+                                            <span class="badge bg-warning text-dark ms-1">Vence en {{ producto.dias_para_vencer }} días</span>
+                                        {% else %}
+                                            <span class="badge bg-success ms-1">Vigente</span>
+                                        {% endif %}
+                                    {% endif %}
+                                {% else %}
+                                    <span class="text-muted fw-normal">No aplica / Sin registrar</span>
                                 {% endif %}
                             </div>
                         </div>

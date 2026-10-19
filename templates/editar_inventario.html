@@ -1,0 +1,237 @@
+{% extends 'base.html' %}
+
+{% block contenido %}
+<div class="container-fluid px-0">
+    <!-- Encabezado y Navegación -->
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-4 gap-3">
+        <div>
+            <div class="d-flex align-items-center gap-2 mb-1">
+                <a href="{% url 'inventario' %}" class="btn btn-sm btn-outline-secondary rounded-circle" title="Volver al Inventario">
+                    <i class="bi bi-arrow-left"></i>
+                </a>
+                <h2 class="fw-extrabold text-dark mb-0 d-flex align-items-center gap-2">
+                    <i class="bi bi-pencil-square text-warning"></i> Modificar Datos del Producto
+                </h2>
+            </div>
+            <p class="text-muted small mb-0 ms-4">Actualiza la información técnica, almacén, presentación o stock del artículo</p>
+        </div>
+        <div class="d-flex gap-2">
+            <a href="{% url 'ficha_producto' producto.id %}" class="btn btn-outline-info fw-semibold d-inline-flex align-items-center gap-2 rounded-3">
+                <i class="bi bi-eye-fill"></i> Ver Ficha Técnica
+            </a>
+            <a href="{% url 'inventario' %}" class="btn btn-outline-secondary fw-semibold d-inline-flex align-items-center gap-2 rounded-3">
+                <i class="bi bi-arrow-left"></i> Volver al Catálogo
+            </a>
+        </div>
+    </div>
+
+    <!-- Tarjeta Principal de Edición -->
+    <div class="row justify-content-center">
+        <div class="col-12 col-lg-9 col-xl-8">
+            <div class="card border border-light rounded-4 shadow-sm p-4 p-md-5 bg-white">
+                <form method="POST" action="{% url 'editar_producto' producto.id %}" id="formEditarDirecto" data-loading-title="Actualizando Producto..." data-loading-message="Guardando las modificaciones en la base de datos...">
+                    {% csrf_token %}
+
+                    <!-- Bloque de Identificación y Código Inmutable -->
+                    <div class="bg-light rounded-4 p-3.5 border mb-4">
+                        <div class="row g-3 align-items-center">
+                            <div class="col-12 col-md-5">
+                                <label class="form-label fw-bold text-dark small d-flex align-items-center gap-1.5 mb-1">
+                                    <i class="bi bi-shield-lock-fill text-danger"></i> Código de Producto (Protegido)
+                                </label>
+                                <div class="input-group">
+                                    <span class="input-group-text bg-white text-muted border-end-0"><i class="bi bi-barcode"></i></span>
+                                    <input type="text" class="form-control border-start-0 font-monospace fw-bold bg-white text-dark fs-5" value="{{ producto.codigo }}" readonly disabled>
+                                    <span class="input-group-text bg-white text-danger border-start-0" title="Código Inmutable"><i class="bi bi-lock-fill"></i></span>
+                                </div>
+                            </div>
+                            <div class="col-12 col-md-7">
+                                <div class="alert alert-warning border-0 rounded-3 py-2 px-3 mb-0 small text-dark d-flex align-items-center gap-2">
+                                    <i class="bi bi-info-circle-fill text-warning fs-5"></i>
+                                    <div>
+                                        <strong>Código inmutable:</strong> El identificador único permanece constante para proteger el historial de entregas, guías y auditorías del sistema.
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Descripción / Nombre del Producto -->
+                    <div class="mb-4">
+                        <label class="form-label fw-semibold text-secondary small">
+                            Descripción / Especificación del Producto <span class="text-danger">*</span>
+                        </label>
+                        <div class="input-group">
+                            <span class="input-group-text bg-light text-muted border-end-0"><i class="bi bi-card-text"></i></span>
+                            <input type="text" name="descripcion" class="form-control border-start-0 fw-semibold" value="{{ producto.descripcion }}" required placeholder="Nombre descriptivo del producto">
+                        </div>
+                    </div>
+
+                    <!-- Almacén y Presentación -->
+                    <div class="row g-3 mb-4">
+                        <div class="col-12 col-md-6">
+                            <label class="form-label fw-semibold text-secondary small">
+                                Almacén de Ubicación <span class="text-danger">*</span>
+                            </label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-light text-muted border-end-0"><i class="bi bi-geo-alt"></i></span>
+                                <select name="almacen" class="form-select border-start-0" required>
+                                    {% for alm in almacenes %}
+                                        <option value="{{ alm }}" {% if producto.almacen == alm %}selected{% endif %}>{{ alm }}</option>
+                                    {% empty %}
+                                        <option value="Principal" {% if producto.almacen == 'Principal' %}selected{% endif %}>Almacén Principal</option>
+                                        <option value="Almacén 1" {% if producto.almacen == 'Almacén 1' %}selected{% endif %}>Almacén 1</option>
+                                        <option value="Almacén 2" {% if producto.almacen == 'Almacén 2' %}selected{% endif %}>Almacén 2</option>
+                                        <option value="Galpón" {% if producto.almacen == 'Galpón' %}selected{% endif %}>Galpón</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="col-12 col-md-6">
+                            <label class="form-label fw-semibold text-secondary small">
+                                Presentación del Producto <span class="text-danger">*</span>
+                            </label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-light text-muted border-end-0"><i class="bi bi-box"></i></span>
+                                <select name="tipo_presentacion" id="tipoPresentacionDirecto" class="form-select border-start-0" onchange="cambiarPresentacionDirecto()" required>
+                                    <option value="unidad" {% if producto.tipo_presentacion == 'unidad' or not producto.tipo_presentacion %}selected{% endif %}>🔹 Unidades Sueltas</option>
+                                    <option value="caja" {% if producto.tipo_presentacion == 'caja' %}selected{% endif %}>📦 Caja</option>
+                                    <option value="bulto" {% if producto.tipo_presentacion == 'bulto' %}selected{% endif %}>🎒 Bulto</option>
+                                    <option value="paquete" {% if producto.tipo_presentacion == 'paquete' %}selected{% endif %}>📑 Paquete</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Desglose y Cantidad en Stock -->
+                    <div class="row g-3 mb-4">
+                        <div class="col-12 col-md-6" id="seccionDesgloseDirecto" style="{% if producto.tipo_presentacion in 'caja bulto paquete' and producto.tipo_presentacion != 'unidad' %}{% else %}display: none;{% endif %}">
+                            <label id="lblUnidadesEmpaqueDirecto" class="form-label fw-semibold text-secondary small">
+                                Unidades por Empaque (Desglose)
+                            </label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-light text-muted border-end-0"><i class="bi bi-boxes"></i></span>
+                                <input type="number" name="unidades_por_empaque" id="unidadesEmpaqueDirecto" class="form-control border-start-0 fw-bold" min="1" value="{{ producto.unidades_por_empaque|default:1 }}" oninput="calcularDesgloseDirecto()">
+                            </div>
+                            <small class="text-muted d-block mt-1">Cuántas unidades individuales contiene cada empaque.</small>
+                        </div>
+
+                        <div class="col-12 col-md-6">
+                            <label class="form-label fw-semibold text-secondary small">
+                                Stock Total Disponible (Unidades Netas) <span class="text-danger">*</span>
+                            </label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-light text-muted border-end-0"><i class="bi bi-123"></i></span>
+                                <input type="number" name="cantidad" id="cantidadDirecto" class="form-control border-start-0 fw-extrabold text-primary fs-5" min="0" value="{{ producto.cantidad }}" required oninput="calcularDesgloseDirecto()">
+                            </div>
+                            <small class="text-muted d-block mt-1">Existencias físicas totales en almacén.</small>
+                        </div>
+                    </div>
+
+                    <!-- Panel informativo de desglose dinámico -->
+                    <div id="boxDesgloseDirecto" class="alert alert-light border rounded-3 p-3 mb-4" style="display: none;">
+                        <div class="d-flex align-items-center gap-2">
+                            <i class="bi bi-diagram-3-fill text-primary fs-4"></i>
+                            <div>
+                                <span class="small fw-bold text-dark d-block">Equivalencia y Desglose de Stock:</span>
+                                <span id="txtDesgloseDirecto" class="small fw-semibold text-primary"></span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Stock Mínimo y Fecha de Vencimiento -->
+                    <div class="row g-3 mb-4">
+                        <div class="col-12 col-md-6">
+                            <label class="form-label fw-semibold text-secondary small d-flex align-items-center gap-1">
+                                <i class="bi bi-bell-fill text-warning"></i> Stock Mínimo de Alerta
+                            </label>
+                            <input type="number" name="stock_minimo" class="form-control" min="0" value="{{ producto.stock_minimo|default:5 }}" placeholder="Ej: 5">
+                            <small class="text-muted d-block mt-1">Emite alerta cuando el stock sea menor o igual a este valor.</small>
+                        </div>
+
+                        <div class="col-12 col-md-6">
+                            <label class="form-label fw-semibold text-secondary small d-flex align-items-center gap-1">
+                                <i class="bi bi-calendar-event text-primary"></i> Fecha de Vencimiento / Caducidad
+                            </label>
+                            <input type="date" name="fecha_vencimiento" class="form-control" value="{{ producto.fecha_vencimiento|date:'Y-m-d'|default:'' }}">
+                            <small class="text-muted d-block mt-1">Opcional. Fecha límite de uso del artículo.</small>
+                        </div>
+                    </div>
+
+                    <!-- Botones de Acción -->
+                    <div class="d-flex flex-column flex-sm-row justify-content-between align-items-center gap-3 pt-3 border-top">
+                        <a href="{% url 'inventario' %}" class="btn btn-outline-secondary rounded-3 px-4 py-2.5 fw-semibold w-100 w-sm-auto">
+                            <i class="bi bi-x-circle me-1"></i> Cancelar
+                        </a>
+                        <button type="submit" class="btn btn-primary-custom rounded-3 px-5 py-2.5 fw-bold shadow-sm d-flex align-items-center justify-content-center gap-2 w-100 w-sm-auto">
+                            <i class="bi bi-check-circle-fill fs-5"></i> Guardar Modificaciones
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    function cambiarPresentacionDirecto() {
+        const tipo = $('#tipoPresentacionDirecto').val();
+        const seccion = $('#seccionDesgloseDirecto');
+        const lbl = $('#lblUnidadesEmpaqueDirecto');
+
+        if (tipo === 'caja') {
+            seccion.slideDown();
+            lbl.text('Unidades por Caja (Desglose):');
+        } else if (tipo === 'bulto') {
+            seccion.slideDown();
+            lbl.text('Unidades por Bulto (Desglose):');
+        } else if (tipo === 'paquete') {
+            seccion.slideDown();
+            lbl.text('Unidades por Paquete (Desglose):');
+        } else {
+            seccion.slideUp();
+            $('#unidadesEmpaqueDirecto').val(1);
+        }
+        calcularDesgloseDirecto();
+    }
+
+    function calcularDesgloseDirecto() {
+        const tipo = $('#tipoPresentacionDirecto').val();
+        const cant = parseInt($('#cantidadDirecto').val() || 0);
+        const empaque = parseInt($('#unidadesEmpaqueDirecto').val() || 1);
+        const box = $('#boxDesgloseDirecto');
+        const txt = $('#txtDesgloseDirecto');
+
+        if (['caja', 'bulto', 'paquete'].includes(tipo) && empaque > 1) {
+            const cajas = Math.floor(cant / empaque);
+            const resto = cant % empaque;
+
+            let nomSingular = 'Caja';
+            let nomPlural = 'Cajas';
+            if (tipo === 'bulto') { nomSingular = 'Bulto'; nomPlural = 'Bultos'; }
+            else if (tipo === 'paquete') { nomSingular = 'Paquete'; nomPlural = 'Paquetes'; }
+
+            let desgloseTexto = '';
+            if (cajas > 0 && resto === 0) {
+                desgloseTexto = `Total: ${cant} unidades = <strong>${cajas} ${cajas === 1 ? nomSingular : nomPlural} completas</strong> (${empaque} u. c/u).`;
+            } else if (cajas > 0 && resto > 0) {
+                desgloseTexto = `Total: ${cant} unidades = <strong>${cajas} ${cajas === 1 ? nomSingular : nomPlural}</strong> y <strong>${resto} unidades sueltas</strong> (${empaque} u. c/u).`;
+            } else {
+                desgloseTexto = `Total: ${cant} unidades sueltas (menos de 1 ${nomSingular} de ${empaque} u.).`;
+            }
+
+            txt.html(desgloseTexto);
+            box.slideDown();
+        } else {
+            box.slideUp();
+        }
+    }
+
+    $(document).ready(function() {
+        cambiarPresentacionDirecto();
+    });
+</script>
+{% endblock %}

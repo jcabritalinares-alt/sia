@@ -500,17 +500,7 @@ def api_buscar_producto_autocomplete(request):
 
     return JsonResponse({'resultados': resultados})
 
-@login_required
-def lista_inventario(request):
-    if not request.user.is_superuser:
-        perfil = getattr(request.user, 'perfil', None)
-        if perfil and not perfil.permiso_inventario:
-            messages.error(request, "Acceso restringido: No tienes permiso para acceder al módulo de Inventario.")
-            return redirect(obtener_url_inicio_usuario(request.user))
-
-    productos = SIA_producto.objects.all()
-
-    # Obtener almacenes registrados y combinarlos con los predeterminados
+def obtener_almacenes_disponibles():
     try:
         almacenes_db = list(SIA_producto.objects.exclude(almacen__isnull=True).exclude(almacen__exact='').values_list('almacen', flat=True).distinct())
     except Exception:
@@ -523,6 +513,18 @@ def lista_inventario(request):
         if val and val not in almacenes_lista:
             almacenes_lista.append(val)
     almacenes_lista.sort()
+    return almacenes_lista
+
+@login_required
+def lista_inventario(request):
+    if not request.user.is_superuser:
+        perfil = getattr(request.user, 'perfil', None)
+        if perfil and not perfil.permiso_inventario:
+            messages.error(request, "Acceso restringido: No tienes permiso para acceder al módulo de Inventario.")
+            return redirect(obtener_url_inicio_usuario(request.user))
+
+    productos = SIA_producto.objects.all()
+    almacenes_lista = obtener_almacenes_disponibles()
 
     return render(request, 'inventario.html', {
         'productos': productos,
@@ -555,20 +557,25 @@ def registrar_inventario(request):
         
         try:
             cantidad_ingresada = int(request.POST.get('cantidad', 0))
-        except ValueError:
+        except (ValueError, TypeError):
             cantidad_ingresada = 0
 
-        tipo_ingreso = request.POST.get('tipo_ingreso', 'unidad')
-        unidades_por_caja = 1
+        tipo_ingreso = request.POST.get('tipo_ingreso', 'unidad').strip().lower()
+        unidades_por_empaque = 1
         
-        if tipo_ingreso == 'caja':
+        # Desglose para caja, bulto y paquete
+        if tipo_ingreso in ['caja', 'bulto', 'paquete']:
             try:
-                unidades_por_caja = int(request.POST.get('unidades_por_caja', 1))
-            except ValueError:
-                unidades_por_caja = 1
+                unidades_por_empaque = int(request.POST.get('unidades_por_empaque') or request.POST.get('unidades_por_caja') or 1)
+                if unidades_por_empaque < 1:
+                    unidades_por_empaque = 1
+            except (ValueError, TypeError):
+                unidades_por_empaque = 1
             
-            nueva_cantidad = cantidad_ingresada * unidades_por_caja
+            nueva_cantidad = cantidad_ingresada * unidades_por_empaque
         else:
+            tipo_ingreso = 'unidad'
+            unidades_por_empaque = 1
             nueva_cantidad = cantidad_ingresada
         
         try:
@@ -586,7 +593,7 @@ def registrar_inventario(request):
                 'almacen': request.POST.get('almacen', 'Principal'),
                 'cantidad': nueva_cantidad,
                 'tipo_presentacion': tipo_ingreso,
-                'unidades_por_empaque': unidades_por_caja,
+                'unidades_por_empaque': unidades_por_empaque,
                 'stock_minimo': stock_minimo,
                 'fecha_vencimiento': fecha_vencimiento
             }
@@ -595,7 +602,7 @@ def registrar_inventario(request):
         if not creado:
             producto.cantidad += nueva_cantidad
             producto.tipo_presentacion = tipo_ingreso
-            producto.unidades_por_empaque = unidades_por_caja
+            producto.unidades_por_empaque = unidades_por_empaque
             if request.POST.get('stock_minimo'):
                 producto.stock_minimo = stock_minimo
             if fecha_vencimiento:
@@ -604,7 +611,7 @@ def registrar_inventario(request):
 
             registrar_auditoria(
                 request,
-                f"Actualización de stock para producto '{producto.descripcion}' (Código: {codigo}). Se sumaron {nueva_cantidad} unidades.",
+                f"Actualización de stock para producto '{producto.descripcion}' (Código: {codigo}). Se sumaron {nueva_cantidad} unidades ({tipo_ingreso.upper()}).",
                 modulo="Inventario"
             )
 
@@ -612,7 +619,7 @@ def registrar_inventario(request):
         else:
             registrar_auditoria(
                 request,
-                f"Registro de nuevo producto '{descripcion}' (Código: {codigo}) con cantidad inicial de {nueva_cantidad}.",
+                f"Registro de nuevo producto '{descripcion}' (Código: {codigo}) con cantidad inicial de {nueva_cantidad} unidades ({tipo_ingreso.upper()}).",
                 modulo="Inventario"
             )
             
@@ -621,7 +628,109 @@ def registrar_inventario(request):
         return redirect('inventario')
         
     codigo_sugerido = generar_nuevo_codigo_producto()
-    return render(request, 'registrar_inventario.html', {'codigo_sugerido': codigo_sugerido})
+    almacenes_lista = obtener_almacenes_disponibles()
+    return render(request, 'registrar_inventario.html', {
+        'codigo_sugerido': codigo_sugerido,
+        'almacenes': almacenes_lista,
+    })
+
+@login_required
+@transaction.atomic
+def editar_producto(request, producto_id):
+    if not request.user.is_superuser:
+        perfil = getattr(request.user, 'perfil', None)
+        if perfil and not perfil.permiso_inventario:
+            messages.error(request, "Acceso restringido: No tienes permiso para modificar productos en Inventario.")
+            return redirect(obtener_url_inicio_usuario(request.user))
+
+    # Búsqueda flexible por ID numérico o código único
+    if str(producto_id).isdigit():
+        producto = get_object_or_404(SIA_producto, id=int(producto_id))
+    else:
+        producto = get_object_or_404(SIA_producto, codigo=str(producto_id).strip())
+
+    if request.method == 'POST':
+        descripcion = request.POST.get('descripcion', '').strip()
+        almacen = request.POST.get('almacen', 'Principal').strip()
+        tipo_presentacion = request.POST.get('tipo_presentacion', 'unidad').strip().lower()
+
+        if tipo_presentacion in ['caja', 'bulto', 'paquete']:
+            try:
+                unidades_por_empaque = int(request.POST.get('unidades_por_empaque') or request.POST.get('unidades_por_caja') or 1)
+                if unidades_por_empaque < 1:
+                    unidades_por_empaque = 1
+            except (ValueError, TypeError):
+                unidades_por_empaque = 1
+        else:
+            tipo_presentacion = 'unidad'
+            unidades_por_empaque = 1
+
+        try:
+            cantidad = int(request.POST.get('cantidad', producto.cantidad))
+            if cantidad < 0:
+                cantidad = 0
+        except (ValueError, TypeError):
+            cantidad = producto.cantidad
+
+        try:
+            stock_minimo = int(request.POST.get('stock_minimo', 5))
+            if stock_minimo < 0:
+                stock_minimo = 0
+        except (ValueError, TypeError):
+            stock_minimo = 5
+
+        fecha_vencimiento_raw = request.POST.get('fecha_vencimiento', '').strip()
+        fecha_vencimiento = parse_date_safe(fecha_vencimiento_raw) if fecha_vencimiento_raw else None
+
+        cambios = []
+        if descripcion and descripcion != producto.descripcion:
+            cambios.append(f"Descripción: '{producto.descripcion}' -> '{descripcion}'")
+            producto.descripcion = descripcion
+
+        if almacen and almacen != producto.almacen:
+            cambios.append(f"Almacén: '{producto.almacen}' -> '{almacen}'")
+            producto.almacen = almacen
+
+        if tipo_presentacion != producto.tipo_presentacion:
+            cambios.append(f"Presentación: '{producto.tipo_presentacion}' -> '{tipo_presentacion}'")
+            producto.tipo_presentacion = tipo_presentacion
+
+        if unidades_por_empaque != producto.unidades_por_empaque:
+            cambios.append(f"Unidades por empaque: {producto.unidades_por_empaque} -> {unidades_por_empaque}")
+            producto.unidades_por_empaque = unidades_por_empaque
+
+        if cantidad != producto.cantidad:
+            cambios.append(f"Stock: {producto.cantidad} -> {cantidad}")
+            producto.cantidad = cantidad
+
+        if stock_minimo != producto.stock_minimo:
+            cambios.append(f"Stock mínimo: {producto.stock_minimo} -> {stock_minimo}")
+            producto.stock_minimo = stock_minimo
+
+        if fecha_vencimiento != producto.fecha_vencimiento:
+            cambios.append(f"Vencimiento: {producto.fecha_vencimiento} -> {fecha_vencimiento}")
+            producto.fecha_vencimiento = fecha_vencimiento
+
+        # NOTA DE SEGURIDAD: El código del producto (producto.codigo) NUNCA se modifica.
+        producto.save()
+
+        registrar_auditoria(
+            request,
+            f"Modificación de producto '{producto.descripcion}' (Código inmutable: {producto.codigo}). Cambios: {'; '.join(cambios) if cambios else 'Sin alteraciones'}.",
+            modulo="Inventario"
+        )
+
+        messages.success(request, f"Producto '{producto.descripcion}' (Código: {producto.codigo}) actualizado exitosamente.")
+        next_url = request.POST.get('next') or request.GET.get('next')
+        if next_url:
+            return redirect(next_url)
+        return redirect('inventario')
+
+    almacenes_lista = obtener_almacenes_disponibles()
+    return render(request, 'editar_inventario.html', {
+        'producto': producto,
+        'almacenes': almacenes_lista,
+    })
 
 @login_required
 def verificar_producto(request):
